@@ -1,0 +1,16 @@
+.NumpadButton {
+    width: 97%;
+    height: 70px !important;
+    font-size: 15px !important;
+    margin: 3%;
+    margin-left: 5px;
+    border-radius: 0px !important;
+}
+
+
+.OK {
+    height: 145.5px !important;
+    position: relative !important;
+    bottom: 75.5px !important;
+    margin-left: 5px;
+}

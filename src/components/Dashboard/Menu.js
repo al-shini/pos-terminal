@@ -1,37 +1,19 @@
 import React from 'react';
-import { useDispatch } from 'react-redux';
-import { logout } from '../../store/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { logout } from '../../store/terminalSlice';
 
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Drawer from '@mui/material/Drawer';
-import IconButton from '@mui/material/IconButton';
-import ListSubheader from '@mui/material/ListSubheader';
-import List from '@mui/material/List';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
+import { Navbar, Stack, Button, Divider } from 'rsuite';
 
-
+import DazzleLogo from '../../assets/dazzle-logo.png';
 
 /* Icons */
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
-import Typography from '@mui/material/Typography';
-import MenuIcon from '@mui/icons-material/Menu';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import { useNavigate } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUserTie, faXmark, faClock } from '@fortawesome/free-solid-svg-icons'
 
 
 const Menu = (props) => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-
-  const [open, setOpen] = React.useState(false);
-  const toggleDrawer = () => {
-    setOpen(!open);
-  };
+  const terminalSlice = useSelector((state) => state.terminal);
 
 
   const logoutHandler = () => {
@@ -40,56 +22,35 @@ const Menu = (props) => {
 
 
   return (
-    <React.Fragment>
-      <AppBar position="static">
-        <Toolbar>
-          <IconButton onClick={toggleDrawer}
-            size="large"
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            sx={{ mr: 2 }}>
-            <MenuIcon />
-          </IconButton>
-          <Typography onClick={() => {navigate('/app'); setOpen(false)}} variant="h6" component="div" sx={{ flexGrow: 1, cursor: 'pointer' }}>
-            Shini Plus - Dazzle POS
-          </Typography>
-          <Typography variant="h6" component="div" >
-          </Typography>
-          <Button onClick={logoutHandler}
-            size="large" edge="start" color="inherit" aria-label="menu" >
-            <ExitToAppIcon />
-            <Typography variant="h7" component="div" sx={{ flexGrow: 1 }}>
-              Logout
-            </Typography>
-          </Button>
-        </Toolbar>
-      </AppBar>
+    <Navbar>
+      <div style={{ position: 'absolute', left: '0%', height: '5vh', lineHeight: '5vh' }}>
+        <img src={DazzleLogo} style={{ height: '100%', maxHeight: '6vh' }} />
+      </div>
+
+      <div style={{ position: 'absolute', left: '7vw', height: '5vh', lineHeight: '5vh' }}>
+        <label style={{ fontSize: '16px' }}>
+          <FontAwesomeIcon icon={faUserTie} style={{ marginRight: '5px'  }} />
+          {terminalSlice.loggedInUser.username}
+        </label>
+      </div>
+
+      <div style={{ position: 'absolute', left: '15vw', height: '5vh', lineHeight: '5vh' }}>
+        <label style={{ fontSize: '16px' }}>
+          <FontAwesomeIcon icon={faClock} style={{ marginRight: '5px'   }} />
+          {new Date().toISOString().split('T')[0]}
+        </label>
+      </div>
+
+      <div style={{ position: 'absolute', right: '1%', height: '5vh', lineHeight: '5vh' }}>
+        <Button appearance='link' color='red' size='xs' style={{ fontSize: '13px' }} onClick={logoutHandler}>
+          Shutdown Terminal
+          <Divider vertical />
+          <FontAwesomeIcon icon={faXmark} />
+        </Button>
+      </div>
 
 
-      <Drawer anchor='left' open={open} onClose={toggleDrawer} >
-        <Box sx={{ width: 250 }}>
-          <List
-            sx={{ width: '100%', maxWidth: 360, bgcolor: 'background.paper' }}
-            component="nav"
-            aria-labelledby="nested-list-subheader"
-            subheader={
-              <ListSubheader component="div" id="nested-list-subheader">
-                Navigation Menu
-              </ListSubheader>
-            } >
-
-            <ListItemButton onClick={() => {navigate('/app/admin'); setOpen(false)}}>
-              <ListItemIcon>
-                <AdminPanelSettingsIcon />
-              </ListItemIcon>
-              <ListItemText primary="Administration" />
-            </ListItemButton>
-          </List>
-        </Box>
-      </Drawer>
-
-    </React.Fragment>
+    </Navbar>
   );
 }
 

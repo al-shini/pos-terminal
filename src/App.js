@@ -3,9 +3,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useSelector } from 'react-redux'
 
 import Login from './components/Login/Login';
-import Landing from './components/Dashboard/Landing';
+import Terminal from './components/Terminal/Terminal';
 import Dashboard from "./components/Dashboard/Dashboard";
-import Administration from "./components/Administration/Administration";
 
 
 import Backdrop from '@mui/material/Backdrop';
@@ -39,8 +38,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="app" element={<Dashboard />} >
-          <Route path="" element={<Landing />} />
-          <Route path="admin" element={<Administration />} />
+          <Route path="" element={<Terminal />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+
 const instance = axios.create({
     baseURL: 'http://localhost:8080'
 });
@@ -7,7 +8,7 @@ const instance = axios.create({
 
 
 instance.interceptors.request.use(request => {
-    console.log(request);
+    // console.log(request);
     // Edit request config
     const token = localStorage.getItem("jwt");
 
@@ -28,7 +29,6 @@ instance.interceptors.response.use(response => {
     // Edit response config
     return response;
 }, error => {
-    console.log(error);
     return Promise.reject(error);
 });
 

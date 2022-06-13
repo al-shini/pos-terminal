@@ -6,12 +6,16 @@ const initialState = {
     authenticated: false,
     loggedInUser: null,
     token: null,
-    refreshToken: null
+    till: {},
+    balanceVariance: [],
+    display: 'ready',
+    trxMode: 'Sale'
 }
 
 /**
  * async actions
  */
+
 export const login = createAsyncThunk(
     'login',
     async (payload, thunkAPI) => {
@@ -20,14 +24,13 @@ export const login = createAsyncThunk(
             method: 'post',
             url: '/auth/login',
             data: {
-                username: payload.username,
-                password: payload.password
+                ...payload
             }
         }).then((response) => {
             if (response && response.data) {
                 thunkAPI.dispatch(hideLoading());
                 thunkAPI.dispatch(notify('Logged In!'));
-                console.log('response.data', response.data)
+                console.log(response.data);
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -39,28 +42,36 @@ export const login = createAsyncThunk(
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 }
+                else {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
             } else {
                 thunkAPI.dispatch(hideLoading());
                 thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         });
     }
 )
 
-
-export const refreshToken = createAsyncThunk(
-    'refreshToken',
+export const submitOpeningBalance = createAsyncThunk(
+    'submitOpeningBalance',
     async (payload, thunkAPI) => {
         thunkAPI.dispatch(showLoading());
         return axios({
             method: 'post',
-            url: '/auth/refresh-token',
-            headers: {
-                refreshToken: localStorage.getItem('refresh')
+            url: '/actions/initializeBalanceVariance',
+            data: {
+                balanceVarianceList: thunkAPI.getState().terminal.balanceVariance,
+                till: null
             }
         }).then((response) => {
             if (response && response.data) {
+                thunkAPI.dispatch(hideLoading());
+                thunkAPI.dispatch(notify('Openinig Balance Variance Updated!'));
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -68,21 +79,30 @@ export const refreshToken = createAsyncThunk(
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
-                    thunkAPI.dispatch(notify({ msg: 'Refresh token invalid', sev: 'error' }));
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: 'Un-authorized', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 }
+                else {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
             } else {
+                thunkAPI.dispatch(hideLoading());
                 thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         });
     }
 )
 
+
 /**
  * reducer
  */
-export const authSlice = createSlice({
+export const terminalSlice = createSlice({
     name: 'auth',
     initialState,
     reducers: {
@@ -90,7 +110,9 @@ export const authSlice = createSlice({
             state.authenticated = false;
             state.loggedInUser = null;
             state.token = null;
-            state.refreshToken = null;
+            state.balanceVariance = [];
+            state.till = null;
+            state.display = 'none';
             localStorage.removeItem('jwt');
             localStorage.removeItem('refresh');
         },
@@ -98,9 +120,18 @@ export const authSlice = createSlice({
             state.authenticated = true;
             state.loggedInUser = action.payload.user;
             state.token = action.payload.token;
-            state.refreshToken = action.payload.refreshToken;
-            localStorage.setItem('jwt',action.payload.token);
-            localStorage.setItem('refresh',action.payload.refreshToken);
+            state.balanceVariance = action.payload.balanceVarianceList;
+            state.till = action.payload.till;
+            console.log('seemless?');
+            if (!action.payload.till.isInitialized) {
+                state.display = 'balance-setup';
+            } else {
+                state.display = 'ready';
+            }
+            localStorage.setItem('jwt', action.payload.token);
+        },
+        updateBalance: (state, action) => {
+            state.balanceVariance[action.payload.i].openingBalance = action.payload.balance;
         }
     },
     extraReducers: (builder) => {
@@ -110,43 +141,42 @@ export const authSlice = createSlice({
             state.authenticated = true;
             state.loggedInUser = action.payload.user;
             state.token = action.payload.token;
-            state.refreshToken = action.payload.refreshToken;
-            localStorage.setItem('jwt',state.token);
-            localStorage.setItem('refresh',state.refreshToken);
-
+            state.balanceVariance = action.payload.balanceVarianceList;
+            state.till = action.payload.till;
+            if (!action.payload.till.isInitialized) {
+                state.display = 'balance-setup';
+            } else {
+                state.display = 'ready';
+            }
+            localStorage.setItem('jwt', state.token);
         })
 
         builder.addCase(login.rejected, (state, action) => {
             state.authenticated = false;
             state.loggedInUser = null;
             state.token = null;
-            state.refreshToken = null;
+            state.balanceVariance = [];
+            state.till = null;
+            state.display = 'none';
             localStorage.removeItem('jwt');
             localStorage.removeItem('refresh');
         })
 
-        /* refresh token thunk */
-        builder.addCase(refreshToken.fulfilled, (state, action) => {
-            state.authenticated = true;
-            state.loggedInUser = action.payload.user;
-            state.token = action.payload.token;
-            state.refreshToken = action.payload.refreshToken;
-            localStorage.setItem('jwt',state.token);
-            localStorage.setItem('refresh',state.refreshToken);
+        /* submitOpeningBalance thunk */
+        builder.addCase(submitOpeningBalance.fulfilled, (state, action) => {
+            state.till = action.payload
+            if(action.payload.isInitialized){
+                state.display = 'ready';
+            }
         })
 
-        builder.addCase(refreshToken.rejected, (state, action) => {
-            state.authenticated = false;
-            state.loggedInUser = null;
-            state.token = null;
-            state.refreshToken = null;
-            localStorage.removeItem('jwt');
-            localStorage.removeItem('refresh');
+        builder.addCase(submitOpeningBalance.rejected, (state, action) => {
+
         })
+
     },
 })
 
 
-
-export const { logout, seemlessLogin } = authSlice.actions
-export default authSlice.reducer
+export const { logout, seemlessLogin, updateBalance } = terminalSlice.actions
+export default terminalSlice.reducer

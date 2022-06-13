@@ -9,35 +9,110 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import QRCode from "react-qr-code";
 
 import PosBG from '../../assets/pos-bg.png';
 import DazzleLogo from '../../assets/dazzle-logo.png';
 
-import {login}  from '../../store/authSlice';
+import { login } from '../../store/terminalSlice';
+import { notify } from '../../store/uiSlice';
+
+import config from '../../config';
+import axios from '../../axios'
+
 
 const Login = (props) => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const authSlice = useSelector((state) => state.auth);
+    const terminalSlice = useSelector((state) => state.terminal);
 
     const [cred, setCred] = useState({
         username: '',
         password: ''
     });
 
+    const [loginQR, setLoginQR] = useState({});
+
     const theme = createTheme();
 
     const handleSubmit = (event) => {
-        dispatch(login(cred));
+        dispatch(login({ ...cred, terminalHardwareId: config.deviceId }));
         event.preventDefault();
     };
 
+    const checkQrScan = () => {
+        axios({
+            method: 'get',
+            url: '/utilities/checkQRState',
+            params: {
+                authKey: loginQR.qrAuthKey
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                if (response.data.status === 'Scanned') {
+                    dispatch(login({
+                        terminalHardwareId: config.deviceId,
+                        mobileHardwareId: response.data.signedBy,
+                        authKey: response.data.key
+                    }));
+                } else {
+                    window.setTimeout(() => {
+                        // checkQrScan();
+                    }, 1500);
+                }
+            } else {
+                dispatch(notify({ msg: 'Incorrect Login QR check response', sev: 'error' }))
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                }
+            } else {
+                dispatch(notify({ msg: error.message, sev: 'error' }));
+            }
+
+        });
+    }
+
+    useEffect(async () => {
+        axios({
+            method: 'post',
+            url: '/utilities/generateQR',
+            data: {
+                hardwareId: config.deviceId,
+                source: 'Login'
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                setLoginQR(response.data)
+            } else {
+                dispatch(notify({ msg: 'Incorrect Login QR response', sev: 'error' }))
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                }
+            } else {
+                dispatch(notify({ msg: error.message, sev: 'error' }));
+            }
+
+        });
+    }, []);
+
     useEffect(() => {
-        if(authSlice.authenticated){
+        if (terminalSlice.authenticated) {
             navigate('/app');
         }
-    }, [authSlice.authenticated]);
+    }, [terminalSlice.authenticated]);
+
+    useEffect(() => {
+        if (loginQR.qrAuthKey) {
+            checkQrScan();
+        }
+    }, [loginQR]);
 
 
 
@@ -60,11 +135,15 @@ const Login = (props) => {
                     }}
                 />
                 <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
-                    <br/>
-                    <br/>
-                    <br/>
-                    <br/>
-                <img src={DazzleLogo} style={{display: 'block', margin: 'auto', maxWidth: '60%'}} />
+                    <img src={DazzleLogo} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
+
+                    <div style={{ textAlign: 'center', margin: '15px' }}>
+                        <QRCode value={JSON.stringify(loginQR)} size={180} />
+                    </div>
+                    <h6 style={{ textAlign: 'center' }}>
+                        <br />
+                        OR
+                    </h6>
                     <Box
                         sx={{
                             my: 8,

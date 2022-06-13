@@ -1,0 +1,78 @@
+.Button {
+    line-height: 2 !important;
+    width: 100% !important;
+    display: block !important;
+    font-size: 15px !important;
+    border-radius: 0px !important;
+
+}
+
+.ActionButton {
+    line-height: 2 !important;
+    width: 90% !important;
+    display: block !important;
+    font-size: 14px !important;
+    text-align: left !important;
+    border-radius: 0px !important;
+
+}
+
+.NumpadButton {
+    width: 98%;
+    height: 60px !important;
+    font-size: 15px !important;
+    margin: 1%;
+    margin-left: 5px;
+    border-radius: 0px !important;
+}
+
+.POSButton {
+    height: 73px !important;
+    border-radius: 0px !important;
+
+    width: 90%;
+}
+
+.ScrollButton {
+    width: 100% !important;
+    height: 98px !important;
+    display: inline-block !important;
+    border-radius: 0px !important;
+}
+
+
+.TotalInvoice {
+    height: 6vh !important;
+    border-radius: 0px !important;
+    line-height: 2 !important;
+}
+
+
+
+.Panel {
+    margin-left: 5px !important;
+    border-radius: 0px !important;
+    background: white !important;
+    position: relative !important;
+}
+
+.ClearCustomerButton {
+    position: absolute !important;
+    bottom: 5% !important;
+    right: 1% !important;
+    border-radius: 0px !important;
+}
+
+.EvenRow {
+    background-color: white !important;
+}
+
+.OddRow {
+    background-color: rgba(127, 255, 212, 0.221) !important;
+}
+
+.SelectedRow{
+    font-weight: bold !important;
+    font-style: italic !important;
+    color: black !important;
+}

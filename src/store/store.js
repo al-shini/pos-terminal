@@ -1,11 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit';
 
-import authReducer from './authSlice';
+import terminalReducer from './terminalSlice';
+import trxReducer from './trxSlice';
 import uiReducer from './uiSlice';
 
 export default configureStore({
     reducer: {
-        auth: authReducer,
+        terminal: terminalReducer,
+        trx: trxReducer,
         ui: uiReducer,
     }
 });
