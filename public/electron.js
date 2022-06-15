@@ -21,8 +21,11 @@ if (require("electron-squirrel-startup")) {
 function createWindow() {
     // Create the browser window.
     const win = new BrowserWindow({
-        width: 1280,
+        width: 1024,
         height: 768,
+        resizable: true,
+        show: false,
+        fullscreen: true,
         webPreferences: {
             nodeIntegration: true
         }
@@ -37,7 +40,7 @@ function createWindow() {
             ? "http://localhost:3000"
             : `file://${path.join(__dirname, "../build/index.html")}`
     );
-
+    win.show();
     // Open the DevTools.
     if (isDev) {
         win.webContents.openDevTools({ mode: "detach" });

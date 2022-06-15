@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Stack, FlexboxGrid, List, IconButton } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faIls, faHandPointRight } from '@fortawesome/free-solid-svg-icons'
+import { faChevronDown, faChevronUp, faIls, faHandPointRight, faLock } from '@fortawesome/free-solid-svg-icons'
 import Typography from '@mui/material/Typography';
 import BarcodeReader from 'react-barcode-reader';
 import { scanBarcode } from '../../store/trxSlice';
@@ -12,6 +12,7 @@ import { scanBarcode } from '../../store/trxSlice';
 import axios from '../../axios';
 import { resumeTrx, selectLine } from '../../store/trxSlice';
 import { showLoading, hideLoading, notify } from '../../store/uiSlice';
+import { textAlign } from '@mui/system';
 
 const Invoice = (props) => {
 
@@ -22,6 +23,7 @@ const Invoice = (props) => {
     const dispatch = useDispatch();
 
     useEffect(() => {
+        dispatch(showLoading());
         return axios({
             method: 'post',
             url: '/trx/checkOpenTrx',
@@ -31,7 +33,6 @@ const Invoice = (props) => {
         }).then((response) => {
             if (response && response.data) {
                 dispatch(hideLoading());
-                dispatch(notify('Resuming Open TRX...'));
                 dispatch(resumeTrx(response.data));
             }
         }).catch((error) => {
@@ -63,16 +64,31 @@ const Invoice = (props) => {
     }
 
     const handleScan = (scannedValue) => {
-        dispatch(scanBarcode({
-            tillKey: terminal.till.key,
-            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-            barcode: scannedValue,
-            multiplier: 1
-        }))
+        if (!terminal.paymentMode) {
+            let multi = 1;
+
+            if (trxSlice.numberInputValue && trxSlice.numberInputValue !== '') {
+                multi = parseInt(trxSlice.numberInputValue);
+            }
+
+            dispatch(scanBarcode({
+                tillKey: terminal.till.key,
+                trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                barcode: scannedValue,
+                multiplier: multi
+            }))
+        }
     }
 
+    useEffect(() => {
+        document.querySelector('#invoiceList').scroll({
+            top: document.querySelector('#invoiceList').scrollHeight,
+            behavior: 'smooth'
+        });
+    }, [trxSlice.scannedItems])
+
     const handleScanError = (err) => {
-        console.error(err)
+        // console.error(err)
     }
 
     const handleItemClick = (obj) => {
@@ -84,16 +100,23 @@ const Invoice = (props) => {
 
     return (
         <React.Fragment>
-            <BarcodeReader
+            {!terminal.paymentMode && <BarcodeReader
                 onError={handleScanError}
                 onScan={handleScan}
-            />
+            />}
 
             <div style={{ background: '#303030', color: 'white', height: '5vh' }}>
                 <h4 style={{ lineHeight: '5vh', paddingLeft: '5px' }}>
-                    <small style={{ color: '#e1e1e1' }} >Transaction Mode - </small>{terminal.trxMode}
+                    <small style={{ color: '#e1e1e1' }} >Transaction Mode - </small> {terminal.trxMode}
                 </h4>
             </div>
+
+            {terminal.paymentMode && <div style={{ position: 'absolute', height: '74.5vh', zIndex: '9999', background: 'rgba(128,128,128,0.5)', width: '100%' }}>
+                <h4 style={{ textAlign: 'center', marginTop: '32vh', color: 'white' }}>
+                    <FontAwesomeIcon icon={faLock} style={{ margin: '0 5px' }} />
+                    Locked ... Waiting for Payment
+                </h4>
+            </div>}
 
             <List hover id='invoiceList' style={{ height: '74.5vh' }} autoScroll={false}>
                 {trxSlice.scannedItems ? trxSlice.scannedItems.map((obj, i) => {
@@ -112,7 +135,7 @@ const Invoice = (props) => {
                             <FlexboxGrid.Item colspan={18}>
                                 <Typography variant='subtitle1' className={(obj.key === trxSlice.selectedLine.key) ? classes.SelectedRow : null}>
                                     {(obj.key === trxSlice.selectedLine.key) ?
-                                        <FontAwesomeIcon style={{marginRight: '5px'}} icon={faHandPointRight} />
+                                        <FontAwesomeIcon style={{ marginRight: '5px' }} icon={faHandPointRight} />
                                         : null}
                                     {obj.description}
                                 </Typography>
@@ -120,6 +143,18 @@ const Invoice = (props) => {
                             <FlexboxGrid.Item colspan={3}>
                                 <Typography variant='subtitle1'>
                                     {obj.totalprice}
+                                </Typography>
+                            </FlexboxGrid.Item>
+                            <FlexboxGrid.Item colspan={1}>
+                            </FlexboxGrid.Item>
+                            <FlexboxGrid.Item colspan={20}>
+                                <Typography variant='subtitle1'>
+                                    ☺ Discount
+                                </Typography>
+                            </FlexboxGrid.Item>
+                            <FlexboxGrid.Item colspan={3}>
+                                <Typography variant='subtitle1'>
+                                    {obj.finalprice}
                                 </Typography>
                             </FlexboxGrid.Item>
                         </FlexboxGrid>

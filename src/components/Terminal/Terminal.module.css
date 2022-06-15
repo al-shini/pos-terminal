@@ -11,7 +11,7 @@
     line-height: 2 !important;
     width: 90% !important;
     display: block !important;
-    font-size: 14px !important;
+    font-size: 17px !important;
     text-align: left !important;
     border-radius: 0px !important;
 
@@ -27,7 +27,7 @@
 }
 
 .POSButton {
-    height: 73px !important;
+    height: 60px !important;
     border-radius: 0px !important;
 
     width: 90%;

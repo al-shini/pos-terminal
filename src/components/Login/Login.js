@@ -15,7 +15,7 @@ import PosBG from '../../assets/pos-bg.png';
 import DazzleLogo from '../../assets/dazzle-logo.png';
 
 import { login } from '../../store/terminalSlice';
-import { notify } from '../../store/uiSlice';
+import { notify, showLoading, hideLoading } from '../../store/uiSlice';
 
 import config from '../../config';
 import axios from '../../axios'
@@ -58,7 +58,10 @@ const Login = (props) => {
                     }));
                 } else {
                     window.setTimeout(() => {
-                        // checkQrScan();
+                        console.log(terminalSlice.authenticated);
+                        if (!terminalSlice.authenticated) {
+                            // checkQrScan();
+                        }
                     }, 1500);
                 }
             } else {
@@ -68,6 +71,9 @@ const Login = (props) => {
             if (error.response) {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                } else {
+                    dispatch(hideLoading());
+                    dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
                 dispatch(notify({ msg: error.message, sev: 'error' }));
@@ -109,7 +115,7 @@ const Login = (props) => {
     }, [terminalSlice.authenticated]);
 
     useEffect(() => {
-        if (loginQR.qrAuthKey) {
+        if (loginQR.qrAuthKey && !terminalSlice.authenticated) {
             checkQrScan();
         }
     }, [loginQR]);

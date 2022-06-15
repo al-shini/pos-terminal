@@ -9,7 +9,11 @@ const initialState = {
     till: {},
     balanceVariance: [],
     display: 'ready',
-    trxMode: 'Sale'
+    trxMode: 'Sale',
+    paymentMode: false,
+    paymentMethods: [],
+    currencies: [],
+    exchangeRates: {}
 }
 
 /**
@@ -132,6 +136,25 @@ export const terminalSlice = createSlice({
         },
         updateBalance: (state, action) => {
             state.balanceVariance[action.payload.i].openingBalance = action.payload.balance;
+        },
+        uploadPaymentMethods: (state, action) => {
+            state.paymentMethods = action.payload;
+        }
+        ,
+        uploadCurrencies: (state, action) => {
+            state.currencies = action.payload;
+        }
+        ,
+        uploadExchangeRates: (state, action) => {
+            state.exchangeRates = action.payload;
+        }
+        ,
+        beginPayment: (state) => {
+            state.paymentMode = true;
+        }
+        ,
+        endPaymentMode: (state) => {
+            state.paymentMode = false;
         }
     },
     extraReducers: (builder) => {
@@ -165,7 +188,7 @@ export const terminalSlice = createSlice({
         /* submitOpeningBalance thunk */
         builder.addCase(submitOpeningBalance.fulfilled, (state, action) => {
             state.till = action.payload
-            if(action.payload.isInitialized){
+            if (action.payload.isInitialized) {
                 state.display = 'ready';
             }
         })
@@ -178,5 +201,7 @@ export const terminalSlice = createSlice({
 })
 
 
-export const { logout, seemlessLogin, updateBalance } = terminalSlice.actions
+export const { logout, seemlessLogin, updateBalance,
+    uploadPaymentMethods, uploadCurrencies, beginPayment,endPaymentMode,
+    uploadExchangeRates } = terminalSlice.actions
 export default terminalSlice.reducer
