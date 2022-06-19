@@ -13,14 +13,15 @@ import Invoice from './Invoice';
 import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import {
-    beginPayment, uploadCurrencies, abort,logout,
+    beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry,
     uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems
 } from '../../store/terminalSlice';
-import { selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, setTrx } from '../../store/trxSlice';
+import { selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, setTrx, selectPaymentMethod } from '../../store/trxSlice';
 import { notify, hideLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import Alert from "@mui/material/Alert";
 import confirm from '../UI/ConfirmDlg';
+import config from '../../config';
 
 const Terminal = (props) => {
     const terminal = useSelector((state) => state.terminal);
@@ -172,6 +173,7 @@ const Terminal = (props) => {
             type,
             inputType
         }));
+        dispatch(selectPaymentMethod(config[type]));
     }
 
     const handleVoidLine = () => {
@@ -204,6 +206,8 @@ const Terminal = (props) => {
     }
 
     const handleAbort = () => {
+        dispatch(clearNumberInput());
+
         if (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') {
             axios({
                 method: 'get',
@@ -230,13 +234,13 @@ const Terminal = (props) => {
                 }
 
             });
-        } else if (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType !== 'none') {
-
+        } else if (terminal.paymentMode && terminal.paymentInput === 'numpad') {
+            dispatch(exitNumpadEntry());
         }
 
-        if(!terminal.paymentMode){
+        if (!terminal.paymentMode) {
             dispatch(logout());
-        }else{
+        } else {
             dispatch(abort());
         }
 
@@ -244,17 +248,17 @@ const Terminal = (props) => {
 
     const buildPaymentTypesButtons = () => {
         return <React.Fragment>
-            <Button className={classes.MainActionButton} onClick={() => { startPayment('cash', 'fixed') }}>
+            <Button key='cash' className={classes.MainActionButton} onClick={() => { startPayment('cash', 'fixed') }}>
                 <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '5px' }} />
                 <label>Cash</label>
             </Button>
             <br />
-            <Button className={classes.MainActionButton} onClick={() => { startPayment('foreign', 'fixed') }}>
+            <Button key='foregin' className={classes.MainActionButton} onClick={() => { startPayment('foreign', 'fixed') }}>
                 <FontAwesomeIcon icon={faMoneyBillTransfer} style={{ marginRight: '5px' }} />
                 <label>Currency</label>
             </Button>
             <br />
-            <Button className={classes.MainActionButton} onClick={() => { startPayment('visa', 'numpad') }}>
+            <Button key='visa' className={classes.MainActionButton} onClick={() => { startPayment('visa', 'numpad') }}>
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
                 <label>Visa</label>
             </Button>
@@ -282,7 +286,7 @@ const Terminal = (props) => {
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={i + 'space'} > .</div>);
         });
 
-        tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+        tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
 
         return tmp;
     }
@@ -309,7 +313,7 @@ const Terminal = (props) => {
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.uuid + 'space'} > .</div>);
         });
 
-        tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+        tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
 
         return tmp;
     }
@@ -317,9 +321,11 @@ const Terminal = (props) => {
     const buildVisaButtons = () => {
         let tmp = [];
 
-        terminal.currencies.map((obj) => {
+        terminal.currencies.map((obj, i) => {
             tmp.push(
-                <Button key={obj.key} className={classes.ActionButton}  >
+                <Button key={i} className={classes.ActionButton}
+                    appearance={obj.key === trxSlice.selectedCurrency ? 'primary' : 'default'}
+                    onClick={() => dispatch(selectCurrency(obj.key))} >
                     <div style={{ textAlign: 'center' }}>
                         {obj.key}
                     </div>
@@ -328,7 +334,7 @@ const Terminal = (props) => {
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.key + 'space'} > .</div>);
         });
 
-        tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+        tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
 
         return tmp;
     }
@@ -336,26 +342,26 @@ const Terminal = (props) => {
     const buildFastItemButtons = () => {
         let tmp = [];
 
-        terminal.fastItems.map((obj) => {
+        terminal.fastItems.map((obj, i) => {
             tmp.push(
-                <Button key={obj.key} className={classes.ActionButton}
+                <Button key={i} className={classes.ActionButton}
                     onClick={() => {
                         dispatch(scanBarcode({
                             barcode: obj.barcode,
                             trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                             tillKey: terminal.till ? terminal.till.key : null,
-                            multiplier: 1
+                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
                         }))
                     }} >
-                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <div key={obj.key + 'di'} style={{ textAlign: 'center', fontSize: '14px', }}>
                         {obj.itemName}
                     </div>
                 </Button>
             )
-            tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.key + 'space'} > .</div>);
+            tmp.push(<div key={obj.key + 'div'} style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>);
         });
 
-        tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+        tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
 
         return tmp;
     }

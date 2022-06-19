@@ -8,7 +8,7 @@ const initialState = {
     lastScannedBarcode: '',
     scannedItems: [],
     selectedLine: {},
-    numberInputMode: '',
+    multiplier: 1,
     numberInputValue: '',
     selectedCurrency: '',
     selectedPaymentMethod: {},
@@ -101,7 +101,6 @@ export const submitPayment = createAsyncThunk(
     }
 )
 
-
 export const closeTrxPayment = createAsyncThunk(
     'closeTrxPayment',
     async (payload, thunkAPI) => {
@@ -142,8 +141,6 @@ export const closeTrxPayment = createAsyncThunk(
         });
     }
 )
-
-
 
 export const voidPayment = createAsyncThunk(
     'voidPayment',
@@ -252,19 +249,18 @@ export const trxSlice = createSlice({
             }
         },
         clearNumberInput: (state) => {
-            state.numberInputMode = '';
             state.numberInputValue = '';
-        },
-        prepareNumberInputMode: (state, action) => {
-            state.numberInputMode = action.payload
+            state.multiplier = '1'
         },
         prepareScanMultiplier: (state) => {
             if (!state.numberInputValue || state.numberInputValue === '')
-                state.numberInputValue = '1';
-
-            state.numberInputMode = 'multiplier';
-            state.numberInputModeState = 'ready';
+                state.multiplier = '1';
+            else {
+                state.multiplier = state.numberInputValue;
+                state.numberInputValue = '';
+            }
         },
+
         handleNumberInputEntry: (state, action) => {
             const input = action.payload.value;
             const lastChar = input[input.length - 1];
@@ -274,14 +270,17 @@ export const trxSlice = createSlice({
                 }
             }
 
-            if (action.payload.paymentMode && state.numberInputValue.length < 7)
-                state.numberInputValue = state.numberInputValue + input;
+            console.log(action.payload.paymentMode);
+
+            if (action.payload.paymentMode) {
+                if (state.numberInputValue.length < 7) { state.numberInputValue = state.numberInputValue + input; }
+            }
             else
                 state.numberInputValue = state.numberInputValue + input;
 
         },
         handleNumberInputChange: (state, action) => {
-            const input = action.payload;
+            const input = action.payload.value;
             const lastChar = input[input.length - 1];
             if (lastChar === '.') {
                 if (state.numberInputValue.includes(lastChar)) {
@@ -301,6 +300,8 @@ export const trxSlice = createSlice({
                 let subStr = state.numberInputValue;
                 subStr = subStr.slice(0, -1);
                 state.numberInputValue = subStr;
+            }else{
+                state.multiplier = '1'
             }
         }, selectCurrency: (state, action) => {
             state.selectedCurrency = action.payload;
@@ -328,8 +329,8 @@ export const trxSlice = createSlice({
                 state.trx = action.payload.trx;
                 state.scannedItems = action.payload.trxLines;
                 state.selectedLine = action.payload.line;
-                state.numberInputMode = '';
                 state.numberInputValue = '';
+                state.multiplier = '1'
             }
 
         })
@@ -360,8 +361,8 @@ export const trxSlice = createSlice({
             state.lastScannedBarcode = '';
             state.scannedItems = [];
             state.selectedLine = {};
-            state.numberInputMode = '';
             state.numberInputValue = '';
+            state.multiplier = '1'
             state.selectedCurrency = '';
             state.selectedPaymentMethod = {};
             state.payments = [];
@@ -402,6 +403,6 @@ export const trxSlice = createSlice({
 
 
 
-export const { resumeTrx, selectLine, clearNumberInput, prepareNumberInputMode, handleNumberInputChange, selectPayment, uploadPayments, setTrx,
+export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency } = trxSlice.actions
 export default trxSlice.reducer

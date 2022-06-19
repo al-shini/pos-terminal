@@ -168,6 +168,9 @@ export const terminalSlice = createSlice({
             state.paymentType = action.payload.type;
             state.paymentInput = action.payload.inputType;
         },
+        exitNumpadEntry: (state) => {
+            state.paymentInput = 'fixed';
+        },
         endPaymentMode: (state) => {
             state.paymentMode = false;
         }
@@ -235,7 +238,7 @@ export const terminalSlice = createSlice({
 })
 
 
-export const { logout, seemlessLogin, updateBalance,
+export const { logout, seemlessLogin, updateBalance,exitNumpadEntry,
     uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset,uploadFastItems,
     uploadExchangeRates, uploadCashButtons, setPaymentType } = terminalSlice.actions
 export default terminalSlice.reducer

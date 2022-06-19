@@ -65,17 +65,12 @@ const Invoice = (props) => {
 
     const handleScan = (scannedValue) => {
         if (!terminal.paymentMode) {
-            let multi = 1;
-
-            if (trxSlice.numberInputValue && trxSlice.numberInputValue !== '') {
-                multi = parseInt(trxSlice.numberInputValue);
-            }
 
             dispatch(scanBarcode({
                 tillKey: terminal.till.key,
                 trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                 barcode: scannedValue,
-                multiplier: multi
+                multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
             }))
         }
     }
