@@ -27,13 +27,13 @@ const App = () => {
         <CircularProgress color="inherit" />
       </Backdrop>
 
-      <Snackbar
+      {/* <Snackbar
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         open={uiSlice.toastOpen} >
         <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
           {uiSlice.toastMsg}
         </Alert>
-      </Snackbar>
+      </Snackbar> */}
 
       <Routes>
         <Route path="/" element={<Login />} />

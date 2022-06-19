@@ -11,9 +11,13 @@ const initialState = {
     display: 'ready',
     trxMode: 'Sale',
     paymentMode: false,
-    paymentMethods: [],
+    paymentType: 'none', //none, cash,foreign,visa,eWallet..etc
+    paymentInput: 'fixed', //fixed, numpad
+    paymentMethods: {},
+    cashButtons: [],
+    foreignButtons: [],
     currencies: [],
-    exchangeRates: {}
+    exchangeRates: {},
 }
 
 /**
@@ -137,24 +141,50 @@ export const terminalSlice = createSlice({
         updateBalance: (state, action) => {
             state.balanceVariance[action.payload.i].openingBalance = action.payload.balance;
         },
-        uploadPaymentMethods: (state, action) => {
-            state.paymentMethods = action.payload;
-        }
-        ,
         uploadCurrencies: (state, action) => {
             state.currencies = action.payload;
         }
         ,
         uploadExchangeRates: (state, action) => {
             state.exchangeRates = action.payload;
+        },
+        uploadCashButtons: (state, action) => {
+            state.cashButtons = action.payload;
+        },
+        uploadPaymentMethods: (state, action) => {
+            state.paymentMethods = action.payload;
+        },
+
+        uploadForeignButtons: (state, action) => {
+            state.foreignButtons = action.payload;
         }
         ,
         beginPayment: (state) => {
             state.paymentMode = true;
-        }
-        ,
+            state.display = 'payment';
+        },
+        setPaymentType: (state, action) => {
+            state.paymentType = action.payload.type;
+            state.paymentInput = action.payload.inputType;
+        },
         endPaymentMode: (state) => {
             state.paymentMode = false;
+        }
+        ,
+        abort: (state) => {
+            if (state.paymentType === 'none') {
+                state.paymentMode = false;
+                state.display = 'ready';
+                state.paymentInput = 'fixed';
+            } else {
+                state.paymentType = 'none';
+            }
+        },
+        reset: (state) => {
+            state.paymentMode = false;
+            state.display = 'ready';
+            state.paymentType = 'none';
+            state.trxMode = 'Sale';
         }
     },
     extraReducers: (builder) => {
@@ -202,6 +232,6 @@ export const terminalSlice = createSlice({
 
 
 export const { logout, seemlessLogin, updateBalance,
-    uploadPaymentMethods, uploadCurrencies, beginPayment,endPaymentMode,
-    uploadExchangeRates } = terminalSlice.actions
+    uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort,reset,
+    uploadExchangeRates, uploadCashButtons, setPaymentType } = terminalSlice.actions
 export default terminalSlice.reducer

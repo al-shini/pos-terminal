@@ -11,9 +11,33 @@
   <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
 
   <style type="text/css">
+    @font-face {
+      font-family: "DSDIGI";
+      src: url('DS-DIGI.TTF');
+      font-style: normal;
+    }
+
+    #Total{
+      font-family: DSDIGI;
+      font-size: 55px;
+      color: #009708;
+      display: inline-block;
+      text-align: right;
+    }
+    #NISSymbol{
+      font-family: DSDIGI;
+      font-size: 30px;
+      color: #009708;
+      display: inline-block;
+      text-align: right;
+
+    }
+
     body {
-      margin: 0; 
-      background-color: #404040 !important;
+      margin: 0;
+      background-color: #4b4b4b !important;
+      overflow-y: hidden !important;
+      overflow-x: hidden !important;
     }
 
     .rs-stack-item {
@@ -30,7 +54,9 @@
       overflow-x: overlay !important;
       overflow-y: hidden !important;
     }
-    .rs-panel-body, .rs-panel-header{
+
+    .rs-panel-body,
+    .rs-panel-header {
       padding: 11.5px !important;
     }
   </style>

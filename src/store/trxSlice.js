@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { showLoading, hideLoading, notify } from './uiSlice'
+import { reset } from './terminalSlice'
 import axios from '../axios';
 
 const initialState = {
@@ -11,7 +12,10 @@ const initialState = {
     numberInputValue: '',
     selectedCurrency: '',
     selectedPaymentMethod: {},
-
+    payments: [],
+    selectedPayment: {},
+    trxPaid: 0,
+    trxChange: 0
 }
 
 /**
@@ -79,6 +83,134 @@ export const submitPayment = createAsyncThunk(
                     thunkAPI.dispatch(hideLoading());
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
+                } else if (error.response.status === 499) {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                } else {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(hideLoading());
+                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+            }
+
+        });
+    }
+)
+
+
+export const closeTrxPayment = createAsyncThunk(
+    'closeTrxPayment',
+    async (payload, thunkAPI) => {
+        thunkAPI.dispatch(showLoading());
+        return axios({
+            method: 'get',
+            url: '/trx/closeTrxPayment/' + payload
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(hideLoading());
+                thunkAPI.dispatch(notify({ msg: 'Transaction paid, prepare for next customer ☺', sev: 'info' }));
+                thunkAPI.dispatch(reset());
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            console.log(error);
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                } else if (error.response.status === 499) {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                } else {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(hideLoading());
+                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+            }
+
+        });
+    }
+)
+
+
+
+export const voidPayment = createAsyncThunk(
+    'voidPayment',
+    async (payload, thunkAPI) => {
+        thunkAPI.dispatch(showLoading());
+        return axios({
+            method: 'post',
+            url: '/trx/voidPayment',
+            data: payload
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(hideLoading());
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            console.log(error);
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                } else if (error.response.status === 499) {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                } else {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(hideLoading());
+                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+            }
+
+        });
+    }
+)
+
+export const voidLine = createAsyncThunk(
+    'voidLine',
+    async (payload, thunkAPI) => {
+        thunkAPI.dispatch(showLoading());
+        return axios({
+            method: 'post',
+            url: '/trx/voidLine',
+            data: payload
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(hideLoading());
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            console.log(error);
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                } else if (error.response.status === 499) {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
                 } else {
                     thunkAPI.dispatch(hideLoading());
                     thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
@@ -147,6 +279,16 @@ export const trxSlice = createSlice({
             }
         }, selectCurrency: (state, action) => {
             state.selectedCurrency = action.payload;
+        }, selectPayment: (state, action) => {
+            state.selectedPayment = action.payload;
+        }
+        , uploadPayments: (state, action) => {
+            if (action.payload.payments) {
+                state.payments = action.payload.payments;
+                state.trx = action.payload.trx;
+                state.trxPaid = action.payload.totalPaid;
+                state.trxChange = action.payload.change;
+            }
         }
         , selectPaymentMethod: (state, action) => {
             state.selectedPaymentMethod = action.payload;
@@ -171,10 +313,13 @@ export const trxSlice = createSlice({
 
         })
 
-         /* submitPayment thunk */
-         builder.addCase(submitPayment.fulfilled, (state, action) => {
-            if (action.payload.line) {
-
+        /* submitPayment thunk */
+        builder.addCase(submitPayment.fulfilled, (state, action) => {
+            if (action.payload.payments) {
+                state.payments = action.payload.payments;
+                state.trxPaid = action.payload.totalPaid;
+                state.trxChange = action.payload.change;
+                state.trx = action.payload.trx;
             }
 
         })
@@ -182,11 +327,56 @@ export const trxSlice = createSlice({
         builder.addCase(submitPayment.rejected, (state, action) => {
 
         })
+
+        /* closeTrxPayment thunk */
+        builder.addCase(closeTrxPayment.fulfilled, (state, action) => {
+            // reset trx state (prepare to start new one)
+            state.trx = null;
+            state.lastScannedBarcode = '';
+            state.scannedItems = [];
+            state.selectedLine = {};
+            state.numberInputMode = '';
+            state.numberInputValue = '';
+            state.selectedCurrency = '';
+            state.selectedPaymentMethod = {};
+            state.payments = [];
+            state.selectedPayment = {};
+            state.trxPaid = 0;
+            state.trxChange = 0;
+        })
+
+        builder.addCase(closeTrxPayment.rejected, (state, action) => {
+
+        })
+
+        /* voidPayment thunk */
+        builder.addCase(voidPayment.fulfilled, (state, action) => {
+            if (action.payload.payments) {
+                state.payments = action.payload.payments;
+                state.trxPaid = action.payload.totalPaid;
+                state.trxChange = action.payload.change;
+                state.trx = action.payload.trx;
+            }
+
+        })
+
+        builder.addCase(voidPayment.rejected, (state, action) => {
+
+        })
+
+        /* voidLine thunk */
+        builder.addCase(voidLine.fulfilled, (state, action) => {
+
+        })
+
+        builder.addCase(voidLine.rejected, (state, action) => {
+
+        })
     },
 })
 
 
 
-export const { resumeTrx, selectLine, clearNumberInput, prepareNumberInputMode, handleNumberInputChange,
+export const { resumeTrx, selectLine, clearNumberInput, prepareNumberInputMode, handleNumberInputChange, selectPayment, uploadPayments,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency } = trxSlice.actions
 export default trxSlice.reducer

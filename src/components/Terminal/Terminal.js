@@ -5,26 +5,26 @@ import { Button, Input, FlexboxGrid, Panel, Divider, Whisper, Popover } from 'rs
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faSackDollar, faBroom,
-    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faHandHoldingDollar, faHashtag
+    faSackDollar, faBroom, faMoneyBillTransfer,
+    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
+import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import {
-    beginPayment, finishPayment, uploadCurrencies, uploadExchangeRates,
-    uploadPaymentMethods, endPaymentMode
+    beginPayment, uploadCurrencies, abort,
+    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods
 } from '../../store/terminalSlice';
-import { selectCurrency, selectPaymentMethod, handleNumberInputChange, clearNumberInput } from '../../store/trxSlice';
+import { selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine } from '../../store/trxSlice';
 import { notify, hideLoading } from '../../store/uiSlice';
+import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
+import Alert from "@mui/material/Alert";
 
 const Terminal = (props) => {
-    const triggerRef = React.useRef();
-    const open = () => triggerRef.current.open();
-    const close = () => triggerRef.current.close();
-
     const terminal = useSelector((state) => state.terminal);
     const trxSlice = useSelector((state) => state.trx);
+    const uiSlice = useSelector((state) => state.ui);
 
     const [actionsMode, setActionsMode] = useState('payment');
 
@@ -34,15 +34,35 @@ const Terminal = (props) => {
 
         axios({
             method: 'get',
-            url: '/payment-method/list',
-            params: {
-                showDeleted: 0
-            }
+            url: '/payment-method/getCashNotes'
         }).then((response) => {
             if (response && response.data) {
-                dispatch(uploadPaymentMethods(response.data));
+                dispatch(uploadCashButtons(response.data));
             } else {
-                dispatch(notify({ msg: 'Incorrect /payment-method/list response', sev: 'error' }))
+                dispatch(notify({ msg: 'Incorrect /payment-method/getCashNotes response', sev: 'error' }))
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                } else {
+                    dispatch(hideLoading());
+                    dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                }
+            } else {
+                dispatch(notify({ msg: error.message, sev: 'error' }));
+            }
+
+        });
+
+        axios({
+            method: 'get',
+            url: '/payment-method/getForeignNotes'
+        }).then((response) => {
+            if (response && response.data) {
+                dispatch(uploadForeignButtons(response.data));
+            } else {
+                dispatch(notify({ msg: 'Incorrect /payment-method/getForeignNotes response', sev: 'error' }))
             }
         }).catch((error) => {
             if (error.response) {
@@ -91,19 +111,19 @@ const Terminal = (props) => {
 
         axios({
             method: 'get',
-            url: '/exchange-rate/listOfDay',
+            url: '/payment-method/list',
             params: {
-                tillKey: terminal.till ? terminal.till.key : ''
+                showDeleted: 0
             }
         }).then((response) => {
             if (response && response.data) {
-                let exchangeRates = {};
+                let paymentMethods = {};
                 response.data.map((obj) => {
-                    exchangeRates[obj.currencyKey] = obj.rate
+                    paymentMethods[obj.key] = obj
                 })
-                dispatch(uploadExchangeRates(exchangeRates));
+                dispatch(uploadPaymentMethods(paymentMethods));
             } else {
-                dispatch(notify({ msg: 'Incorrect /exchange-rate/list response', sev: 'error' }))
+                dispatch(notify({ msg: 'Incorrect /payment-methods/list response', sev: 'error' }))
             }
         }).catch((error) => {
             if (error.response) {
@@ -120,202 +140,310 @@ const Terminal = (props) => {
         });
     }, [])
 
-    useEffect(() => {
-        close();
-    }, [trxSlice.selectedCurrency]);
 
-    const handleBeginPayment = (pMethod) => {
+    const startPayment = (type, inputType) => {
         dispatch(clearNumberInput());
         dispatch(beginPayment());
-        dispatch(selectPaymentMethod(pMethod));
+        dispatch(setPaymentType({
+            type,
+            inputType
+        }));
     }
 
+    const handleVoidLine = () => {
+        if (trxSlice.trx) {
+            if (terminal.paymentMode) {
+                if (trxSlice.selectedPayment) {
+                    dispatch(voidPayment({
+                        trxKey: trxSlice.trx.key,
+                        lineKey: trxSlice.selectedPayment.key
+                    }));
+                } else {
+                    dispatch(notify({ msg: 'No payment line selected', sev: 'warning' }));
+                }
+            } else {
+                if (trxSlice.selectedLine) {
+                    dispatch(voidLine({
+                        trxKey: trxSlice.trx.key,
+                        lineKey: trxSlice.selectedLine.key
+                    }));
+                } else {
+                    dispatch(notify({ msg: 'No transaction line selected', sev: 'warning' }));
+                }
+            }
+        } else {
+            dispatch(notify({ msg: 'No open transactions', sev: 'warning' }));
+        }
+    }
 
-    const buildPaymentMethodButtons = (mode) => {
+    const buildPaymentTypesButtons = () => {
+        return <React.Fragment>
+            <Button className={classes.MainActionButton} onClick={() => { startPayment('cash', 'fixed') }}>
+                <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '5px' }} />
+                <label>Cash</label>
+            </Button>
+            <br />
+            <Button className={classes.MainActionButton} onClick={() => { startPayment('foreign', 'fixed') }}>
+                <FontAwesomeIcon icon={faMoneyBillTransfer} style={{ marginRight: '5px' }} />
+                <label>Currency</label>
+            </Button>
+            <br />
+            <Button className={classes.MainActionButton} onClick={() => { startPayment('visa', 'numpad') }}>
+                <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
+                <label>Visa</label>
+            </Button>
+        </React.Fragment>;
+    }
+
+    const buildCashButtons = () => {
         let tmp = [];
-        terminal.paymentMethods.map((obj) => {
+
+        terminal.cashButtons.map((obj, i) => {
             tmp.push(
-                <Button key={obj.key} appearance={trxSlice.selectedPaymentMethod.key === obj.key ? 'primary' : 'default'} className={classes.ActionButton} onClick={(e) => handleBeginPayment(obj)} >
-                    <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '5px' }} />
-                    <label>{obj.description}</label>
-                </Button>)
-            tmp.push(<br key={obj.key + 'br'} />);
+                <Button key={i} onClick={() => {
+                    dispatch(submitPayment({
+                        tillKey: terminal.till ? terminal.till.key : null,
+                        trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                        paymentMethodKey: obj.paymentMethodKey,
+                        currency: obj.currency,
+                        amount: obj.amount
+                    }))
+                }} style={{ background: `url(${obj.image}) rgb(247 247 250)`, backgroundRepeat: 'no-repeat', backgroundPosition: 'center', color: 'transparent' }}
+                    className={classes.ActionButton} >
+                    .
+                </Button>
+            )
+            tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={i + 'space'} > .</div>);
         });
 
-        tmp.push(
-            <Button key='onaccount' disabled appearance="default" className={classes.ActionButton}   >
-                <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
-                <label>On Account</label>
-            </Button>);
+        tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
 
         return tmp;
     }
 
-    const cancelPayment = () => {
-        dispatch(endPaymentMode());
-        dispatch(selectPaymentMethod({}));
-        dispatch(clearNumberInput());
-        dispatch(selectCurrency(terminal.currencies[0].key));
+    const buildForeignButtons = () => {
+        let tmp = [];
+
+        terminal.foreignButtons.map((obj) => {
+            tmp.push(
+                <Button key={obj.uuid} onClick={() => {
+                    dispatch(submitPayment({
+                        tillKey: terminal.till ? terminal.till.key : null,
+                        trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                        paymentMethodKey: obj.paymentMethodKey,
+                        currency: obj.currency,
+                        amount: obj.amount
+                    }))
+                }}
+                    style={{ background: `url(${obj.image}) rgb(247 247 250)`, backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}
+                    className={classes.ActionButton} >
+                    <span style={{ color: 'transparent' }}> .</span>
+                </Button>
+            )
+            tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.uuid + 'space'} > .</div>);
+        });
+
+        tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+
+        return tmp;
     }
 
-    const onInputChange = (e) => {
-        dispatch(handleNumberInputChange(e));
-    }
+    const buildVisaButtons = () => {
+        let tmp = [];
 
-    const currencyPopOverSpeaker = (
-        <Popover title={<span style={{ fontSize: '20px', display: 'block', textAlign: 'center' }}>Change Currency</span>}>
-            {
-                terminal.currencies.map((obj) => {
-                    if (obj.key === trxSlice.selectedCurrency)
-                        return null;
-                    return <Button appearance='ghost' color='yellow' onClick={(e) => { dispatch(selectCurrency(obj.key)) }}
-                        style={{ width: '200', height: '60', display: 'block', marginBottom: 10, fontSize: '18px' }}
-                        key={obj.key}>{obj.code}</Button>
-                })
-            }
-        </Popover>
-    );
+        terminal.currencies.map((obj) => {
+            tmp.push(
+                <Button key={obj.key} className={classes.ActionButton}  >
+                    <div style={{ textAlign: 'center' }}>
+                        {obj.key}
+                    </div>
+                </Button>
+            )
+            tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.key + 'space'} > .</div>);
+        });
+
+        tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+
+        return tmp;
+    }
 
 
     return (
         <FlexboxGrid >
-            <FlexboxGrid.Item colspan={24} style={{ height: '1vh' }} />
-            <FlexboxGrid.Item colspan={11} style={{ background: 'white' }} >
+            <FlexboxGrid.Item colspan={11} style={{ background: 'white', position: 'relative', left: '6px', width: '48.83333333%' }}  >
                 {terminal.display === 'ready' && <Invoice />}
                 {terminal.display === 'balance-setup' && <BalanceSetup />}
+                {terminal.display === 'payment' && <Payments />}
+            </FlexboxGrid.Item>
+
+            <FlexboxGrid.Item colspan={1} style={{ width: '1.166667%' }}>
+            </FlexboxGrid.Item>
+
+            <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '87.5vh' }}>
+                <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
+                    <h6 style={{ lineHeight: '5vh', textAlign: 'center' }}>
+                        <FontAwesomeIcon icon={faAddressCard} style={{ marginRight: '7px' }} />
+                        Cash Customer / Shini Bet
+                    </h6>
+                </div>
+
+                <div style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', height: '33vh' }}>
+                    <div style={{ padding: '4px' }}>
+                        <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
+                            {uiSlice.toastMsg}
+                        </Alert>
+                    </div>
+                    <Divider style={{ margin: '7px' }} />
+                    {
+                        terminal.paymentMode &&
+                        <FlexboxGrid>
+                            <FlexboxGrid.Item colspan={24} >
+                                <div style={{ border: '1px solid #e1e1e1', padding: '8px', minWidth: '60%', margin: 'auto' }}>
+                                    <small style={{ fontSize: '25px', marginRight: '5px' }}>
+                                        Paid =
+                                    </small>
+                                    <b>
+                                        <label id='Total' style={{ fontSize: '34px' }}>
+                                            {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(2)}
+                                        </label>
+                                    </b>
+                                </div>
+                            </FlexboxGrid.Item>
+                            <FlexboxGrid.Item colspan={24}>
+                                <br />
+                            </FlexboxGrid.Item>
+                            <FlexboxGrid.Item colspan={24}>
+                                <div style={{ border: '1px solid #e1e1e1', padding: '8px', minwidth: '60%', margin: 'auto' }}>
+                                    <small style={{ fontSize: '25px', marginRight: '5px' }}>
+                                        Change =
+                                    </small>
+                                    <b> <label id='Total' style={{ fontSize: '34px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
+                                        {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(2)}
+                                    </label>
+                                    </b>
+                                </div>
+                            </FlexboxGrid.Item>
+                        </FlexboxGrid>
+                    }
+                </div>
+
+                <div style={{ background: 'white', padding: '10px', position: 'absolute', bottom: '0%', width: '96.5%' }}>
+                    <Numpad />
+                </div>
 
             </FlexboxGrid.Item>
 
-            <FlexboxGrid.Item colspan={13}>
-                <div style={{ background: '#303030', color: 'white', height: '5vh' }}>
-                    <h4 style={{ lineHeight: '5vh', paddingLeft: '5px' }}>
-                    </h4>
+            <FlexboxGrid.Item colspan={3} style={{ position: 'relative', right: '10px' }}>
+                <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '130%', right: '17px' }}>
+                    <h6 style={{ lineHeight: '5vh', textAlign: 'center' }}>
+                    </h6>
                 </div>
-                <div style={{ marginLeft: '10px' }}>
+                <div  >
                     <FlexboxGrid justify='space-between'>
-                        <FlexboxGrid.Item colspan={16}>
 
-                            <Panel className={classes.Panel} bordered header={
-                                <h6>
-                                    <FontAwesomeIcon icon={faAddressCard} />
-                                    <Divider vertical />
-                                    Customer Information
-                                </h6>
-                            }>
-                                <p>
-                                    Cash Customer / Shini Bet
-                                </p>
-                                <Button appearance='primary' color='cyan' className={classes.ClearCustomerButton} disabled>
-                                    <FontAwesomeIcon icon={faBroom} style={{ marginRight: '5px' }} />
-
-                                    Clear Customer
-                                </Button>
-                            </Panel>
-                            <br />
-                            <Panel className={classes.Panel}
-                                // style={{marginTop: terminal.paymentMode ? 0 : 45}}
-                                bordered header={
-                                    <React.Fragment>
-                                        {terminal.paymentMode ?
-                                            <h6>
-                                                <FontAwesomeIcon icon={faHandHoldingDollar} />
-                                                <Divider vertical />
-                                                Payment Detail
-                                                <Divider vertical />
-                                                <small>({trxSlice.selectedPaymentMethod.description})</small>
-                                                <Button appearance='primary' color='red'
-                                                    onClick={cancelPayment}
-                                                    style={{ width: '40', height: '94', position: 'absolute', right: 5, top: 5, fontSize: '11px',lineHeight: '1.2' }}>
-                                                   <FontAwesomeIcon icon={faTimes} />
-                                                </Button>
-
-                                                <Button appearance='ghost' color='blue' onClick={open}
-                                                    style={{ width: '60', height: '94', position: 'absolute', right: 50, top: 5, fontSize: 'larger' }}>
-                                                    {trxSlice.selectedCurrency}
-                                                </Button>
-
-
-                                            </h6>
-                                            :
-                                            <h6>
-                                                <FontAwesomeIcon icon={faHashtag} />
-                                                <Divider vertical />
-                                                Scan Multiplier
-                                            </h6>
-                                        }
-                                        <Whisper placement="bottom" trigger="none" ref={triggerRef} speaker={currencyPopOverSpeaker}>
-                                            <span style={{ position: 'absolute', right: 40, top: 50 }}> </span>
-                                        </Whisper>
-                                    </React.Fragment>
-                                }>
-                                <FlexboxGrid>
-                                    <FlexboxGrid.Item colspan={14} >
-                                        <Input readOnly={!terminal.paymentMode} onChange={onInputChange}
-                                            value={trxSlice.numberInputValue.concat(trxSlice.numberInputMode === 'multiplier' ? ' X ' : '')}
-                                            placeholder={terminal.paymentMode ? 'Insert Payment Amount' : '2 X <SCAN>'} style={{ borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none', boxShadow: 'none' }} />
-                                    </FlexboxGrid.Item>
-                                    <FlexboxGrid.Item colspan={10} >
-
-                                    </FlexboxGrid.Item>
-                                </FlexboxGrid>
-                            </Panel>
-                            <br />
-                            <Numpad />
-
-                        </FlexboxGrid.Item>
-
-                        <FlexboxGrid.Item colspan={1} />
-
-                        <FlexboxGrid.Item colspan={7}>
+                        <FlexboxGrid.Item colspan={24}>
                             {
-                                actionsMode === 'payment' && buildPaymentMethodButtons()
+                                actionsMode === 'payment' && terminal.paymentType === 'none' &&
+                                buildPaymentTypesButtons()
                             }
-                        </FlexboxGrid.Item>
 
-                        <FlexboxGrid.Item colspan={1} />
+                            {
+                                actionsMode === 'payment' && terminal.paymentType === 'cash' &&
+                                buildCashButtons()
+                            }
 
-                        <FlexboxGrid.Item colspan={24} style={{ marginTop: '4px' }}>
-                            <FlexboxGrid>
-                                <FlexboxGrid.Item colspan={6}>
-                                    <Button className={classes.POSButton}
-                                        appearance={actionsMode === 'payment' ? 'primary' : 'default'}
-                                        color='violet'
-                                        onClick={() => setActionsMode('payment')} >
-                                        <FontAwesomeIcon icon={faSackDollar} style={{ marginRight: '5px' }} />
-                                        <label>Payment</label>
-                                    </Button>
-                                </FlexboxGrid.Item>
-                                <FlexboxGrid.Item colspan={6}>
-                                    <Button className={classes.POSButton}
-                                        appearance={actionsMode === 'fastItems' ? 'primary' : 'default'}
-                                        color='violet'
-                                        onClick={() => setActionsMode('fastItems')} >
-                                        <FontAwesomeIcon icon={faCarrot} style={{ marginRight: '5px' }} />
-                                        <label>Fast Items</label>
-                                    </Button>
-                                </FlexboxGrid.Item>
-                                <FlexboxGrid.Item colspan={6}>
-                                    <Button className={classes.POSButton}
-                                        appearance={actionsMode === 'operations' ? 'primary' : 'default'}
-                                        color='violet'
-                                        onClick={() => setActionsMode('operations')} >
-                                        <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
-                                        <label>Operations</label>
-                                    </Button>
-                                </FlexboxGrid.Item>
+                            {
+                                actionsMode === 'payment' && terminal.paymentType === 'foreign' &&
+                                buildForeignButtons()
+                            }
 
-                                <FlexboxGrid.Item colspan={6}>
-                                    <Button color={'red'} appearance="primary" className={classes.POSButton} >
-                                        <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '5px' }} />
-                                        <label>Manager</label>
-                                    </Button>
-                                </FlexboxGrid.Item>
-                            </FlexboxGrid>
+                            {
+                                actionsMode === 'payment' && terminal.paymentType === 'visa' &&
+                                buildVisaButtons()
+                            }
 
                         </FlexboxGrid.Item>
                     </FlexboxGrid>
                 </div>
             </FlexboxGrid.Item>
+            <FlexboxGridItem colspan={24}>
+                <span style={{ color: 'transparent', lineHeight: '1.5vh' }}>.</span>
+            </FlexboxGridItem>
+            <FlexboxGridItem colspan={24} style={{ left: '6px' }}>
+                <FlexboxGrid  >
+                    <FlexboxGrid.Item colspan={3} >
+                        <Button color={'orange'} appearance="primary" className={classes.POSButton} >
+                            <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '5px' }} />
+                            <label>Manager</label>
+                        </Button>
+                    </FlexboxGrid.Item>
+
+                    <FlexboxGrid.Item colspan={3}>
+                        <Button className={classes.POSButton}
+                            appearance={actionsMode === 'payment' ? 'primary' : 'default'}
+                            color='green'
+                            onClick={() => setActionsMode('payment')} >
+                            <FontAwesomeIcon icon={faSackDollar} style={{ marginRight: '5px' }} />
+                            <label>Payment</label>
+                        </Button>
+                    </FlexboxGrid.Item>
+
+                    <FlexboxGrid.Item colspan={3}>
+                        <Button className={classes.POSButton}
+                            appearance={actionsMode === 'fastItems' ? 'primary' : 'default'}
+                            color='green'
+                            onClick={() => setActionsMode('fastItems')} >
+                            <FontAwesomeIcon icon={faCarrot} style={{ marginRight: '5px' }} />
+                            <label>Fast Items</label>
+                        </Button>
+                    </FlexboxGrid.Item>
+
+                    <FlexboxGrid.Item colspan={3}>
+                        <Button className={classes.POSButton}
+                            appearance={actionsMode === 'operations' ? 'primary' : 'default'}
+                            color='green'
+                            onClick={() => setActionsMode('operations')} >
+                            <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
+                            <label>Operations</label>
+                        </Button>
+                    </FlexboxGrid.Item>
+
+
+                    <FlexboxGrid.Item colspan={3}>
+                        <Button className={classes.POSButton}
+                            onClick={handleVoidLine}
+                            appearance='primary' color='blue'>
+                            <FontAwesomeIcon icon={faEraser} style={{ marginRight: '5px' }} />
+                            <label>Void Line</label>
+                        </Button>
+                    </FlexboxGrid.Item>
+                    <FlexboxGrid.Item colspan={3}>
+                        <Button className={classes.POSButton}
+                            appearance='primary' color='blue'>
+                            <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
+                            <label>Void TRX</label>
+                        </Button>
+                    </FlexboxGrid.Item>
+                    <FlexboxGrid.Item colspan={3}>
+                        <Button className={classes.POSButton}
+                            appearance='primary' color='blue'
+                            disabled >
+                            <FontAwesomeIcon icon={faBan} style={{ marginRight: '5px' }} />
+                            <label>Empty</label>
+                        </Button>
+                    </FlexboxGrid.Item>
+                    <FlexboxGrid.Item colspan={3}>
+                        <Button className={classes.POSButton}
+                            onClick={(e) => dispatch(abort())}
+                            appearance='primary' color='red'>
+                            <FontAwesomeIcon icon={faTimes} style={{ marginRight: '5px' }} />
+                            <label>Abort</label>
+                        </Button>
+                    </FlexboxGrid.Item>
+
+
+                </FlexboxGrid>
+            </FlexboxGridItem>
         </FlexboxGrid >
     );
 }

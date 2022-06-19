@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 
-import { Stack, FlexboxGrid, List, IconButton } from 'rsuite';
+import { Stack, FlexboxGrid, List, IconButton, Divider } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faIls, faHandPointRight, faLock } from '@fortawesome/free-solid-svg-icons'
+import { faChevronDown, faChevronUp, faIls, faHandPointRight, faFaceSmileBeam } from '@fortawesome/free-solid-svg-icons'
 import Typography from '@mui/material/Typography';
 import BarcodeReader from 'react-barcode-reader';
 import { scanBarcode } from '../../store/trxSlice';
@@ -105,25 +105,19 @@ const Invoice = (props) => {
                 onScan={handleScan}
             />}
 
-            <div style={{ background: '#303030', color: 'white', height: '5vh' }}>
-                <h4 style={{ lineHeight: '5vh', paddingLeft: '5px' }}>
-                    <small style={{ color: '#e1e1e1' }} >Transaction Mode - </small> {terminal.trxMode}
+            <div style={{ background: '#303030', color: 'white', height: '5vh', width: '110%', right: '10px', position: 'relative' }}>
+                <h4 style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
+                    {terminal.trxMode}
                 </h4>
             </div>
 
-            {terminal.paymentMode && <div style={{ position: 'absolute', height: '74.5vh', zIndex: '9999', background: 'rgba(128,128,128,0.5)', width: '100%' }}>
-                <h4 style={{ textAlign: 'center', marginTop: '32vh', color: 'white' }}>
-                    <FontAwesomeIcon icon={faLock} style={{ margin: '0 5px' }} />
-                    Locked ... Waiting for Payment
-                </h4>
-            </div>}
 
-            <List hover id='invoiceList' style={{ height: '74.5vh' }} autoScroll={false}>
+            <List hover id='invoiceList' style={{ height: '67vh' }} autoScroll={false}>
                 {trxSlice.scannedItems ? trxSlice.scannedItems.map((obj, i) => {
                     return <List.Item onClick={(e) => handleItemClick(obj)}
-                        className={(isEven(i + 1) ? classes.EvenRow : classes.OddRow)}
+                        className={(obj.key === trxSlice.selectedLine.key) ? classes.SelectedRowBG : (isEven(i + 1) ? classes.EvenRow : classes.OddRow)}
                         key={obj.key} style={{ minHeight: '50px' }}>
-                        <FlexboxGrid>
+                        <FlexboxGrid style={{ paddingLeft: '10px' }}>
                             <FlexboxGrid.Item colspan={1}>
 
                             </FlexboxGrid.Item>
@@ -133,28 +127,38 @@ const Invoice = (props) => {
                                 </Typography>
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={18}>
-                                <Typography variant='subtitle1' className={(obj.key === trxSlice.selectedLine.key) ? classes.SelectedRow : null}>
+                                <span className={(obj.key === trxSlice.selectedLine.key) ? classes.SelectedRow : null}>
                                     {(obj.key === trxSlice.selectedLine.key) ?
                                         <FontAwesomeIcon style={{ marginRight: '5px' }} icon={faHandPointRight} />
                                         : null}
                                     {obj.description}
-                                </Typography>
+                                </span>
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={3}>
                                 <Typography variant='subtitle1'>
-                                    {obj.totalprice}
+                                    {(Math.round((obj.totalprice) * 100) / 100).toFixed(2)}
                                 </Typography>
                             </FlexboxGrid.Item>
+
                             <FlexboxGrid.Item colspan={1}>
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={20}>
-                                <Typography variant='subtitle1'>
-                                    ☺ Discount
-                                </Typography>
+                                {(obj.finalprice < obj.totalprice) &&
+                                    <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '16px', top: '5px' }}>
+                                        <FontAwesomeIcon icon={faFaceSmileBeam} style={{ marginRight: '7px' }} />
+                                        Promo
+                                    </span>
+                                }
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={3}>
                                 <Typography variant='subtitle1'>
-                                    {obj.finalprice}
+                                    {(obj.finalprice < obj.totalprice) &&
+                                        <span style={{ color: 'rgb(225,42,42)' }}>
+                                            {/* {(Math.round((obj.finalprice - obj.totalprice) * 100) / 100).toFixed(2)} */}
+                                            {(Math.round((obj.finalprice) * 100) / 100).toFixed(2)}
+                                        </span>
+                                    }
+
                                 </Typography>
                             </FlexboxGrid.Item>
                         </FlexboxGrid>
@@ -162,32 +166,43 @@ const Invoice = (props) => {
                 }) : null
                 }
             </List>
-
-
-            <FlexboxGrid style={{ height: '10vh', color: 'white', background: '#404040', justifyContent: 'flex-end' }}>
-
-                <FlexboxGrid.Item colspan={10} style={{ position: 'relative', top: '4vh', left: '20px' }}>
-                    <Typography variant='subtitle1' fontSize={11}>
-                        Items Count <b>{trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}</b>
-                    </Typography>
-                    <label style={{ fontSize: '30px', marginRight: '7px' }}>
-                        <b style={{ marginLeft: '3px' }}><FontAwesomeIcon icon={faIls} /> {trxSlice.trx ? trxSlice.trx.total : '-'}</b>
-                    </label>
-
+            <FlexboxGrid style={{ height: '15.5vh', color: 'white', background: '#e1e1e1', justifyContent: 'flex-end', }}>
+                <FlexboxGrid.Item colspan={24} >
+                    <span style={{color: 'transparent', lineHeight: '1vh'}}>.</span>
                 </FlexboxGrid.Item>
-
-                <FlexboxGrid.Item colspan={4} />
-
                 <FlexboxGrid.Item colspan={10} >
-                    <FlexboxGrid style={{ marginTop: '1vh', color: 'white', background: '#404040', justifyContent: 'flex-end' }}>
-                        <FlexboxGrid.Item colspan={11} >
+                    <FlexboxGrid style={{ marginTop: '1vh', color: 'white', background: '#e1e1e1' }}>
+                        <FlexboxGrid.Item colspan={2} />
+                        <FlexboxGrid.Item colspan={5} >
                             <IconButton onClick={scrollUp} icon={<FontAwesomeIcon size='2x' icon={faChevronUp} />} className={classes.ScrollButton} />
                         </FlexboxGrid.Item>
-                        <FlexboxGrid.Item colspan={2} />
-                        <FlexboxGrid.Item colspan={11} >
+                        <FlexboxGrid.Item colspan={3} />
+                        <FlexboxGrid.Item colspan={5} >
                             <IconButton onClick={scrollDown} icon={<FontAwesomeIcon size='2x' icon={faChevronDown} />} className={classes.ScrollButton} />
                         </FlexboxGrid.Item>
                     </FlexboxGrid>
+                </FlexboxGrid.Item>
+                <FlexboxGrid.Item colspan={2} >
+                </FlexboxGrid.Item>
+
+                <FlexboxGrid.Item colspan={12} >
+                    <div style={{ fontSize: '18px', position: 'relative', top: '7px', textAlign: 'right', marginRight: '8px' }}>
+                        <span style={{ color: '#000000', marginRight: '10px' }}>
+                            {trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
+                        </span>
+                        <span style={{ color: 'grey' }}>
+                            Item(s) 
+                        </span>
+                    </div>
+                    <div style={{ textAlign: 'right', marginRight: '10px' }}>
+                        <small id='NISSymbol'>
+                            ₪
+                        </small>
+                        <label id='Total' >
+                            {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(2) : '0.00'}
+                        </label>
+                    </div>
+
                 </FlexboxGrid.Item>
             </FlexboxGrid>
         </React.Fragment>

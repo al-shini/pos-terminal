@@ -51,7 +51,6 @@ const Dashboard = (props) => {
 
     const content = () => {
         return <Box sx={{ width: '100%' }}>
-            <Menu />
             <Outlet />
         </Box>;
     }
