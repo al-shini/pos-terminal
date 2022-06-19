@@ -241,6 +241,9 @@ export const trxSlice = createSlice({
                 state.scannedItems = [];
             }
         },
+        setTrx: (state, action) => {
+            state.trx = action.payload;
+        },
         selectLine: (state, action) => {
             if (action.payload && action.payload.key) {
                 state.selectedLine = action.payload;
@@ -263,13 +266,35 @@ export const trxSlice = createSlice({
             state.numberInputModeState = 'ready';
         },
         handleNumberInputEntry: (state, action) => {
-            const input = action.payload;
-            if (state.numberInputValue.length < 7)
+            const input = action.payload.value;
+            const lastChar = input[input.length - 1];
+            if (lastChar === '.') {
+                if (state.numberInputValue.includes(lastChar)) {
+                    return;
+                }
+            }
+
+            if (action.payload.paymentMode && state.numberInputValue.length < 7)
                 state.numberInputValue = state.numberInputValue + input;
+            else
+                state.numberInputValue = state.numberInputValue + input;
+
         },
         handleNumberInputChange: (state, action) => {
             const input = action.payload;
-            state.numberInputValue = (input + '').slice(0, 7);
+            const lastChar = input[input.length - 1];
+            if (lastChar === '.') {
+                if (state.numberInputValue.includes(lastChar)) {
+                    return;
+                }
+            }
+
+
+            if (action.payload.paymentMode)
+                state.numberInputValue = (input + '').slice(0, 7);
+            else
+                state.numberInputValue = input;
+
         },
         reverseNumberInputEntry: (state) => {
             if (state.numberInputValue.length > 0) {
@@ -377,6 +402,6 @@ export const trxSlice = createSlice({
 
 
 
-export const { resumeTrx, selectLine, clearNumberInput, prepareNumberInputMode, handleNumberInputChange, selectPayment, uploadPayments,
+export const { resumeTrx, selectLine, clearNumberInput, prepareNumberInputMode, handleNumberInputChange, selectPayment, uploadPayments, setTrx,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency } = trxSlice.actions
 export default trxSlice.reducer

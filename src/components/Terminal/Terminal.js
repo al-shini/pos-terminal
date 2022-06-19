@@ -13,13 +13,14 @@ import Invoice from './Invoice';
 import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import {
-    beginPayment, uploadCurrencies, abort,
-    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods
+    beginPayment, uploadCurrencies, abort,logout,
+    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems
 } from '../../store/terminalSlice';
-import { selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine } from '../../store/trxSlice';
+import { selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, setTrx } from '../../store/trxSlice';
 import { notify, hideLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import Alert from "@mui/material/Alert";
+import confirm from '../UI/ConfirmDlg';
 
 const Terminal = (props) => {
     const terminal = useSelector((state) => state.terminal);
@@ -31,6 +32,29 @@ const Terminal = (props) => {
     const dispatch = useDispatch();
 
     useEffect(() => {
+
+        axios({
+            method: 'get',
+            url: '/item/fastItems'
+        }).then((response) => {
+            if (response && response.data) {
+                dispatch(uploadFastItems(response.data));
+            } else {
+                dispatch(notify({ msg: 'Incorrect /item/fastItems response', sev: 'error' }))
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                } else {
+                    dispatch(hideLoading());
+                    dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                }
+            } else {
+                dispatch(notify({ msg: error.message, sev: 'error' }));
+            }
+
+        });
 
         axios({
             method: 'get',
@@ -154,10 +178,13 @@ const Terminal = (props) => {
         if (trxSlice.trx) {
             if (terminal.paymentMode) {
                 if (trxSlice.selectedPayment) {
-                    dispatch(voidPayment({
-                        trxKey: trxSlice.trx.key,
-                        lineKey: trxSlice.selectedPayment.key
-                    }));
+                    confirm('Void Payment?', '', () => {
+                        dispatch(voidPayment({
+                            trxKey: trxSlice.trx.key,
+                            lineKey: trxSlice.selectedPayment.key
+                        }))
+                    })
+
                 } else {
                     dispatch(notify({ msg: 'No payment line selected', sev: 'warning' }));
                 }
@@ -174,6 +201,45 @@ const Terminal = (props) => {
         } else {
             dispatch(notify({ msg: 'No open transactions', sev: 'warning' }));
         }
+    }
+
+    const handleAbort = () => {
+        if (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') {
+            axios({
+                method: 'get',
+                url: '/trx/abortPayment',
+                params: {
+                    trxKey: trxSlice.trx ? trxSlice.trx.key : null
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    dispatch(setTrx(response.data));
+                } else {
+                    dispatch(notify({ msg: 'Incorrect trx/abortPayment/ response', sev: 'error' }))
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    } else {
+                        dispatch(hideLoading());
+                        dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+
+            });
+        } else if (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType !== 'none') {
+
+        }
+
+        if(!terminal.paymentMode){
+            dispatch(logout());
+        }else{
+            dispatch(abort());
+        }
+
     }
 
     const buildPaymentTypesButtons = () => {
@@ -267,6 +333,33 @@ const Terminal = (props) => {
         return tmp;
     }
 
+    const buildFastItemButtons = () => {
+        let tmp = [];
+
+        terminal.fastItems.map((obj) => {
+            tmp.push(
+                <Button key={obj.key} className={classes.ActionButton}
+                    onClick={() => {
+                        dispatch(scanBarcode({
+                            barcode: obj.barcode,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            multiplier: 1
+                        }))
+                    }} >
+                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                        {obj.itemName}
+                    </div>
+                </Button>
+            )
+            tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.key + 'space'} > .</div>);
+        });
+
+        tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+
+        return tmp;
+    }
+
 
     return (
         <FlexboxGrid >
@@ -298,12 +391,12 @@ const Terminal = (props) => {
                         terminal.paymentMode &&
                         <FlexboxGrid>
                             <FlexboxGrid.Item colspan={24} >
-                                <div style={{ border: '1px solid #e1e1e1', padding: '8px', minWidth: '60%', margin: 'auto' }}>
+                                <div style={{ border: '1px solid #e1e1e1', padding: '6px', minWidth: '60%', margin: 'auto' }}>
                                     <small style={{ fontSize: '25px', marginRight: '5px' }}>
                                         Paid =
                                     </small>
                                     <b>
-                                        <label id='Total' style={{ fontSize: '34px' }}>
+                                        <label id='Total' style={{ fontSize: '30px' }}>
                                             {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(2)}
                                         </label>
                                     </b>
@@ -313,11 +406,11 @@ const Terminal = (props) => {
                                 <br />
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={24}>
-                                <div style={{ border: '1px solid #e1e1e1', padding: '8px', minwidth: '60%', margin: 'auto' }}>
+                                <div style={{ border: '1px solid #e1e1e1', padding: '6px', minwidth: '60%', margin: 'auto' }}>
                                     <small style={{ fontSize: '25px', marginRight: '5px' }}>
                                         Change =
                                     </small>
-                                    <b> <label id='Total' style={{ fontSize: '34px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
+                                    <b> <label id='Total' style={{ fontSize: '30px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
                                         {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(2)}
                                     </label>
                                     </b>
@@ -361,6 +454,12 @@ const Terminal = (props) => {
                                 actionsMode === 'payment' && terminal.paymentType === 'visa' &&
                                 buildVisaButtons()
                             }
+
+                            {
+                                actionsMode === 'fastItems' &&
+                                buildFastItemButtons()
+                            }
+
 
                         </FlexboxGrid.Item>
                     </FlexboxGrid>
@@ -434,10 +533,15 @@ const Terminal = (props) => {
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
                         <Button className={classes.POSButton}
-                            onClick={(e) => dispatch(abort())}
+                            // disabled={terminal.display === 'ready'}
+                            onClick={handleAbort}
                             appearance='primary' color='red'>
                             <FontAwesomeIcon icon={faTimes} style={{ marginRight: '5px' }} />
-                            <label>Abort</label>
+                            <label>
+                                {(terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') ? 'Abort' : ''}
+                                {(terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType !== 'none') ? 'Back' : ''}
+                                {!terminal.paymentMode ? 'Shutdown' : ''}
+                            </label>
                         </Button>
                     </FlexboxGrid.Item>
 

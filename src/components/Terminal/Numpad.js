@@ -114,7 +114,7 @@ const Numpad = (props) => {
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <Button disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <Button disabled={(!terminal.paymentMode) || (terminal.paymentMode && terminal.paymentInput !== 'numpad')}
                             onClick={() => dispatch(handleNumberInputEntry('.'))} className={styles.NumpadButton} >
                             <span style={{ fontSize: '40px', position: 'relative', bottom: 11 }}>.</span>
                         </Button>

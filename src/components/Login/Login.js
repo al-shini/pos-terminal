@@ -60,7 +60,7 @@ const Login = (props) => {
                     window.setTimeout(() => {
                         console.log(terminalSlice.authenticated);
                         if (!terminalSlice.authenticated) {
-                            // checkQrScan();
+                            checkQrScan();
                         }
                     }, 1500);
                 }

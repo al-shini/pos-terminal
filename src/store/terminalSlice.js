@@ -8,6 +8,7 @@ const initialState = {
     token: null,
     till: {},
     balanceVariance: [],
+    fastItems: [],
     display: 'ready',
     trxMode: 'Sale',
     paymentMode: false,
@@ -36,9 +37,6 @@ export const login = createAsyncThunk(
             }
         }).then((response) => {
             if (response && response.data) {
-                thunkAPI.dispatch(hideLoading());
-                thunkAPI.dispatch(notify('Logged In!'));
-                console.log(response.data);
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -157,6 +155,9 @@ export const terminalSlice = createSlice({
 
         uploadForeignButtons: (state, action) => {
             state.foreignButtons = action.payload;
+        },
+        uploadFastItems: (state, action) => {
+            state.fastItems = action.payload;
         }
         ,
         beginPayment: (state) => {
@@ -202,6 +203,9 @@ export const terminalSlice = createSlice({
                 state.display = 'ready';
             }
             localStorage.setItem('jwt', state.token);
+            window.setTimeout(() => {
+                window.location.reload();
+            }, 750)
         })
 
         builder.addCase(login.rejected, (state, action) => {
@@ -232,6 +236,6 @@ export const terminalSlice = createSlice({
 
 
 export const { logout, seemlessLogin, updateBalance,
-    uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort,reset,
+    uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset,uploadFastItems,
     uploadExchangeRates, uploadCashButtons, setPaymentType } = terminalSlice.actions
 export default terminalSlice.reducer
