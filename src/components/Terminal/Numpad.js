@@ -13,6 +13,7 @@ import { handleNumberInputChange, scanBarcode, submitPayment } from '../../store
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
+import { preparePrint } from '../../store/terminalSlice';
 
 const Numpad = (props) => {
     const trxSlice = useSelector((state) => state.trx);
@@ -38,39 +39,42 @@ const Numpad = (props) => {
     }
 
     const handleOk = () => {
-        if (terminal.paymentMode) {
-            let paymentComplete = false;
-
-            if (trxSlice.trx) {
-                const change = trxSlice.trx.customerchange;
-                if (change >= 0) {
-                    paymentComplete = true;
-                    dispatch(closeTrxPayment(trxSlice.trx.key));
-                    return;
+        dispatch(preparePrint());
+        /*
+                if (terminal.paymentMode) {
+                    let paymentComplete = false;
+        
+                    if (trxSlice.trx) {
+                        const change = trxSlice.trx.customerchange;
+                        if (change >= 0) {
+                            paymentComplete = true;
+                            dispatch(closeTrxPayment(trxSlice.trx.key));
+                            return;
+                        }
+                    }
+        
+                    if (terminal.paymentInput === 'numpad') {
+                        dispatch(submitPayment({
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            paymentMethodKey: trxSlice.selectedPaymentMethod,
+                            currency: trxSlice.selectedCurrency,
+                            amount: trxSlice.numberInputValue
+                        }))
+                    }
+        
+                } else {
+                    if (trxSlice.numberInputValue) {
+                        dispatch(scanBarcode({
+                            barcode: trxSlice.numberInputValue,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                        }))
+                    }
+        
                 }
-            }
-
-            if (terminal.paymentInput === 'numpad') {
-                dispatch(submitPayment({
-                    tillKey: terminal.till ? terminal.till.key : null,
-                    trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                    paymentMethodKey: trxSlice.selectedPaymentMethod ? trxSlice.selectedPaymentMethod.key : null,
-                    currency: trxSlice.selectedCurrency,
-                    amount: trxSlice.numberInputValue
-                }))
-            }
-
-        } else {
-            if (trxSlice.numberInputValue) {
-                dispatch(scanBarcode({
-                    barcode: trxSlice.numberInputValue,
-                    trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                    tillKey: terminal.till ? terminal.till.key : null,
-                    multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
-                }))
-            }
-
-        }
+                */
     }
 
     return (
@@ -148,13 +152,13 @@ const Numpad = (props) => {
 
                     <FlexboxGrid.Item colspan={8}>
                         <Button disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
-                            onClick={() => dispatch(handleNumberInputEntry({ value: '01', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} >
+                            onClick={() => dispatch(handleNumberInputEntry({ value: '0', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} >
                             <span style={{ fontSize: '20px' }}>0</span>
                         </Button>
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <Button disabled={(!terminal.paymentMode) || (terminal.paymentMode && terminal.paymentInput !== 'numpad')}
+                        <Button disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
                             onClick={() => dispatch(handleNumberInputEntry({ value: '.', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} >
                             <span style={{ fontSize: '40px', position: 'relative', bottom: 11 }}>.</span>
                         </Button>

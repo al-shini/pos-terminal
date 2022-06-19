@@ -184,6 +184,18 @@ export const terminalSlice = createSlice({
                 state.paymentType = 'none';
             }
         },
+        preparePrint: (state) => {
+            state.paymentMode = false;
+            state.display = 'print';
+            state.paymentType = 'none';
+            state.trxMode = 'Sale';
+            window.setTimeout(() => {
+                document.getElementById('bboy').click();
+            }, 1500);
+            // window.setTimeout(() => {
+            //     state.display = 'ready';
+            // }, 1500);
+        },
         reset: (state) => {
             state.paymentMode = false;
             state.display = 'ready';
@@ -238,7 +250,7 @@ export const terminalSlice = createSlice({
 })
 
 
-export const { logout, seemlessLogin, updateBalance,exitNumpadEntry,
-    uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset,uploadFastItems,
+export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, preparePrint,
+    uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems,
     uploadExchangeRates, uploadCashButtons, setPaymentType } = terminalSlice.actions
 export default terminalSlice.reducer

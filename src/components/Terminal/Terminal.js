@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import axios from '../../axios';
 import { Button, Input, FlexboxGrid, Panel, Divider, Whisper, Popover } from 'rsuite';
@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faBroom, faMoneyBillTransfer,
-    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan
+    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -16,12 +16,14 @@ import {
     beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry,
     uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems
 } from '../../store/terminalSlice';
-import { selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, setTrx, selectPaymentMethod } from '../../store/trxSlice';
+import { selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, setTrx, selectPaymentMethod, voidTrx, suspendTrx } from '../../store/trxSlice';
 import { notify, hideLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import Alert from "@mui/material/Alert";
 import confirm from '../UI/ConfirmDlg';
 import config from '../../config';
+import InvoicePrint from './InvoicePrint';
+
 
 const Terminal = (props) => {
     const terminal = useSelector((state) => state.terminal);
@@ -165,7 +167,6 @@ const Terminal = (props) => {
         });
     }, [])
 
-
     const startPayment = (type, inputType) => {
         dispatch(clearNumberInput());
         dispatch(beginPayment());
@@ -173,6 +174,7 @@ const Terminal = (props) => {
             type,
             inputType
         }));
+        console.log(config[type]);
         dispatch(selectPaymentMethod(config[type]));
     }
 
@@ -243,6 +245,36 @@ const Terminal = (props) => {
         } else {
             dispatch(abort());
         }
+
+    }
+
+    const handleVoidTrx = () => {
+        if (trxSlice.trx) {
+            confirm('Void Transaction?', '', () => {
+                dispatch(voidTrx(trxSlice.trx.key));
+            })
+        } else {
+            dispatch(notify({
+                msg: 'No valid Transaction to void',
+                sev: 'warning'
+            }))
+        }
+    }
+
+    const handleSuspendTrx = () => {
+        if (trxSlice.trx) {
+            confirm('Suspend Transaction?', '',
+                () => { dispatch(suspendTrx(trxSlice.trx.key)) }
+            )
+        } else {
+            dispatch(notify({
+                msg: 'No valid Transaction to suspend',
+                sev: 'warning'
+            }))
+        }
+    }
+
+    const handleResumeTrx = () => {
 
     }
 
@@ -366,6 +398,26 @@ const Terminal = (props) => {
         return tmp;
     }
 
+    const buildOperationsButtons = () => {
+        return <React.Fragment>
+            <Button key='suspend' className={classes.MainActionButton} onClick={handleSuspendTrx}>
+                <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <FontAwesomeIcon icon={faPause} style={{ marginRight: '5px' }} />
+                    <label>Suspend Trx</label>
+                </div>
+            </Button>
+            <br />
+            <Button key='resume' className={classes.MainActionButton} onClick={handleResumeTrx}>
+                <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <FontAwesomeIcon icon={faPlay} style={{ marginRight: '5px' }} />
+                    <label>Resume Trx</label>
+                </div>
+            </Button>
+            <br />
+
+        </React.Fragment>;
+    }
+
 
     return (
         <FlexboxGrid >
@@ -373,6 +425,7 @@ const Terminal = (props) => {
                 {terminal.display === 'ready' && <Invoice />}
                 {terminal.display === 'balance-setup' && <BalanceSetup />}
                 {terminal.display === 'payment' && <Payments />}
+                {terminal.display === 'print' && <InvoicePrint />}
             </FlexboxGrid.Item>
 
             <FlexboxGrid.Item colspan={1} style={{ width: '1.166667%' }}>
@@ -380,8 +433,8 @@ const Terminal = (props) => {
 
             <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '87.5vh' }}>
                 <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
-                    <h6 style={{ lineHeight: '5vh', textAlign: 'center' }}>
-                        <FontAwesomeIcon icon={faAddressCard} style={{ marginRight: '7px' }} />
+                    <h6 style={{ lineHeight: '5vh', textAlign: 'left' }}>
+                        <FontAwesomeIcon icon={faAddressCard} style={{ marginLeft: '7px', marginRight: '7px' }} />
                         Cash Customer / Shini Bet
                     </h6>
                 </div>
@@ -393,6 +446,7 @@ const Terminal = (props) => {
                         </Alert>
                     </div>
                     <Divider style={{ margin: '7px' }} />
+
                     {
                         terminal.paymentMode &&
                         <FlexboxGrid>
@@ -465,6 +519,11 @@ const Terminal = (props) => {
                                 actionsMode === 'fastItems' &&
                                 buildFastItemButtons()
                             }
+                            {
+                                actionsMode === 'operations' &&
+                                buildOperationsButtons()
+                            }
+
 
 
                         </FlexboxGrid.Item>
@@ -477,7 +536,7 @@ const Terminal = (props) => {
             <FlexboxGridItem colspan={24} style={{ left: '6px' }}>
                 <FlexboxGrid  >
                     <FlexboxGrid.Item colspan={3} >
-                        <Button color={'orange'} appearance="primary" className={classes.POSButton} >
+                        <Button color={'orange'} appearance="primary" className={classes.POSButton} disabled >
                             <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '5px' }} />
                             <label>Manager</label>
                         </Button>
@@ -524,6 +583,7 @@ const Terminal = (props) => {
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
                         <Button className={classes.POSButton}
+                            onClick={handleVoidTrx}
                             appearance='primary' color='blue'>
                             <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
                             <label>Void TRX</label>
