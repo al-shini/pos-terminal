@@ -22,7 +22,6 @@ import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import Alert from "@mui/material/Alert";
 import confirm from '../UI/ConfirmDlg';
 import config from '../../config';
-import InvoicePrint from './InvoicePrint';
 
 
 const Terminal = (props) => {
@@ -425,7 +424,6 @@ const Terminal = (props) => {
                 {terminal.display === 'ready' && <Invoice />}
                 {terminal.display === 'balance-setup' && <BalanceSetup />}
                 {terminal.display === 'payment' && <Payments />}
-                {terminal.display === 'print' && <InvoicePrint />}
             </FlexboxGrid.Item>
 
             <FlexboxGrid.Item colspan={1} style={{ width: '1.166667%' }}>
