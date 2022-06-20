@@ -39,42 +39,41 @@ const Numpad = (props) => {
     }
 
     const handleOk = () => {
-        dispatch(preparePrint());
-        /*
-                if (terminal.paymentMode) {
-                    let paymentComplete = false;
-        
-                    if (trxSlice.trx) {
-                        const change = trxSlice.trx.customerchange;
-                        if (change >= 0) {
-                            paymentComplete = true;
-                            dispatch(closeTrxPayment(trxSlice.trx.key));
-                            return;
-                        }
-                    }
-        
-                    if (terminal.paymentInput === 'numpad') {
-                        dispatch(submitPayment({
-                            tillKey: terminal.till ? terminal.till.key : null,
-                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                            paymentMethodKey: trxSlice.selectedPaymentMethod,
-                            currency: trxSlice.selectedCurrency,
-                            amount: trxSlice.numberInputValue
-                        }))
-                    }
-        
-                } else {
-                    if (trxSlice.numberInputValue) {
-                        dispatch(scanBarcode({
-                            barcode: trxSlice.numberInputValue,
-                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                            tillKey: terminal.till ? terminal.till.key : null,
-                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
-                        }))
-                    }
-        
+
+        if (terminal.paymentMode) {
+            let paymentComplete = false;
+
+            if (trxSlice.trx) {
+                const change = trxSlice.trx.customerchange;
+                if (change >= 0) {
+                    paymentComplete = true;
+                    dispatch(closeTrxPayment(trxSlice.trx.key));
+                    return;
                 }
-                */
+            }
+
+            if (terminal.paymentInput === 'numpad') {
+                dispatch(submitPayment({
+                    tillKey: terminal.till ? terminal.till.key : null,
+                    trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                    paymentMethodKey: trxSlice.selectedPaymentMethod,
+                    currency: trxSlice.selectedCurrency,
+                    amount: trxSlice.numberInputValue
+                }))
+            }
+
+        } else {
+            if (trxSlice.numberInputValue) {
+                dispatch(scanBarcode({
+                    barcode: trxSlice.numberInputValue,
+                    trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                    tillKey: terminal.till ? terminal.till.key : null,
+                    multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                }))
+            }
+
+        }
+
     }
 
     return (
