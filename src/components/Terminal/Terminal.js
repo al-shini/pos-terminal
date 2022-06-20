@@ -211,9 +211,9 @@ const Terminal = (props) => {
 
         if (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') {
             axios({
-                method: 'get',
+                method: 'post',
                 url: '/trx/abortPayment',
-                params: {
+                headers: {
                     trxKey: trxSlice.trx ? trxSlice.trx.key : null
                 }
             }).then((response) => {

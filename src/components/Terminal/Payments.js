@@ -20,9 +20,9 @@ const Invoice = (props) => {
 
     useEffect(() => {
         return axios({
-            method: 'get',
+            method: 'post',
             url: '/trx/loadTrxPayments',
-            params: {
+            headers:{
                 trxKey: trxSlice.trx ? trxSlice.trx.key : null
             }
         }).then((response) => {

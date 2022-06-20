@@ -13,7 +13,6 @@ import { handleNumberInputChange, scanBarcode, submitPayment } from '../../store
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
-import { preparePrint } from '../../store/terminalSlice';
 
 const Numpad = (props) => {
     const trxSlice = useSelector((state) => state.trx);

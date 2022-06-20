@@ -43,9 +43,9 @@ const Login = (props) => {
 
     const checkQrScan = () => {
         axios({
-            method: 'get',
+            method: 'post',
             url: '/utilities/checkQRState',
-            params: {
+            headers: {
                 authKey: loginQR.qrAuthKey
             }
         }).then((response) => {
@@ -58,9 +58,8 @@ const Login = (props) => {
                     }));
                 } else {
                     window.setTimeout(() => {
-                        console.log(terminalSlice.authenticated);
                         if (!terminalSlice.authenticated) {
-                            checkQrScan();
+                            // checkQrScan();
                         }
                     }, 1500);
                 }

@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { showLoading, hideLoading, notify } from './uiSlice'
-import { reset, preparePrint } from './terminalSlice'
+import { reset } from './terminalSlice'
 import axios from '../axios';
 
 const initialState = {
@@ -106,13 +106,16 @@ export const closeTrxPayment = createAsyncThunk(
     async (payload, thunkAPI) => {
         thunkAPI.dispatch(showLoading());
         return axios({
-            method: 'get',
-            url: '/trx/closeTrxPayment/' + payload
+            method: 'post',
+            url: '/trx/closeTrxPayment',
+            headers: {
+                trxKey: payload
+            }
         }).then((response) => {
             if (response && response.data) {
                 thunkAPI.dispatch(hideLoading());
                 thunkAPI.dispatch(notify({ msg: 'Transaction paid, print invoice ☺', sev: 'info' }));
-                thunkAPI.dispatch(preparePrint());
+                thunkAPI.dispatch(reset());
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -147,9 +150,9 @@ export const voidTrx = createAsyncThunk(
     async (payload, thunkAPI) => {
         thunkAPI.dispatch(showLoading());
         return axios({
-            method: 'get',
+            method: 'post',
             url: '/trx/voidTrx',
-            params: {
+            headers: {
                 trxKey: payload
             }
         }).then((response) => {
@@ -191,9 +194,9 @@ export const suspendTrx = createAsyncThunk(
     async (payload, thunkAPI) => {
         thunkAPI.dispatch(showLoading());
         return axios({
-            method: 'get',
+            method: 'post',
             url: '/trx/suspendTrx',
-            params: {
+            headers: {
                 trxKey: payload
             }
         }).then((response) => {
@@ -487,8 +490,8 @@ export const trxSlice = createSlice({
 
         })
 
-         /* voidTrx thunk */
-         builder.addCase(voidTrx.fulfilled, (state, action) => {
+        /* voidTrx thunk */
+        builder.addCase(voidTrx.fulfilled, (state, action) => {
             // reset trx state (prepare to start new one)
             state.trx = null;
             state.lastScannedBarcode = '';
