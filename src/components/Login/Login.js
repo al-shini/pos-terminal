@@ -10,7 +10,8 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import QRCode from "react-qr-code";
-
+import Snackbar from '@mui/material/Snackbar';
+import Alert from "@mui/material/Alert";
 import PosBG from '../../assets/pos-bg.png';
 import DazzleLogo from '../../assets/dazzle-logo.png';
 
@@ -26,6 +27,7 @@ const Login = (props) => {
     const navigate = useNavigate();
 
     const terminalSlice = useSelector((state) => state.terminal);
+    const uiSlice = useSelector((state) => state.ui);
 
     const [cred, setCred] = useState({
         username: '',
@@ -123,6 +125,14 @@ const Login = (props) => {
 
     return (
         <ThemeProvider theme={theme}>
+            <Snackbar
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                open={uiSlice.toastOpen} >
+                <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
+                    {uiSlice.toastMsg}
+                </Alert>
+            </Snackbar>
+
             <Grid container component="main" sx={{ height: '100vh' }}>
                 <CssBaseline />
                 <Grid
