@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faBroom, faMoneyBillTransfer,
-    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay
+    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay, faRotateLeft, faDollarSign
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -14,7 +14,7 @@ import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import {
     beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry,
-    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems
+    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode
 } from '../../store/terminalSlice';
 import { selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, setTrx, selectPaymentMethod, voidTrx, suspendTrx } from '../../store/trxSlice';
 import { notify, hideLoading } from '../../store/uiSlice';
@@ -273,9 +273,6 @@ const Terminal = (props) => {
         }
     }
 
-    const handleResumeTrx = () => {
-
-    }
 
     const buildPaymentTypesButtons = () => {
         return <React.Fragment>
@@ -380,6 +377,7 @@ const Terminal = (props) => {
                         dispatch(scanBarcode({
                             barcode: obj.barcode,
                             trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            trxMode: terminal.trxMode,
                             tillKey: terminal.till ? terminal.till.key : null,
                             multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
                         }))
@@ -406,14 +404,24 @@ const Terminal = (props) => {
                 </div>
             </Button>
             <br />
-            <Button key='resume' className={classes.MainActionButton} onClick={handleResumeTrx}>
-                <div style={{ textAlign: 'center', fontSize: '14px', }}>
-                    <FontAwesomeIcon icon={faPlay} style={{ marginRight: '5px' }} />
-                    <label>Resume Trx</label>
-                </div>
-            </Button>
-            <br />
-
+            {
+                terminal.trxMode === 'Sale' &&
+                <Button disabled={trxSlice.trx !== null} key='refund' className={classes.MainActionButton} onClick={() => { dispatch(setTrxMode('Refund')) }}>
+                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                        <FontAwesomeIcon icon={faRotateLeft} style={{ marginRight: '5px' }} />
+                        <label>Refund</label>
+                    </div>
+                </Button>
+            }
+            {
+                terminal.trxMode === 'Refund' &&
+                <Button key='sale' className={classes.MainActionButton} onClick={() => { dispatch(setTrxMode('Sale')) }}>
+                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                        <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
+                        <label>Sale</label>
+                    </div>
+                </Button>
+            }
         </React.Fragment>;
     }
 
@@ -440,7 +448,7 @@ const Terminal = (props) => {
                 <div style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', height: '33vh' }}>
                     <div style={{ padding: '4px' }}>
                         <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
-                            {uiSlice.toastMsg}
+                            {uiSlice.toastMsg.toString()}
                         </Alert>
                     </div>
                     <Divider style={{ margin: '7px' }} />

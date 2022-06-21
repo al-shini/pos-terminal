@@ -47,12 +47,12 @@ export const scanBarcode = createAsyncThunk(
                     return thunkAPI.rejectWithValue('Un-authorized');
                 } else {
                     thunkAPI.dispatch(hideLoading());
-                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
                 thunkAPI.dispatch(hideLoading());
-                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
         });
@@ -89,12 +89,12 @@ export const submitPayment = createAsyncThunk(
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
                     thunkAPI.dispatch(hideLoading());
-                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
                 thunkAPI.dispatch(hideLoading());
-                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
         });
@@ -116,6 +116,14 @@ export const closeTrxPayment = createAsyncThunk(
                 thunkAPI.dispatch(hideLoading());
                 thunkAPI.dispatch(notify({ msg: 'Transaction paid, print invoice ☺', sev: 'info' }));
                 thunkAPI.dispatch(reset());
+                axios({
+                    method: 'get',
+                    url: 'http://localhost:3001/printSellTrx?trxKey=' + response.data.key,
+                }).catch((error) => {
+                    console.log(error.response, error.message);
+                    thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
+                });
+
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -133,12 +141,12 @@ export const closeTrxPayment = createAsyncThunk(
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
                     thunkAPI.dispatch(hideLoading());
-                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
                 thunkAPI.dispatch(hideLoading());
-                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
         });
@@ -177,12 +185,12 @@ export const voidTrx = createAsyncThunk(
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
                     thunkAPI.dispatch(hideLoading());
-                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
                 thunkAPI.dispatch(hideLoading());
-                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
         });
@@ -204,6 +212,15 @@ export const suspendTrx = createAsyncThunk(
                 thunkAPI.dispatch(hideLoading());
                 thunkAPI.dispatch(notify({ msg: 'Transaction ' + response.data.key + ' suspended', sev: 'info' }));
                 thunkAPI.dispatch(reset());
+
+                axios({
+                    method: 'get',
+                    url: 'http://localhost:3001/printSuspendTrx?trxKey=' + response.data.key,
+                }).catch((error) => {
+                    console.log(error.response, error.message);
+                    thunkAPI.dispatch(notify({ msg: 'could not print suspend receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
+                });
+
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -221,12 +238,12 @@ export const suspendTrx = createAsyncThunk(
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
                     thunkAPI.dispatch(hideLoading());
-                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
                 thunkAPI.dispatch(hideLoading());
-                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
         });
@@ -261,12 +278,12 @@ export const voidPayment = createAsyncThunk(
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
                     thunkAPI.dispatch(hideLoading());
-                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
                 thunkAPI.dispatch(hideLoading());
-                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
         });
@@ -301,12 +318,12 @@ export const voidLine = createAsyncThunk(
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
                     thunkAPI.dispatch(hideLoading());
-                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
                 thunkAPI.dispatch(hideLoading());
-                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
         });

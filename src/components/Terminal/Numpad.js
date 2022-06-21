@@ -66,6 +66,7 @@ const Numpad = (props) => {
                 dispatch(scanBarcode({
                     barcode: trxSlice.numberInputValue,
                     trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                    trxMode: terminal.trxMode,
                     tillKey: terminal.till ? terminal.till.key : null,
                     multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
                 }))

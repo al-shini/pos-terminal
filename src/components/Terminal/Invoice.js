@@ -68,6 +68,7 @@ const Invoice = (props) => {
 
             dispatch(scanBarcode({
                 tillKey: terminal.till.key,
+                trxMode: terminal.trxMode,
                 trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                 barcode: scannedValue,
                 multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
@@ -101,8 +102,12 @@ const Invoice = (props) => {
             />}
 
             <div style={{ background: '#303030', color: 'white', height: '5vh', width: '110%', right: '10px', position: 'relative' }}>
-                <h4 style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
-                    {terminal.trxMode}
+                <h4 id='trxModeHeader' style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
+                    {terminal.trxMode === 'Sale' && <span>{terminal.trxMode}</span>}
+                    {terminal.trxMode === 'Refund' && <span style={{color: 'red'}}>{terminal.trxMode}</span>}
+
+                    {trxSlice.trx ? <Divider vertical /> : null}
+                    {trxSlice.trx ? <span>{trxSlice.trx.nanoId}</span> : null}
                 </h4>
             </div>
 
@@ -163,7 +168,7 @@ const Invoice = (props) => {
             </List>
             <FlexboxGrid style={{ height: '15.5vh', color: 'white', background: '#e1e1e1', justifyContent: 'flex-end', }}>
                 <FlexboxGrid.Item colspan={24} >
-                    <span style={{color: 'transparent', lineHeight: '1vh'}}>.</span>
+                    <span style={{ color: 'transparent', lineHeight: '1vh' }}>.</span>
                 </FlexboxGrid.Item>
                 <FlexboxGrid.Item colspan={10} >
                     <FlexboxGrid style={{ marginTop: '1vh', color: 'white', background: '#e1e1e1' }}>
@@ -186,7 +191,7 @@ const Invoice = (props) => {
                             {trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
                         </span>
                         <span style={{ color: 'grey' }}>
-                            Item(s) 
+                            Item(s)
                         </span>
                     </div>
                     <div style={{ textAlign: 'right', marginRight: '10px' }}>

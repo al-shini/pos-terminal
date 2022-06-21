@@ -50,12 +50,12 @@ export const login = createAsyncThunk(
                 }
                 else {
                     thunkAPI.dispatch(hideLoading());
-                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
                 thunkAPI.dispatch(hideLoading());
-                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 return thunkAPI.rejectWithValue(error.message);
             }
 
@@ -91,12 +91,12 @@ export const submitOpeningBalance = createAsyncThunk(
                 }
                 else {
                     thunkAPI.dispatch(hideLoading());
-                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
                 thunkAPI.dispatch(hideLoading());
-                thunkAPI.dispatch(notify({ msg: error.message, sev: 'error' }));
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 return thunkAPI.rejectWithValue(error.message);
             }
 
@@ -189,6 +189,22 @@ export const terminalSlice = createSlice({
             state.display = 'ready';
             state.paymentType = 'none';
             state.trxMode = 'Sale';
+            document.querySelectorAll("body")[0].style.setProperty("background-color", "#4b4b4b", "important")
+            if (document.querySelectorAll("#trxModeHeader")[0]) {
+                document.querySelectorAll("#trxModeHeader")[0].style.setProperty("color", "#ffffff", "important")
+            }
+            if (document.querySelectorAll("#paymentsHeader")[0]) {
+                document.querySelectorAll("#paymentsHeader")[0].style.setProperty("color", "#ffffff", "important")
+            }
+        }
+        ,
+        setTrxMode: (state, action) => {
+            state.trxMode = action.payload;
+            if (action.payload === 'Sale') {
+                document.querySelectorAll("body")[0].style.setProperty("background-color", "#4b4b4b", "important")
+            } else if (action.payload === 'Refund') {
+                document.querySelectorAll("body")[0].style.setProperty("background-color", "#b11717", "important")
+            }
         }
     },
     extraReducers: (builder) => {
@@ -206,9 +222,9 @@ export const terminalSlice = createSlice({
                 state.display = 'ready';
             }
             localStorage.setItem('jwt', state.token);
-            window.setTimeout(() => {
-                window.location.reload();
-            }, 750)
+            // window.setTimeout(() => {
+            //     window.location.reload();
+            // }, 750)
         })
 
         builder.addCase(login.rejected, (state, action) => {
@@ -238,7 +254,7 @@ export const terminalSlice = createSlice({
 })
 
 
-export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, 
+export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode,
     uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems,
     uploadExchangeRates, uploadCashButtons, setPaymentType } = terminalSlice.actions
 export default terminalSlice.reducer
