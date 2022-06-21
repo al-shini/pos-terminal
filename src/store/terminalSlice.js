@@ -7,7 +7,6 @@ const initialState = {
     loggedInUser: null,
     token: null,
     till: {},
-    balanceVariance: [],
     fastItems: [],
     display: 'ready',
     trxMode: 'Sale',
@@ -69,10 +68,12 @@ export const submitOpeningBalance = createAsyncThunk(
         thunkAPI.dispatch(showLoading());
         return axios({
             method: 'post',
-            url: '/actions/initializeBalanceVariance',
+            url: '/actions/initializeTill',
+            headers: {
+                tillKey: thunkAPI.getState().terminal.till.key
+            },
             data: {
-                balanceVarianceList: thunkAPI.getState().terminal.balanceVariance,
-                till: null
+                balance: payload
             }
         }).then((response) => {
             if (response && response.data) {
@@ -116,7 +117,6 @@ export const terminalSlice = createSlice({
             state.authenticated = false;
             state.loggedInUser = null;
             state.token = null;
-            state.balanceVariance = [];
             state.till = null;
             state.display = 'none';
             localStorage.removeItem('jwt');
@@ -126,7 +126,6 @@ export const terminalSlice = createSlice({
             state.authenticated = true;
             state.loggedInUser = action.payload.user;
             state.token = action.payload.token;
-            state.balanceVariance = action.payload.balanceVarianceList;
             state.till = action.payload.till;
             console.log('seemless?');
             if (!action.payload.till.isInitialized) {
@@ -135,9 +134,6 @@ export const terminalSlice = createSlice({
                 state.display = 'ready';
             }
             localStorage.setItem('jwt', action.payload.token);
-        },
-        updateBalance: (state, action) => {
-            state.balanceVariance[action.payload.i].openingBalance = action.payload.balance;
         },
         uploadCurrencies: (state, action) => {
             state.currencies = action.payload;
@@ -214,7 +210,6 @@ export const terminalSlice = createSlice({
             state.authenticated = true;
             state.loggedInUser = action.payload.user;
             state.token = action.payload.token;
-            state.balanceVariance = action.payload.balanceVarianceList;
             state.till = action.payload.till;
             if (!action.payload.till.isInitialized) {
                 state.display = 'balance-setup';
@@ -231,7 +226,6 @@ export const terminalSlice = createSlice({
             state.authenticated = false;
             state.loggedInUser = null;
             state.token = null;
-            state.balanceVariance = [];
             state.till = null;
             state.display = 'none';
             localStorage.removeItem('jwt');
