@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import { Outlet, useNavigate } from "react-router-dom";
-import { notify } from '../../store/uiSlice';
+import { notify, hideLoading } from '../../store/uiSlice';
 import { seemlessLogin } from '../../store/terminalSlice';
 
 import Menu from './Menu';
@@ -29,6 +29,7 @@ const Dashboard = (props) => {
             if (response && response.data) {
                 console.log('valdiate token', response.data);
                 dispatch(seemlessLogin(response.data));
+                dispatch(hideLoading())
             }
         }).catch((error) => {
             if (error.response) {

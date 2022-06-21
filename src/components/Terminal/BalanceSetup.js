@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 
-import { FlexboxGrid, PanelGroup, Panel, InputNumber, Button } from 'rsuite';
+import { FlexboxGrid, PanelGroup, Panel, InputNumber, Button, Divider } from 'rsuite';
 import { updateBalance, submitOpeningBalance } from '../../store/terminalSlice';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane } from '@fortawesome/free-solid-svg-icons'
@@ -29,21 +29,35 @@ const BalanceSetup = (props) => {
             <PanelGroup accordion bordered defaultActiveKey={1}>
                 {
                     terminal.balanceVariance.map((bv, i) => {
-                        return <Panel eventKey={bv.viewOrder} key={bv.key} header={bv.currency.concat(' (' + bv.openingBalance + ')')}>
+                        if (!terminal.paymentMethods || !terminal.paymentMethods[bv.paymentMethodKey])
+                            return null;
+                        if (bv.currency !== 'NIS')
+                            return null;
+                        if (terminal.paymentMethods[bv.paymentMethodKey].description !== 'Cash')
+                            return null;
+
+                        return <Panel eventKey={i + 1} key={bv.key}
+                            header={
+                                <span>
+                                    <b>{terminal.paymentMethods[bv.paymentMethodKey].description}</b>
+                                    <Divider vertical />
+                                    <span>{bv.currency.concat(' (' + bv.openingBalance + ')')}</span>
+                                </span>
+                            }>
                             <label>
-                                Terminal Cash Openinig Balance For Till = 
+                                Terminal Openinig Balance For Till =
                             </label>
                             <br />
-                            <br/>
+                            <br />
                             <InputNumber prefix={bv.currency} value={bv.openingBalance} onChange={(e) => handleChange(e, i)} />
                         </Panel>
                     })
                 }
             </PanelGroup>
-            <Button style={{padding: 10,margin: '20px auto', width: '70%',display:'block', lineHeight: 2, fontSize: 'larger'}} 
-            appearance="primary" color="blue" onClick={submitTillOpeningBalance}>
-                Submit Balance Variance - Open Till 
-                <FontAwesomeIcon style={{marginLeft: 10}} icon={faPaperPlane} />
+            <Button style={{ padding: 10, margin: '20px auto', width: '70%', display: 'block', lineHeight: 2, fontSize: 'larger' }}
+                appearance="primary" color="blue" onClick={submitTillOpeningBalance}>
+                Submit Balance Variance - Open Till
+                <FontAwesomeIcon style={{ marginLeft: 10 }} icon={faPaperPlane} />
             </Button>
         </React.Fragment>
     );
