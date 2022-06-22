@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import { Outlet, useNavigate } from "react-router-dom";
 import { notify, hideLoading } from '../../store/uiSlice';
-import { seemlessLogin } from '../../store/terminalSlice';
+import { seemlessLogin, unblockActions, blockActions } from '../../store/terminalSlice';
 
 import Menu from './Menu';
 import axios from '../../axios';
@@ -15,7 +15,7 @@ const Dashboard = (props) => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const terminalSlice = useSelector((state) => state.terminal);
+    const terminal = useSelector((state) => state.terminal);
 
 
     useEffect(() => {
@@ -44,10 +44,18 @@ const Dashboard = (props) => {
     }, []);
 
     useEffect(() => {
-        if (!terminalSlice.authenticated) {
+        if (!terminal.authenticated) {
             navigate('/');
         }
-    }, [terminalSlice.authenticated]);
+    }, [terminal.authenticated]);
+
+    useEffect(() => {
+        if (terminal.till && terminal.till.status === 'L') {
+            dispatch(blockActions());
+        } else {
+            dispatch(unblockActions());
+        }
+    }, [terminal.till]);
 
 
     const content = () => {
@@ -57,7 +65,7 @@ const Dashboard = (props) => {
     }
 
     return (
-        terminalSlice.authenticated && content()
+        terminal.authenticated && content()
     );
 }
 

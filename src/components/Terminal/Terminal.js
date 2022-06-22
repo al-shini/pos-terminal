@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faBroom, faMoneyBillTransfer,
-    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay, faRotateLeft, faDollarSign
+    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay, faRotateLeft, faDollarSign, faLock, faUnlock
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -14,7 +14,7 @@ import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import {
     beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry,
-    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode
+    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates
 } from '../../store/terminalSlice';
 import { selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, setTrx, selectPaymentMethod, voidTrx, suspendTrx } from '../../store/trxSlice';
 import { notify, hideLoading } from '../../store/uiSlice';
@@ -164,6 +164,38 @@ const Terminal = (props) => {
             }
 
         });
+
+        axios({
+            method: 'get',
+            url: '/exchange-rate/listOfDay',
+            params: {
+                tillKey: terminal.till ? terminal.till.key : null
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                let rates = {};
+                response.data.map((obj) => {
+                    rates[obj.currencyKey] = obj.rate
+                })
+                rates['NIS'] = 1;
+
+                dispatch(uploadExchangeRates(rates));
+            } else {
+                dispatch(notify({ msg: 'Incorrect /exchange-rates/list response', sev: 'error' }))
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                } else {
+                    dispatch(hideLoading());
+                    dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                }
+            } else {
+                dispatch(notify({ msg: error.message, sev: 'error' }));
+            }
+
+        });
     }, [])
 
     const startPayment = (type, inputType) => {
@@ -270,6 +302,35 @@ const Terminal = (props) => {
                 msg: 'No valid Transaction to suspend',
                 sev: 'warning'
             }))
+        }
+    }
+    const handleLockTill = () => {
+        if (terminal.till) {
+            if (terminal.till.status === 'O') {
+                confirm('Lock Till?', 'This marks as closable',
+                    () => { dispatch(lockTill()) }
+                )
+            } else {
+                dispatch(notify({
+                    msg: 'Till cannot be locked, till not open',
+                    sev: 'warning'
+                }))
+            }
+        }
+    }
+
+    const handleUnlockTill = () => {
+        if (terminal.till) {
+            if (terminal.till.status === 'L') {
+                confirm('Unlock Till?', 'This re-opens till',
+                    () => { dispatch(unlockTill()) }
+                )
+            } else {
+                dispatch(notify({
+                    msg: 'Till cannot be unlocked',
+                    sev: 'warning'
+                }))
+            }
         }
     }
 
@@ -422,7 +483,26 @@ const Terminal = (props) => {
                     </div>
                 </Button>
             }
-        </React.Fragment>;
+            <br />
+            {
+                (terminal.till && terminal.till.status === 'O') &&
+                <Button disabled={trxSlice.trx !== null} key='lock' className={classes.MainActionButton} onClick={handleLockTill}>
+                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                        <FontAwesomeIcon icon={faLock} style={{ marginRight: '5px' }} />
+                        <label>Lock Till</label>
+                    </div>
+                </Button>
+            }
+            {
+                terminal.till && terminal.till.status === 'L' &&
+                <Button key='unlock' className={classes.MainActionButton} onClick={handleUnlockTill}>
+                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                        <FontAwesomeIcon icon={faUnlock} style={{ marginRight: '5px' }} />
+                        <label>Unlock Till</label>
+                    </div>
+                </Button>
+            }
+        </React.Fragment >;
     }
 
 

@@ -91,14 +91,28 @@ const Numpad = (props) => {
                                     style={{ borderRadius: 0, boxShadow: 'none', textAlign: 'center', color: '#404040' }} />
                             </FlexboxGridItem>
                         }
-                        <FlexboxGridItem colspan={terminal.paymentMode ? 24 : 20}>
+                        <FlexboxGridItem colspan={terminal.paymentMode ?
+                              (terminal.exchangeRates[trxSlice.selectedCurrency] && terminal.exchangeRates[trxSlice.selectedCurrency] > 1 && terminal.paymentInput === 'numpad' ) ? 20 : 24
+
+                            : 20}>
                             <Input onChange={onInputChange} value={trxSlice.numberInputValue}
                                 disabled={terminal.paymentMode && terminal.paymentInput === 'fixed'}
                                 placeholder={terminal.paymentMode && terminal.paymentInput === 'numpad'
-                                    ? 'Insert Payment Amount (' + trxSlice.selectedCurrency + ')' :
+                                    ? 'Insert Payment Amount (' + trxSlice.selectedCurrency + ' x ' + terminal.exchangeRates[trxSlice.selectedCurrency] + ')' :
                                     terminal.paymentMode && terminal.paymentInput === 'fixed' ? '-' : 'Search'}
                                 style={{ borderRadius: 0, boxShadow: 'none', borderColor: 'rgb(123,123,123)' }} />
                         </FlexboxGridItem>
+                        {
+                            (terminal.paymentMode &&
+                                terminal.paymentInput === 'numpad' &&
+                                (terminal.exchangeRates[trxSlice.selectedCurrency] && terminal.exchangeRates[trxSlice.selectedCurrency] > 1)) &&
+                            <FlexboxGridItem colspan={4}>
+                                <Input value={terminal.exchangeRates[trxSlice.selectedCurrency] * (trxSlice.numberInputValue ? trxSlice.numberInputValue : 0)}
+                                    disabled
+                                    placeholder={'Rate'}
+                                    style={{ borderRadius: 0, boxShadow: 'none', textAlign: 'center', color: '#404040' }} />
+                            </FlexboxGridItem>
+                        }
                     </FlexboxGrid>
                 </Panel>
             </FlexboxGridItem>

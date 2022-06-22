@@ -18,6 +18,7 @@ const initialState = {
     foreignButtons: [],
     currencies: [],
     exchangeRates: {},
+    blockActions: false
 }
 
 /**
@@ -36,6 +37,86 @@ export const login = createAsyncThunk(
             }
         }).then((response) => {
             if (response && response.data) {
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                }
+                else {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(hideLoading());
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
+            }
+
+        });
+    }
+)
+
+export const lockTill = createAsyncThunk(
+    'lockTill',
+    async (payload, thunkAPI) => {
+        thunkAPI.dispatch(showLoading());
+        return axios({
+            method: 'post',
+            url: '/trx/lockTill',
+            headers: {
+                tillKey: thunkAPI.getState().terminal.till.key
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(hideLoading());
+                thunkAPI.dispatch(blockActions());
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                }
+                else {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(hideLoading());
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
+            }
+
+        });
+    }
+)
+
+export const unlockTill = createAsyncThunk(
+    'unlockTill',
+    async (payload, thunkAPI) => {
+        thunkAPI.dispatch(showLoading());
+        return axios({
+            method: 'post',
+            url: '/trx/unlockTill',
+            headers: {
+                tillKey: thunkAPI.getState().terminal.till.key
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(hideLoading());
+                thunkAPI.dispatch(unblockActions());
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -201,6 +282,12 @@ export const terminalSlice = createSlice({
             } else if (action.payload === 'Refund') {
                 document.querySelectorAll("body")[0].style.setProperty("background-color", "#b11717", "important")
             }
+        },
+        blockActions: (state) => {
+            state.blockActions = true
+        },
+        unblockActions: (state) => {
+            state.blockActions = false
         }
     },
     extraReducers: (builder) => {
@@ -244,11 +331,37 @@ export const terminalSlice = createSlice({
 
         })
 
+        /* lockTill thunk */
+        builder.addCase(lockTill.fulfilled, (state, action) => {
+            state.till = action.payload
+            if (action.payload.isInitialized) {
+                state.display = 'ready';
+            }
+        })
+
+        builder.addCase(lockTill.rejected, (state, action) => {
+
+        })
+
+
+        /* unlockTill thunk */
+        builder.addCase(unlockTill.fulfilled, (state, action) => {
+            state.till = action.payload
+            if (action.payload.isInitialized) {
+                state.display = 'ready';
+            }
+        })
+
+        builder.addCase(unlockTill.rejected, (state, action) => {
+
+        })
+
+
     },
 })
 
 
-export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode,
+export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode,blockActions, unblockActions,
     uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems,
     uploadExchangeRates, uploadCashButtons, setPaymentType } = terminalSlice.actions
 export default terminalSlice.reducer

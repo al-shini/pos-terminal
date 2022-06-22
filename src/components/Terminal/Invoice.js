@@ -104,7 +104,7 @@ const Invoice = (props) => {
             <div style={{ background: '#303030', color: 'white', height: '5vh', width: '110%', right: '10px', position: 'relative' }}>
                 <h4 id='trxModeHeader' style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
                     {terminal.trxMode === 'Sale' && <span>{terminal.trxMode}</span>}
-                    {terminal.trxMode === 'Refund' && <span style={{color: 'red'}}>{terminal.trxMode}</span>}
+                    {terminal.trxMode === 'Refund' && <span style={{ color: 'red' }}>{terminal.trxMode}</span>}
 
                     {trxSlice.trx ? <Divider vertical /> : null}
                     {trxSlice.trx ? <span>{trxSlice.trx.nanoId}</span> : null}
@@ -127,7 +127,12 @@ const Invoice = (props) => {
                                 </Typography>
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={18}>
-                                <span className={(obj.key === trxSlice.selectedLine.key) ? classes.SelectedRow : null}>
+                                <span
+                                    style={{
+                                        extDecoration: obj.voided ? 'line-through' : '',
+                                        color: obj.voided ? '#db0000' : ''
+                                    }}
+                                    className={(obj.key === trxSlice.selectedLine.key) ? classes.SelectedRow : null}>
                                     {(obj.key === trxSlice.selectedLine.key) ?
                                         <FontAwesomeIcon style={{ marginRight: '5px' }} icon={faHandPointRight} />
                                         : null}

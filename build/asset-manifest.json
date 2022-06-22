@@ -1,0 +1,17 @@
+{
+  "files": {
+    "main.css": "./static/css/main.d5b870a4.css",
+    "main.js": "./static/js/main.7f8532e6.js",
+    "static/js/787.1c4c545e.chunk.js": "./static/js/787.1c4c545e.chunk.js",
+    "static/media/pos-bg.png": "./static/media/pos-bg.7591b1a32feb1488c638.png",
+    "static/media/dazzle-logo.png": "./static/media/dazzle-logo.8107e12c439c70efac0c.png",
+    "index.html": "./index.html",
+    "main.d5b870a4.css.map": "./static/css/main.d5b870a4.css.map",
+    "main.7f8532e6.js.map": "./static/js/main.7f8532e6.js.map",
+    "787.1c4c545e.chunk.js.map": "./static/js/787.1c4c545e.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.d5b870a4.css",
+    "static/js/main.7f8532e6.js"
+  ]
+}
