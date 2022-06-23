@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { showLoading, hideLoading, notify } from './uiSlice'
 import axios from '../axios';
+import config from '../config';
 
 const initialState = {
     authenticated: false,
@@ -24,6 +25,54 @@ const initialState = {
 /**
  * async actions
  */
+
+export const checkLoginQrAuth = createAsyncThunk(
+    'checkLoginQrAuth',
+    async (payload, thunkAPI) => {
+        return axios({
+            method: 'post',
+            url: '/utilities/checkQRState',
+            headers: {
+                authKey: payload
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                if (response.data.status === 'Scanned') {
+                    thunkAPI.dispatch(login({
+                        terminalHardwareId: config.deviceId,
+                        mobileHardwareId: response.data.signedBy,
+                        authKey: response.data.key
+                    }));
+                } else {
+                    if (!thunkAPI.getState().terminal.authenticated) {
+                        window.setTimeout(() => {
+                            thunkAPI.dispatch(checkLoginQrAuth(payload));
+                        }, 1500);
+                    }
+                }
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                }
+                else {
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(hideLoading());
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
+            }
+
+        });
+    }
+)
 
 export const login = createAsyncThunk(
     'login',
@@ -356,12 +405,22 @@ export const terminalSlice = createSlice({
 
         })
 
+        /* checkLoginQrAuth thunk */
+        builder.addCase(checkLoginQrAuth.fulfilled, (state, action) => {
+            
+        })
+
+        builder.addCase(checkLoginQrAuth.rejected, (state, action) => {
+
+        })
+
+
 
     },
 })
 
 
-export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode,blockActions, unblockActions,
+export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode, blockActions, unblockActions,
     uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems,
     uploadExchangeRates, uploadCashButtons, setPaymentType } = terminalSlice.actions
 export default terminalSlice.reducer

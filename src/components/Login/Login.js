@@ -15,7 +15,7 @@ import Alert from "@mui/material/Alert";
 import PosBG from '../../assets/pos-bg.png';
 import DazzleLogo from '../../assets/dazzle-logo.png';
 
-import { login } from '../../store/terminalSlice';
+import { login, checkLoginQrAuth } from '../../store/terminalSlice';
 import { notify, showLoading, hideLoading } from '../../store/uiSlice';
 
 import config from '../../config';
@@ -43,47 +43,26 @@ const Login = (props) => {
         event.preventDefault();
     };
 
-    const checkQrScan = () => {
-        axios({
-            method: 'post',
-            url: '/utilities/checkQRState',
-            headers: {
-                authKey: loginQR.qrAuthKey
-            }
-        }).then((response) => {
-            if (response && response.data) {
-                if (response.data.status === 'Scanned') {
-                    dispatch(login({
-                        terminalHardwareId: config.deviceId,
-                        mobileHardwareId: response.data.signedBy,
-                        authKey: response.data.key
-                    }));
-                } else {
-                    window.setTimeout(() => {
-                        if (!terminalSlice.authenticated) {
-                            // checkQrScan();
-                        }
-                    }, 1500);
-                }
-            } else {
-                dispatch(notify({ msg: 'Incorrect Login QR check response', sev: 'error' }))
-            }
-        }).catch((error) => {
-            if (error.response) {
-                if (error.response.status === 401) {
-                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                } else {
-                    dispatch(hideLoading());
-                    dispatch(notify({ msg: error.response.data, sev: 'error' }));
-                }
-            } else {
-                dispatch(notify({ msg: error.message, sev: 'error' }));
-            }
-
-        });
-    }
 
     useEffect(async () => {
+        reloadQrAuth();
+    }, []);
+
+    useEffect(() => {
+        if (terminalSlice.authenticated) {
+            navigate('/app');
+        }
+    }, [terminalSlice.authenticated]);
+
+    useEffect(() => {
+        if (loginQR.qrAuthKey && !terminalSlice.authenticated) {
+            dispatch(checkLoginQrAuth(loginQR.qrAuthKey));
+        }
+    }, [loginQR]);
+
+
+    const reloadQrAuth = () => {
+        dispatch(showLoading());
         axios({
             method: 'post',
             url: '/utilities/generateQR',
@@ -97,6 +76,7 @@ const Login = (props) => {
             } else {
                 dispatch(notify({ msg: 'Incorrect Login QR response', sev: 'error' }))
             }
+            dispatch(hideLoading());
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
@@ -105,21 +85,9 @@ const Login = (props) => {
             } else {
                 dispatch(notify({ msg: error.message, sev: 'error' }));
             }
-
+            dispatch(hideLoading());
         });
-    }, []);
-
-    useEffect(() => {
-        if (terminalSlice.authenticated) {
-            navigate('/app');
-        }
-    }, [terminalSlice.authenticated]);
-
-    useEffect(() => {
-        if (loginQR.qrAuthKey && !terminalSlice.authenticated) {
-            checkQrScan();
-        }
-    }, [loginQR]);
+    }
 
 
 
@@ -153,7 +121,7 @@ const Login = (props) => {
                     <img src={DazzleLogo} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
 
                     <div style={{ textAlign: 'center', margin: '15px' }}>
-                        <QRCode value={JSON.stringify(loginQR)} size={180} />
+                        <QRCode onClick={reloadQrAuth} value={JSON.stringify(loginQR)} size={180} />
                     </div>
                     <h6 style={{ textAlign: 'center' }}>
                         <br />

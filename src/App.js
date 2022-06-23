@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, HashRouter } from "react-router-dom";
 import { useSelector } from 'react-redux'
 
 import Login from './components/Login/Login';
@@ -19,7 +19,7 @@ const App = () => {
   const uiSlice = useSelector((state) => state.ui);
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Backdrop
         sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
         open={uiSlice.loading}
@@ -41,7 +41,7 @@ const App = () => {
           <Route path="" element={<Terminal />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
