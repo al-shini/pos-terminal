@@ -123,13 +123,19 @@ const Invoice = (props) => {
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={2}>
                                 <Typography variant='subtitle1'>
-                                    {obj.qty}
+                                    <span
+                                        style={{
+                                            textDecoration: obj.voided ? 'line-through' : '',
+                                            color: obj.voided ? '#db0000' : ''
+                                        }}>
+                                        {obj.qty}
+                                    </span>
                                 </Typography>
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={18}>
                                 <span
                                     style={{
-                                        extDecoration: obj.voided ? 'line-through' : '',
+                                        textDecoration: obj.voided ? 'line-through' : '',
                                         color: obj.voided ? '#db0000' : ''
                                     }}
                                     className={(obj.key === trxSlice.selectedLine.key) ? classes.SelectedRow : null}>
@@ -141,7 +147,13 @@ const Invoice = (props) => {
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={3}>
                                 <Typography variant='subtitle1'>
-                                    {(Math.round((obj.totalprice) * 100) / 100).toFixed(2)}
+                                    <span
+                                        style={{
+                                            textDecoration: obj.voided ? 'line-through' : '',
+                                            color: obj.voided ? '#db0000' : ''
+                                        }}>
+                                        {(Math.round((obj.totalprice) * 100) / 100).toFixed(2)}
+                                    </span>
                                 </Typography>
                             </FlexboxGrid.Item>
 

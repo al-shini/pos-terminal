@@ -15,7 +15,8 @@ const initialState = {
     payments: [],
     selectedPayment: {},
     trxPaid: 0,
-    trxChange: 0
+    trxChange: 0,
+    priceChangeMode: false
 }
 
 /**
@@ -329,7 +330,44 @@ export const voidLine = createAsyncThunk(
         });
     }
 )
+export const changePrice = createAsyncThunk(
+    'changePrice',
+    async (payload, thunkAPI) => {
+        return axios({
+            method: 'post',
+            url: '/trx/linePriceChange',
+            headers: {
+                lineKey: thunkAPI.getState().trx.selectLine ? thunkAPI.getState().trx.selectLine.key : null,
+                newPrice: thunkAPI.getState().trx.numberInputValue ? parseFloat(thunkAPI.getState().trx.numberInputValue) : 0.0
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(notify({ msg: 'Line Price Changed', sev: 'info' }));
+                thunkAPI.dispatch(clearNumberInput());
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            console.log(error);
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                } else if (error.response.status === 499) {
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                } else {
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+            }
 
+        });
+    }
+)
 /**
  * reducer
  */
@@ -426,6 +464,13 @@ export const trxSlice = createSlice({
         }
         , selectPaymentMethod: (state, action) => {
             state.selectedPaymentMethod = action.payload;
+        },
+        enablePriceChange: (state, action) => {
+            state.priceChangeMode = true;
+        }
+        ,
+        disablePriceChange: (state, action) => {
+            state.priceChangeMode = false;
         }
     },
     extraReducers: (builder) => {
@@ -500,7 +545,13 @@ export const trxSlice = createSlice({
 
         /* voidLine thunk */
         builder.addCase(voidLine.fulfilled, (state, action) => {
-
+            if (action.payload.line) {
+                state.trx = action.payload.trx;
+                state.scannedItems = action.payload.trxLines;
+                state.selectedLine = action.payload.line;
+                state.numberInputValue = '';
+                state.multiplier = '1'
+            }
         })
 
         builder.addCase(voidLine.rejected, (state, action) => {
@@ -548,11 +599,28 @@ export const trxSlice = createSlice({
         builder.addCase(suspendTrx.rejected, (state, action) => {
 
         })
+
+        /* changePrice thunk */
+        builder.addCase(changePrice.fulfilled, (state, action) => {
+            if (action.payload.line) {
+                state.lastScannedBarcode = action.payload.line.barcode;
+                state.trx = action.payload.trx;
+                state.scannedItems = action.payload.trxLines;
+                state.selectedLine = action.payload.line;
+                state.numberInputValue = '';
+                state.multiplier = '1'
+            }
+        })
+
+        builder.addCase(changePrice.rejected, (state, action) => {
+
+        })
+
     },
 })
 
 
 
-export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx,
+export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx,enablePriceChange,disablePriceChange,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency } = trxSlice.actions
 export default trxSlice.reducer

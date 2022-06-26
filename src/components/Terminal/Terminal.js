@@ -5,7 +5,7 @@ import { Button, Input, FlexboxGrid, Panel, Divider, Whisper, Popover } from 'rs
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faSackDollar, faBroom, faMoneyBillTransfer,
+    faSackDollar, faBroom, faMoneyBillTransfer, faRepeat,
     faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay, faRotateLeft, faDollarSign, faLock, faUnlock
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
@@ -13,10 +13,13 @@ import Invoice from './Invoice';
 import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import {
-    beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry,
+    beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry,reset,
     uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates
 } from '../../store/terminalSlice';
-import { selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, setTrx, selectPaymentMethod, voidTrx, suspendTrx } from '../../store/trxSlice';
+import {
+    selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, setTrx,
+    selectPaymentMethod, voidTrx, suspendTrx, enablePriceChange, disablePriceChange
+} from '../../store/trxSlice';
 import { notify, hideLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import Alert from "@mui/material/Alert";
@@ -225,16 +228,31 @@ const Terminal = (props) => {
                 }
             } else {
                 if (trxSlice.selectedLine) {
-                    dispatch(voidLine({
-                        trxKey: trxSlice.trx.key,
-                        lineKey: trxSlice.selectedLine.key
-                    }));
+                    confirm('Void Item Line?', '', () => {
+                        dispatch(voidLine({
+                            trxKey: trxSlice.trx.key,
+                            lineKey: trxSlice.selectedLine.key
+                        }));
+                    })
+
                 } else {
                     dispatch(notify({ msg: 'No transaction line selected', sev: 'warning' }));
                 }
             }
         } else {
             dispatch(notify({ msg: 'No open transactions', sev: 'warning' }));
+        }
+    }
+
+    const handlePriceChange = () => {
+        if (!trxSlice.priceChangeMode) {
+            dispatch(clearNumberInput());
+            dispatch(reset());
+            dispatch(enablePriceChange());
+        } else if (trxSlice.priceChangeMode) {
+            dispatch(clearNumberInput());
+            dispatch(reset());
+            dispatch(disablePriceChange());
         }
     }
 
@@ -304,6 +322,7 @@ const Terminal = (props) => {
             }))
         }
     }
+
     const handleLockTill = () => {
         if (terminal.till) {
             if (terminal.till.status === 'O') {
@@ -333,7 +352,6 @@ const Terminal = (props) => {
             }
         }
     }
-
 
     const buildPaymentTypesButtons = () => {
         return <React.Fragment>
@@ -660,16 +678,29 @@ const Terminal = (props) => {
 
 
                     <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton}
-                            onClick={handleVoidLine}
-                            appearance='primary' color='blue'>
-                            <FontAwesomeIcon icon={faEraser} style={{ marginRight: '5px' }} />
-                            <label>Void Line</label>
-                        </Button>
+                        {terminal.paymentMode &&
+                            <Button className={classes.POSButton}
+                                onClick={handleVoidLine}
+                                disabled={!trxSlice.selectedPayment || !trxSlice.selectedPayment.key}
+                                appearance='primary' color='blue'>
+                                <FontAwesomeIcon icon={faEraser} style={{ marginRight: '5px' }} />
+                                <label>Void Payment</label>
+                            </Button>
+                        }
+                        {!terminal.paymentMode &&
+                            <Button className={classes.POSButton}
+                                onClick={handleVoidLine}
+                                disabled={!trxSlice.selectedLine || !trxSlice.selectedLine.key}
+                                appearance='primary' color='blue'>
+                                <FontAwesomeIcon icon={faEraser} style={{ marginRight: '5px' }} />
+                                <label>Void Line</label>
+                            </Button>
+                        }
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
                         <Button className={classes.POSButton}
                             onClick={handleVoidTrx}
+                            disabled={terminal.paymentMode}
                             appearance='primary' color='blue'>
                             <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
                             <label>Void TRX</label>
@@ -677,10 +708,11 @@ const Terminal = (props) => {
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
                         <Button className={classes.POSButton}
-                            appearance='primary' color='blue'
-                            disabled >
-                            <FontAwesomeIcon icon={faBan} style={{ marginRight: '5px' }} />
-                            <label>Empty</label>
+                            disabled={terminal.paymentMode || !trxSlice.selectedLine || !trxSlice.selectedLine.key}
+                            onClick={handlePriceChange}
+                            appearance='primary' color={trxSlice.priceChangeMode ? 'orange' : 'blue'}  >
+                            <FontAwesomeIcon icon={faRepeat} style={{ marginRight: '5px' }} />
+                            <label>{trxSlice.priceChangeMode ? '(CANCEL) Price Change' : 'Price Change'}</label>
                         </Button>
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
