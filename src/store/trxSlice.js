@@ -5,7 +5,6 @@ import axios from '../axios';
 
 const initialState = {
     trx: null,
-    lastScannedBarcode: '',
     scannedItems: [],
     selectedLine: {},
     multiplier: 1,
@@ -337,12 +336,13 @@ export const changePrice = createAsyncThunk(
             method: 'post',
             url: '/trx/linePriceChange',
             headers: {
-                lineKey: thunkAPI.getState().trx.selectLine ? thunkAPI.getState().trx.selectLine.key : null,
+                lineKey: thunkAPI.getState().trx.selectedLine ? thunkAPI.getState().trx.selectedLine.key : null,
                 newPrice: thunkAPI.getState().trx.numberInputValue ? parseFloat(thunkAPI.getState().trx.numberInputValue) : 0.0
             }
         }).then((response) => {
             if (response && response.data) {
                 thunkAPI.dispatch(notify({ msg: 'Line Price Changed', sev: 'info' }));
+                thunkAPI.dispatch(reset());
                 thunkAPI.dispatch(clearNumberInput());
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
@@ -478,7 +478,6 @@ export const trxSlice = createSlice({
         /* scan thunk */
         builder.addCase(scanBarcode.fulfilled, (state, action) => {
             if (action.payload.line) {
-                state.lastScannedBarcode = action.payload.line.barcode;
                 state.trx = action.payload.trx;
                 state.scannedItems = action.payload.trxLines;
                 state.selectedLine = action.payload.line;
@@ -511,7 +510,6 @@ export const trxSlice = createSlice({
         builder.addCase(closeTrxPayment.fulfilled, (state, action) => {
             // reset trx state (prepare to start new one)
             state.trx = null;
-            state.lastScannedBarcode = '';
             state.scannedItems = [];
             state.selectedLine = {};
             state.numberInputValue = '';
@@ -562,7 +560,6 @@ export const trxSlice = createSlice({
         builder.addCase(voidTrx.fulfilled, (state, action) => {
             // reset trx state (prepare to start new one)
             state.trx = null;
-            state.lastScannedBarcode = '';
             state.scannedItems = [];
             state.selectedLine = {};
             state.numberInputValue = '';
@@ -583,7 +580,6 @@ export const trxSlice = createSlice({
         builder.addCase(suspendTrx.fulfilled, (state, action) => {
             // reset trx state (prepare to start new one)
             state.trx = null;
-            state.lastScannedBarcode = '';
             state.scannedItems = [];
             state.selectedLine = {};
             state.numberInputValue = '';
@@ -603,7 +599,6 @@ export const trxSlice = createSlice({
         /* changePrice thunk */
         builder.addCase(changePrice.fulfilled, (state, action) => {
             if (action.payload.line) {
-                state.lastScannedBarcode = action.payload.line.barcode;
                 state.trx = action.payload.trx;
                 state.scannedItems = action.payload.trxLines;
                 state.selectedLine = action.payload.line;

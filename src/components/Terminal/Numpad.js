@@ -9,7 +9,7 @@ import {
 import styles from './Numpad.module.css';
 import classes from './Terminal.module.css';
 
-import { handleNumberInputChange, scanBarcode, submitPayment } from '../../store/trxSlice';
+import { changePrice, handleNumberInputChange, scanBarcode, submitPayment } from '../../store/trxSlice';
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -61,6 +61,8 @@ const Numpad = (props) => {
                 }))
             }
 
+        } else if (trxSlice.priceChangeMode) {
+                dispatch(changePrice());
         } else {
             if (trxSlice.numberInputValue) {
                 dispatch(scanBarcode({
