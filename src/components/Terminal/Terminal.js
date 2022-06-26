@@ -26,6 +26,26 @@ import Alert from "@mui/material/Alert";
 import confirm from '../UI/ConfirmDlg';
 import config from '../../config';
 
+/* notes images */
+import NIS_05 from '../../assets/money-notes/0.5NIS.png';
+import NIS_1 from '../../assets/money-notes/1.0NIS.png';
+import NIS_2 from '../../assets/money-notes/2.0NIS.png';
+import NIS_5 from '../../assets/money-notes/5.0NIS.png';
+import NIS_10 from '../../assets/money-notes/10.0NIS.png';
+import NIS_20 from '../../assets/money-notes/20.0NIS.png';
+import NIS_50 from '../../assets/money-notes/50.0NIS.png';
+import NIS_100 from '../../assets/money-notes/100.0NIS.png';
+import NIS_200 from '../../assets/money-notes/200.0NIS.png';
+import JOD_5 from '../../assets/money-notes/5.0JOD.png';
+import JOD_10 from '../../assets/money-notes/10.0JOD.png';
+import JOD_20 from '../../assets/money-notes/20.0JOD.png';
+import JOD_50 from '../../assets/money-notes/50.0JOD.png';
+import EUR_10 from '../../assets/money-notes/10.0EUR.png';
+import USD_20 from '../../assets/money-notes/20.0USD.png';
+import USD_50 from '../../assets/money-notes/50.0USD.png';
+import USD_100 from '../../assets/money-notes/100.0USD.png';
+
+
 
 const Terminal = (props) => {
     const terminal = useSelector((state) => state.terminal);
@@ -33,8 +53,32 @@ const Terminal = (props) => {
     const uiSlice = useSelector((state) => state.ui);
 
     const [actionsMode, setActionsMode] = useState('payment');
+    const [notesImages, setNotesImages] = useState([]);
 
     const dispatch = useDispatch();
+
+    useEffect(() => {
+        let arr = [];
+        arr['0.5NIS'] = NIS_05;
+        arr['1NIS'] = NIS_1;
+        arr['2NIS'] = NIS_2;
+        arr['5NIS'] = NIS_5;
+        arr['10NIS'] = NIS_10;
+        arr['20NIS'] = NIS_20;
+        arr['50NIS'] = NIS_50;
+        arr['100NIS'] = NIS_100;
+        arr['200NIS'] = NIS_200;
+        arr['5JOD'] = JOD_5;
+        arr['10JOD'] = JOD_10;
+        arr['20JOD'] = JOD_20;
+        arr['50JOD'] = JOD_50;
+        arr['10EUR'] = EUR_10;
+        arr['20USD'] = USD_20;
+        arr['50USD'] = USD_50;
+        arr['100USD'] = USD_100;
+
+        setNotesImages(arr);
+    }, [])
 
     useEffect(() => {
 
@@ -290,7 +334,9 @@ const Terminal = (props) => {
         }
 
         if (!terminal.paymentMode) {
-            dispatch(logout());
+            //  dispatch(logout());
+            dispatch(notify({ msg: 'YOU CANT SHUTDOWN', sev: 'error' }));
+
         } else {
             dispatch(abort());
         }
@@ -341,9 +387,7 @@ const Terminal = (props) => {
     const handleUnlockTill = () => {
         if (terminal.till) {
             if (terminal.till.status === 'L') {
-                confirm('Unlock Till?', 'This re-opens till',
-                    () => { dispatch(unlockTill()) }
-                )
+                dispatch(unlockTill());
             } else {
                 dispatch(notify({
                     msg: 'Till cannot be unlocked',
@@ -385,9 +429,9 @@ const Terminal = (props) => {
                         currency: obj.currency,
                         amount: obj.amount
                     }))
-                }} style={{ background: `url(${obj.image}) rgb(247 247 250)`, backgroundRepeat: 'no-repeat', backgroundPosition: 'center', color: 'transparent' }}
+                }}
                     className={classes.ActionButton} >
-                    .
+                    <img src={notesImages[obj.amount+''+obj.currency]} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
                 </Button>
             )
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={i + 'space'} > .</div>);
@@ -412,9 +456,8 @@ const Terminal = (props) => {
                         amount: obj.amount
                     }))
                 }}
-                    style={{ background: `url(${obj.image}) rgb(247 247 250)`, backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}
                     className={classes.ActionButton} >
-                    <span style={{ color: 'transparent' }}> .</span>
+                    <img src={notesImages[obj.amount+''+obj.currency]} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
                 </Button>
             )
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.uuid + 'space'} > .</div>);
@@ -513,7 +556,7 @@ const Terminal = (props) => {
             }
             {
                 terminal.till && terminal.till.status === 'L' &&
-                <Button key='unlock' className={classes.MainActionButton} onClick={handleUnlockTill}>
+                <Button key='unlock' style={{ zIndex: '1000' }} className={classes.MainActionButton} onClick={handleUnlockTill}>
                     <div style={{ textAlign: 'center', fontSize: '14px', }}>
                         <FontAwesomeIcon icon={faUnlock} style={{ marginRight: '5px' }} />
                         <label>Unlock Till</label>
@@ -533,6 +576,18 @@ const Terminal = (props) => {
             </FlexboxGrid.Item>
 
             <FlexboxGrid.Item colspan={1} style={{ width: '1.166667%' }}>
+                {
+                    terminal.blockActions && <div style={{
+                        position: 'fixed',
+                        zIndex: '999',
+                        backgroundColor: 'rgba(0,0,0,0.6)', height: '100%', width: '100%', top: '0%', left: '0%'
+                    }}>
+                        <h1 style={{ textAlign: 'center', color: 'white', margin: '15%' }}>
+                            <FontAwesomeIcon icon={faLock} style={{ marginRight: '8px' }} />
+                            TERMINAL LOCKED
+                        </h1>
+                    </div>
+                }
             </FlexboxGrid.Item>
 
             <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '87.5vh' }}>
