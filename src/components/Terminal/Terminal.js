@@ -13,7 +13,7 @@ import Invoice from './Invoice';
 import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import {
-    beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry,reset,
+    beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry, reset,
     uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates
 } from '../../store/terminalSlice';
 import {
@@ -431,7 +431,7 @@ const Terminal = (props) => {
                     }))
                 }}
                     className={classes.ActionButton} >
-                    <img src={notesImages[obj.amount+''+obj.currency]} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
+                    <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
                 </Button>
             )
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={i + 'space'} > .</div>);
@@ -457,7 +457,7 @@ const Terminal = (props) => {
                     }))
                 }}
                     className={classes.ActionButton} >
-                    <img src={notesImages[obj.amount+''+obj.currency]} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
+                    <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
                 </Button>
             )
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.uuid + 'space'} > .</div>);
@@ -651,7 +651,12 @@ const Terminal = (props) => {
                     </h6>
                 </div>
                 <div  >
-                    <FlexboxGrid justify='space-between'>
+                    <FlexboxGrid justify='space-between' style={{
+                        maxHeight: "82vh",
+                        overflowY: "scroll",
+                        paddingRight: "15px",
+                        width: "120%"
+                    }}>
 
                         <FlexboxGrid.Item colspan={24}>
                             {
