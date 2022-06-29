@@ -17,10 +17,10 @@ import {
     uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates
 } from '../../store/terminalSlice';
 import {
-    selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, setTrx,
+    selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, scanNewTransaction, setTrx,
     selectPaymentMethod, voidTrx, suspendTrx, enablePriceChange, disablePriceChange
 } from '../../store/trxSlice';
-import { notify, hideLoading } from '../../store/uiSlice';
+import { notify, hideLoading, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import Alert from "@mui/material/Alert";
 import confirm from '../UI/ConfirmDlg';
@@ -44,6 +44,7 @@ import EUR_10 from '../../assets/money-notes/10.0EUR.png';
 import USD_20 from '../../assets/money-notes/20.0USD.png';
 import USD_50 from '../../assets/money-notes/50.0USD.png';
 import USD_100 from '../../assets/money-notes/100.0USD.png';
+import { style } from '@mui/system';
 
 
 
@@ -335,8 +336,8 @@ const Terminal = (props) => {
 
         if (!terminal.paymentMode) {
             //  dispatch(logout());
-            dispatch(notify({ msg: 'YOU CANT SHUTDOWN', sev: 'error' }));
-
+            // dispatch(notify({ msg: 'YOU CANT SHUTDOWN', sev: 'error' }));
+            window.location.reload();
         } else {
             dispatch(abort());
         }
@@ -421,7 +422,7 @@ const Terminal = (props) => {
 
         terminal.cashButtons.map((obj, i) => {
             tmp.push(
-                <Button key={i} onClick={() => {
+                <a key={i} onClick={() => {
                     dispatch(submitPayment({
                         tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
@@ -430,9 +431,11 @@ const Terminal = (props) => {
                         amount: obj.amount
                     }))
                 }}
-                    className={classes.ActionButton} >
-                    <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
-                </Button>
+                    style={{ backgroundColor: '#f7f7fa', display: 'block' }}
+
+                >
+                    <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: obj.amount > 10 ? '90%' : 'auto', height: '60px' }} />
+                </a>
             )
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={i + 'space'} > .</div>);
         });
@@ -447,7 +450,7 @@ const Terminal = (props) => {
 
         terminal.foreignButtons.map((obj) => {
             tmp.push(
-                <Button key={obj.uuid} onClick={() => {
+                <a key={obj.uuid} onClick={() => {
                     dispatch(submitPayment({
                         tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
@@ -455,10 +458,9 @@ const Terminal = (props) => {
                         currency: obj.currency,
                         amount: obj.amount
                     }))
-                }}
-                    className={classes.ActionButton} >
-                    <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
-                </Button>
+                }} style={{ backgroundColor: '#f7f7fa', display: 'block' }} >
+                    <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: obj.amount > 10 ? '90%' : 'auto', height: '60px' }} />
+                </a>
             )
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.uuid + 'space'} > .</div>);
         });
@@ -496,13 +498,25 @@ const Terminal = (props) => {
             tmp.push(
                 <Button key={i} className={classes.ActionButton}
                     onClick={() => {
-                        dispatch(scanBarcode({
-                            barcode: obj.barcode,
-                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                            trxMode: terminal.trxMode,
-                            tillKey: terminal.till ? terminal.till.key : null,
-                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
-                        }))
+                        if (trxSlice.trx && trxSlice.trx.key) {
+                            dispatch(scanBarcode({
+                                barcode: obj.barcode,
+                                trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                                trxMode: terminal.trxMode,
+                                tillKey: terminal.till ? terminal.till.key : null,
+                                multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                            }))
+                        } else {
+                            dispatch(showLoading());
+                            dispatch(scanNewTransaction({
+                                barcode: obj.barcode,
+                                trxKey: null,
+                                trxMode: terminal.trxMode,
+                                tillKey: terminal.till ? terminal.till.key : null,
+                                multiplier: '1'
+                            }))
+                        }
+
                     }} >
                     <div key={obj.key + 'di'} style={{ textAlign: 'center', fontSize: '14px', }}>
                         {obj.itemName}
@@ -653,9 +667,9 @@ const Terminal = (props) => {
                 <div  >
                     <FlexboxGrid justify='space-between' style={{
                         maxHeight: "82vh",
-                        overflowY: "scroll",
-                        paddingRight: "15px",
-                        width: "120%"
+                        overflowY: "hidden",
+                        width: "105%",
+                        marginLeft: '10px'
                     }}>
 
                         <FlexboxGrid.Item colspan={24}>
@@ -772,7 +786,7 @@ const Terminal = (props) => {
                             onClick={handlePriceChange}
                             appearance='primary' color={trxSlice.priceChangeMode ? 'orange' : 'blue'}  >
                             <FontAwesomeIcon icon={faRepeat} style={{ marginRight: '5px' }} />
-                            <label>{trxSlice.priceChangeMode ? '(CANCEL) Price Change' : 'Price Change'}</label>
+                            <label>{trxSlice.priceChangeMode ? 'CANCEL' : 'Price Change'}</label>
                         </Button>
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
@@ -782,9 +796,11 @@ const Terminal = (props) => {
                             appearance='primary' color='red'>
                             <FontAwesomeIcon icon={faTimes} style={{ marginRight: '5px' }} />
                             <label>
-                                {(terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') ? 'Abort' : ''}
-                                {(terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType !== 'none') ? 'Back' : ''}
-                                {!terminal.paymentMode ? 'Shutdown' : ''}
+                                {
+                                    (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') ? 'Abort' :
+                                        (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType !== 'none') ? 'Back' : !terminal.paymentMode ? 'Restart' : ''
+                                }
+
                             </label>
                         </Button>
                     </FlexboxGrid.Item>

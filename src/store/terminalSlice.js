@@ -8,6 +8,8 @@ const initialState = {
     loggedInUser: null,
     token: null,
     till: {},
+    fastItemGroups: [],
+    selectedFastItemGroup: [],
     fastItems: [],
     display: 'ready',
     trxMode: 'Sale',

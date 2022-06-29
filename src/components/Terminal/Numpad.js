@@ -9,7 +9,8 @@ import {
 import styles from './Numpad.module.css';
 import classes from './Terminal.module.css';
 
-import { changePrice, handleNumberInputChange, scanBarcode, submitPayment } from '../../store/trxSlice';
+import { changePrice, handleNumberInputChange, scanBarcode,scanNewTransaction, submitPayment } from '../../store/trxSlice';
+import { showLoading } from '../../store/uiSlice';
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -65,13 +66,26 @@ const Numpad = (props) => {
                 dispatch(changePrice());
         } else {
             if (trxSlice.numberInputValue) {
-                dispatch(scanBarcode({
-                    barcode: trxSlice.numberInputValue,
-                    trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                    trxMode: terminal.trxMode,
-                    tillKey: terminal.till ? terminal.till.key : null,
-                    multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
-                }))
+
+                if (trxSlice.trx && trxSlice.trx.key) {
+                    dispatch(scanBarcode({
+                        barcode: trxSlice.numberInputValue,
+                        trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                        trxMode: terminal.trxMode,
+                        tillKey: terminal.till ? terminal.till.key : null,
+                        multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                    }))
+                } else {
+                    dispatch(showLoading());
+                    dispatch(scanNewTransaction({
+                        barcode: trxSlice.numberInputValue,
+                        trxKey: null,
+                        trxMode: terminal.trxMode,
+                        tillKey: terminal.till ? terminal.till.key : null,
+                        multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                    }))
+                }
+                
             }
 
         }

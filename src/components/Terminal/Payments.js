@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { FlexboxGrid, List, IconButton, Button } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faHandPointRight } from '@fortawesome/free-solid-svg-icons'
+import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
 
 import axios from '../../axios';
 import { selectPayment, uploadPayments } from '../../store/trxSlice';
@@ -98,10 +98,6 @@ const Invoice = (props) => {
 
                                 </FlexboxGrid.Item>
                                 <FlexboxGrid.Item colspan={5}>
-                                    {(obj.key === trxSlice.selectedPayment.key) ?
-                                        <FontAwesomeIcon style={{ marginRight: '5px',
-                                        color: obj.voided ? '#db0000' : '' }} icon={faHandPointRight} />
-                                        : null}
                                     <b style={{ fontSize: '20px',
                                      textDecoration: obj.voided ? 'line-through' : '',
                                      color: obj.voided ? '#db0000' : '' }}> {terminal.paymentMethods[obj.paymentMethodKey].description}</b>

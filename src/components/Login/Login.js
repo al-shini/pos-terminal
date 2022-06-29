@@ -20,11 +20,14 @@ import { notify, showLoading, hideLoading } from '../../store/uiSlice';
 
 import config from '../../config';
 import axios from '../../axios'
-
+import Keyboard from 'react-simple-keyboard';
+import 'react-simple-keyboard/build/css/index.css';
 
 const Login = (props) => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
+
+
 
     const terminalSlice = useSelector((state) => state.terminal);
     const uiSlice = useSelector((state) => state.ui);
@@ -91,6 +94,14 @@ const Login = (props) => {
 
 
 
+    const onChange = (input) => {
+        console.log("Input changed", input);
+    }
+
+    const onKeyPress = (button) => {
+        console.log("Button pressed", button);
+    }
+
     return (
         <ThemeProvider theme={theme}>
             <Snackbar
@@ -103,6 +114,12 @@ const Login = (props) => {
 
             <Grid container component="main" sx={{ height: '100vh' }}>
                 <CssBaseline />
+                <Grid item>
+                    {/* <Keyboard
+                        onChange={onChange}
+                        onKeyPress={onKeyPress}
+                    /> */}
+                </Grid>
                 <Grid
                     item
                     xs={false}

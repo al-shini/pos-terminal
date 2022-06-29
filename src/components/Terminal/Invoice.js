@@ -4,10 +4,10 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Stack, FlexboxGrid, List, IconButton, Divider } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faIls, faHandPointRight, faFaceSmileBeam } from '@fortawesome/free-solid-svg-icons'
+import { faChevronDown, faChevronUp, faFaceSmileBeam } from '@fortawesome/free-solid-svg-icons'
 import Typography from '@mui/material/Typography';
 import BarcodeReader from 'react-barcode-reader';
-import { scanBarcode } from '../../store/trxSlice';
+import { scanBarcode , scanNewTransaction} from '../../store/trxSlice';
 
 import axios from '../../axios';
 import { resumeTrx, selectLine } from '../../store/trxSlice';
@@ -65,14 +65,24 @@ const Invoice = (props) => {
 
     const handleScan = (scannedValue) => {
         if (!terminal.paymentMode) {
-
-            dispatch(scanBarcode({
-                tillKey: terminal.till.key,
-                trxMode: terminal.trxMode,
-                trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                barcode: scannedValue,
-                multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
-            }))
+            if (trxSlice.trx && trxSlice.trx.key) {
+                dispatch(scanBarcode({
+                    barcode: scannedValue,
+                    trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                    trxMode: terminal.trxMode,
+                    tillKey: terminal.till ? terminal.till.key : null,
+                    multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                }))
+            } else {
+                dispatch(showLoading());
+                dispatch(scanNewTransaction({
+                    barcode: scannedValue,
+                    trxKey: null,
+                    trxMode: terminal.trxMode,
+                    tillKey: terminal.till ? terminal.till.key : null,
+                    multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                }))
+            }
         }
     }
 
@@ -139,9 +149,6 @@ const Invoice = (props) => {
                                         color: obj.voided ? '#db0000' : ''
                                     }}
                                     className={(obj.key === trxSlice.selectedLine.key) ? classes.SelectedRow : null}>
-                                    {(obj.key === trxSlice.selectedLine.key) ?
-                                        <FontAwesomeIcon style={{ marginRight: '5px' }} icon={faHandPointRight} />
-                                        : null}
                                     {obj.description}
                                 </span>
                             </FlexboxGrid.Item>

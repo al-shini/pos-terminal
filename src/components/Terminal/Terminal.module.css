@@ -10,25 +10,25 @@
 .MainActionButton {
     height: 60px !important;
     line-height: 2 !important;
-    width: 90% !important;
+    width: 100% !important;
     display: block !important;
     font-size: 17px !important;
     text-align: left !important;
     border-radius: 0px !important;
     position: relative !important;
-    left: 15px !important
+    /* left: 15px !important */
 }
 
 .ActionButton {
     height: 60px !important;
     line-height: 2 !important;
-    width: 90% !important;
+    width: 100% !important;
     display: block !important;
     font-size: 17px !important;
     text-align: left !important;
     border-radius: 0px !important;
     position: relative !important;
-    left: 15px !important
+    /* left: 15px !important */
 }
 
 .NumpadButton {
