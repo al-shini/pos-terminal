@@ -21,7 +21,8 @@ const initialState = {
     foreignButtons: [],
     currencies: [],
     exchangeRates: {},
-    blockActions: false
+    blockActions: false,
+    errorSound: false
 }
 
 /**
@@ -245,6 +246,9 @@ export const terminalSlice = createSlice({
     name: 'auth',
     initialState,
     reducers: {
+        triggerErrorSound: (state) => {
+            state.errorSound = !state.errorSound;
+        },
         logout: (state) => {
             state.authenticated = false;
             state.loggedInUser = null;
@@ -409,7 +413,7 @@ export const terminalSlice = createSlice({
 
         /* checkLoginQrAuth thunk */
         builder.addCase(checkLoginQrAuth.fulfilled, (state, action) => {
-            
+
         })
 
         builder.addCase(checkLoginQrAuth.rejected, (state, action) => {
@@ -424,5 +428,5 @@ export const terminalSlice = createSlice({
 
 export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode, blockActions, unblockActions,
     uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems,
-    uploadExchangeRates, uploadCashButtons, setPaymentType } = terminalSlice.actions
+    uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound } = terminalSlice.actions
 export default terminalSlice.reducer

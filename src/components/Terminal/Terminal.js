@@ -18,14 +18,17 @@ import {
 } from '../../store/terminalSlice';
 import {
     selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, scanNewTransaction, setTrx,
-    selectPaymentMethod, voidTrx, suspendTrx, enablePriceChange, disablePriceChange
+    selectPaymentMethod, voidTrx, suspendTrx, enablePriceChange, disablePriceChange,
+    checkOperationQrAuth, startQrAuthCheck
 } from '../../store/trxSlice';
 import { notify, hideLoading, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import Alert from "@mui/material/Alert";
 import confirm from '../UI/ConfirmDlg';
 import config from '../../config';
-
+import errorBeep from '../../assets/beep.wav';
+import QRCode from "react-qr-code";
+import useSound from 'use-sound';
 /* notes images */
 import NIS_05 from '../../assets/money-notes/0.5NIS.png';
 import NIS_1 from '../../assets/money-notes/1.0NIS.png';
@@ -44,7 +47,6 @@ import EUR_10 from '../../assets/money-notes/10.0EUR.png';
 import USD_20 from '../../assets/money-notes/20.0USD.png';
 import USD_50 from '../../assets/money-notes/50.0USD.png';
 import USD_100 from '../../assets/money-notes/100.0USD.png';
-import { style } from '@mui/system';
 
 
 
@@ -55,6 +57,13 @@ const Terminal = (props) => {
 
     const [actionsMode, setActionsMode] = useState('payment');
     const [notesImages, setNotesImages] = useState([]);
+    const [authQR, setAuthQR] = useState({});
+    const [play] = useSound(errorBeep);
+
+    useEffect(() => {
+        play();
+    }, [terminal.errorSound])
+
 
     const dispatch = useDispatch();
 
@@ -261,25 +270,64 @@ const Terminal = (props) => {
         if (trxSlice.trx) {
             if (terminal.paymentMode) {
                 if (trxSlice.selectedPayment) {
-                    confirm('Void Payment?', '', () => {
-                        dispatch(voidPayment({
-                            trxKey: trxSlice.trx.key,
-                            lineKey: trxSlice.selectedPayment.key
-                        }))
-                    })
+                    axios({
+                        method: 'post',
+                        url: '/utilities/generateQR',
+                        data: {
+                            hardwareId: config.deviceId,
+                            source: 'VoidPayment',
+                            sourceKey: trxSlice.selectedPayment.key,
+                        }
+                    }).then((response) => {
+                        if (response && response.data) {
+                            setAuthQR({
+                                ...response.data,
+                                source: 'VoidPayment'
+                            });
+                        } else {
+                            dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                        }
+                    }).catch((error) => {
+                        if (error.response) {
+                            if (error.response.status === 401) {
+                                dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                            }
+                        } else {
+                            dispatch(notify({ msg: error.message, sev: 'error' }));
+                        }
+                    });
 
                 } else {
                     dispatch(notify({ msg: 'No payment line selected', sev: 'warning' }));
                 }
             } else {
                 if (trxSlice.selectedLine) {
-                    confirm('Void Item Line?', '', () => {
-                        dispatch(voidLine({
-                            trxKey: trxSlice.trx.key,
-                            lineKey: trxSlice.selectedLine.key
-                        }));
-                    })
-
+                    axios({
+                        method: 'post',
+                        url: '/utilities/generateQR',
+                        data: {
+                            hardwareId: config.deviceId,
+                            source: 'VoidLine',
+                            sourceKey: trxSlice.selectedLine.key,
+                        }
+                    }).then((response) => {
+                        if (response && response.data) {
+                            setAuthQR({
+                                ...response.data,
+                                source: 'VoidLine'
+                            });
+                        } else {
+                            dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                        }
+                    }).catch((error) => {
+                        if (error.response) {
+                            if (error.response.status === 401) {
+                                dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                            }
+                        } else {
+                            dispatch(notify({ msg: error.message, sev: 'error' }));
+                        }
+                    });
                 } else {
                     dispatch(notify({ msg: 'No transaction line selected', sev: 'warning' }));
                 }
@@ -344,11 +392,49 @@ const Terminal = (props) => {
 
     }
 
+
+    useEffect(() => {
+        if (authQR.qrAuthKey) {
+            dispatch(startQrAuthCheck());
+        }
+    }, [authQR]);
+
+    useEffect(() => {
+        if (trxSlice.qrAuthState === 'pending') {
+            dispatch(checkOperationQrAuth(authQR));
+        }
+    }, [trxSlice.qrAuthState]);
+
+
+
     const handleVoidTrx = () => {
         if (trxSlice.trx) {
-            confirm('Void Transaction?', '', () => {
-                dispatch(voidTrx(trxSlice.trx.key));
-            })
+            axios({
+                method: 'post',
+                url: '/utilities/generateQR',
+                data: {
+                    hardwareId: config.deviceId,
+                    source: 'VoidTRX',
+                    sourceKey: trxSlice.trx.key,
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    setAuthQR({
+                        ...response.data,
+                        source: 'VoidTRX'
+                    });
+                } else {
+                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+            });
         } else {
             dispatch(notify({
                 msg: 'No valid Transaction to void',
@@ -590,6 +676,7 @@ const Terminal = (props) => {
             </FlexboxGrid.Item>
 
             <FlexboxGrid.Item colspan={1} style={{ width: '1.166667%' }}>
+
                 {
                     terminal.blockActions && <div style={{
                         position: 'fixed',
@@ -599,6 +686,21 @@ const Terminal = (props) => {
                         <h1 style={{ textAlign: 'center', color: 'white', margin: '15%' }}>
                             <FontAwesomeIcon icon={faLock} style={{ marginRight: '8px' }} />
                             TERMINAL LOCKED
+                        </h1>
+                    </div>
+                }
+
+                {
+                    (trxSlice.qrAuthState === 'pending') && <div style={{
+                        position: 'fixed',
+                        zIndex: '999',
+                        backgroundColor: 'rgba(0,0,0,0.6)', height: '100%', width: '100%', top: '0%', left: '0%'
+                    }}>
+                        <h1 style={{ textAlign: 'center', color: 'white', margin: '15%' }}>
+                            <FontAwesomeIcon icon={faLock} style={{ marginRight: '8px' }} />
+                            Access Needed
+                            <hr />
+                            <QRCode value={JSON.stringify(authQR)} size={180} />
                         </h1>
                     </div>
                 }
@@ -619,7 +721,6 @@ const Terminal = (props) => {
                         </Alert>
                     </div>
                     <Divider style={{ margin: '7px' }} />
-
                     {
                         terminal.paymentMode &&
                         <FlexboxGrid>

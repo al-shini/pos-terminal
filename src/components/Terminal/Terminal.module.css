@@ -90,12 +90,12 @@
 }
 
 .SelectedRow {
-    font-weight: bold !important;
     font-size: 17px;
-    font-style: italic !important;
-    color: black !important;
+    color: #000000;
+    font-weight: bold !important;
 }
 
 .SelectedRowBG {
+    color: #000000;
     background-color: rgba(115, 168, 189, 0.479) !important;
 }
