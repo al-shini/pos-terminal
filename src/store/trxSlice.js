@@ -20,6 +20,7 @@ const initialState = {
     scrollToggle: false,
     // qr auth operations
     qrAuthState: 'idle', //idle, pending
+    lastTrxPayment: null
 
 }
 
@@ -209,7 +210,6 @@ export const closeTrxPayment = createAsyncThunk(
             if (response && response.data) {
                 thunkAPI.dispatch(hideLoading());
                 thunkAPI.dispatch(notify({ msg: 'Transaction paid, print invoice ☺', sev: 'info' }));
-                thunkAPI.dispatch(reset());
                 axios({
                     method: 'get',
                     url: 'http://localhost:3001/printSellTrx?trxKey=' + response.data.key,
@@ -217,7 +217,7 @@ export const closeTrxPayment = createAsyncThunk(
                     console.log(error.response, error.message);
                     thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
                 });
-
+                thunkAPI.dispatch(reset());
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -644,6 +644,9 @@ export const trxSlice = createSlice({
         },
         scroll: (state, action) => {
             state.scrollToggle = !state.scrollToggle
+        },
+        clearLastPaymentHistory: (state) => {
+            state.lastTrxPayment = null
         }
     },
     extraReducers: (builder) => {
@@ -706,6 +709,10 @@ export const trxSlice = createSlice({
         /* closeTrxPayment thunk */
         builder.addCase(closeTrxPayment.fulfilled, (state, action) => {
             // reset trx state (prepare to start new one)
+            state.lastTrxPayment = {
+                paid: state.trxPaid,
+                change: state.trxChange
+            }
             state.trx = null;
             state.scannedItems = [];
             state.selectedLine = {};
@@ -816,6 +823,6 @@ export const trxSlice = createSlice({
 
 
 export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx, enablePriceChange, disablePriceChange, scroll,
-    prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck
+    prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory
 } = trxSlice.actions
 export default trxSlice.reducer

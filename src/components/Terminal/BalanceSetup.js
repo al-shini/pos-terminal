@@ -8,16 +8,12 @@ import { faPaperPlane } from '@fortawesome/free-solid-svg-icons'
 const BalanceSetup = (props) => {
 
     const terminal = useSelector((state) => state.terminal);
+    const trxSlice = useSelector((state) => state.trx);
     const dispatch = useDispatch();
 
-    const [balance, setBalance] = useState(0.0);
-
-    const handleChange = (e, i) => {
-        setBalance(e);
-    }
 
     const submitTillOpeningBalance = () => {
-        dispatch(submitOpeningBalance(balance));
+        dispatch(submitOpeningBalance(trxSlice.numberInputValue));
     }
 
 
@@ -31,7 +27,7 @@ const BalanceSetup = (props) => {
             <Panel header={
                     <h5>Please Insert Opening Balance In <b>CASH</b></h5>
                 }>
-                <InputNumber prefix='NIS' value={balance} onChange={handleChange} />
+                <InputNumber readOnly={true} prefix='NIS' value={trxSlice.numberInputValue} />
             </Panel>
 
             <Button style={{ padding: 10, margin: '20px auto', width: '70%', display: 'block', lineHeight: 2, fontSize: 'larger' }}

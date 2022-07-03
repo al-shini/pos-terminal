@@ -9,10 +9,11 @@ import {
 import styles from './Numpad.module.css';
 import classes from './Terminal.module.css';
 
-import { changePrice, handleNumberInputChange, scanBarcode,scanNewTransaction, submitPayment } from '../../store/trxSlice';
-import { showLoading } from '../../store/uiSlice';
+import { changePrice, clearLastPaymentHistory, handleNumberInputChange, scanBarcode, scanNewTransaction, submitPayment } from '../../store/trxSlice';
+import { notify, showLoading } from '../../store/uiSlice';
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
+import { submitOpeningBalance } from '../../store/terminalSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 
 const Numpad = (props) => {
@@ -39,57 +40,70 @@ const Numpad = (props) => {
     }
 
     const handleOk = () => {
+        if (terminal.till && terminal.till.isInitialized) {
+            if (terminal.paymentMode) {
+                let paymentComplete = false;
 
-        if (terminal.paymentMode) {
-            let paymentComplete = false;
+                if (trxSlice.trx) {
+                    const change = trxSlice.trx.customerchange;
+                    if (change >= 0) {
+                        paymentComplete = true;
+                        dispatch(closeTrxPayment(trxSlice.trx.key));
+                        window.setTimeout(() => {
+                            dispatch(clearLastPaymentHistory());
+                        }, 3500)
 
-            if (trxSlice.trx) {
-                const change = trxSlice.trx.customerchange;
-                if (change >= 0) {
-                    paymentComplete = true;
-                    dispatch(closeTrxPayment(trxSlice.trx.key));
-                    return;
+                        return;
+                    }
                 }
-            }
 
-            if (terminal.paymentInput === 'numpad') {
-                dispatch(submitPayment({
-                    tillKey: terminal.till ? terminal.till.key : null,
-                    trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                    paymentMethodKey: trxSlice.selectedPaymentMethod,
-                    currency: trxSlice.selectedCurrency,
-                    amount: trxSlice.numberInputValue
-                }))
-            }
-
-        } else if (trxSlice.priceChangeMode) {
-                dispatch(changePrice());
-        } else {
-            if (trxSlice.numberInputValue) {
-
-                if (trxSlice.trx && trxSlice.trx.key) {
-                    dispatch(scanBarcode({
-                        barcode: trxSlice.numberInputValue,
+                if (terminal.paymentInput === 'numpad') {
+                    dispatch(submitPayment({
+                        tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                        trxMode: terminal.trxMode,
-                        tillKey: terminal.till ? terminal.till.key : null,
-                        multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
-                    }))
-                } else {
-                    dispatch(showLoading());
-                    dispatch(scanNewTransaction({
-                        barcode: trxSlice.numberInputValue,
-                        trxKey: null,
-                        trxMode: terminal.trxMode,
-                        tillKey: terminal.till ? terminal.till.key : null,
-                        multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                        paymentMethodKey: trxSlice.selectedPaymentMethod,
+                        currency: trxSlice.selectedCurrency,
+                        amount: trxSlice.numberInputValue
                     }))
                 }
-                
+
+            } else if (trxSlice.priceChangeMode) {
+                dispatch(changePrice());
+            } else {
+                if (trxSlice.numberInputValue) {
+
+                    if (trxSlice.trx && trxSlice.trx.key) {
+                        dispatch(scanBarcode({
+                            barcode: trxSlice.numberInputValue,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            trxMode: terminal.trxMode,
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                        }))
+                    } else {
+                        dispatch(showLoading());
+                        dispatch(scanNewTransaction({
+                            barcode: trxSlice.numberInputValue,
+                            trxKey: null,
+                            trxMode: terminal.trxMode,
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                        }))
+                    }
+
+                }
+
             }
+        } else if (terminal.till && trxSlice.numberInputValue) {
+            dispatch(submitOpeningBalance(trxSlice.numberInputValue));
+            dispatch(clearNumberInput());
 
+        } else {
+            dispatch(notify({
+                msg: 'Invalid Opening Balance Value',
+                sev: 'error'
+            }))
         }
-
     }
 
     return (

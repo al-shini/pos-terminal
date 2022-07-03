@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from "react-router-dom";
 
@@ -17,16 +17,20 @@ import DazzleLogo from '../../assets/dazzle-logo.png';
 
 import { login, checkLoginQrAuth } from '../../store/terminalSlice';
 import { notify, showLoading, hideLoading } from '../../store/uiSlice';
-
+import { Drawer } from 'rsuite';
 import config from '../../config';
 import axios from '../../axios'
 import Keyboard from 'react-simple-keyboard';
 import 'react-simple-keyboard/build/css/index.css';
+import Draggable, { DraggableCore } from 'react-draggable';
 
 const Login = (props) => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
+    const [keyboardMode, setKeyboardMode] = useState(false);
+    const [keyboardEntry, setKeyboardEntry] = useState('username');
+    const keyboard = useRef();
 
 
     const terminalSlice = useSelector((state) => state.terminal);
@@ -46,7 +50,6 @@ const Login = (props) => {
         event.preventDefault();
     };
 
-
     useEffect(async () => {
         reloadQrAuth();
     }, []);
@@ -62,7 +65,6 @@ const Login = (props) => {
             dispatch(checkLoginQrAuth(loginQR.qrAuthKey));
         }
     }, [loginQR]);
-
 
     const reloadQrAuth = () => {
         dispatch(showLoading());
@@ -92,15 +94,29 @@ const Login = (props) => {
         });
     }
 
-
-
     const onChange = (input) => {
-        console.log("Input changed", input);
+        let tmpCred = {
+            ...cred
+        };
+        tmpCred[keyboardEntry] = input;
+        setCred(tmpCred);
     }
 
-    const onKeyPress = (button) => {
-        console.log("Button pressed", button);
+    const handleFocus = (entry) => {
+        if (!keyboardMode) {
+            setKeyboardMode(true)
+        }
+
+        let tmpCred = {
+            ...cred
+        };
+        tmpCred[entry] = '';
+        setCred(tmpCred);
+
+        setKeyboardEntry(entry);
+        keyboard.current.clearInput();
     }
+
 
     return (
         <ThemeProvider theme={theme}>
@@ -112,14 +128,36 @@ const Login = (props) => {
                 </Alert>
             </Snackbar>
 
+            {keyboardMode &&
+            <Draggable
+                handle=".handle"
+                defaultPosition={{ x: 0, y: 0 }}
+                position={null}
+                grid={[25, 25]}
+                scale={1} >
+                <div style={{
+                    position: 'fixed',
+                    width: '60vw',
+                    zIndex: '1000',
+                    padding: '10px',
+                    background: 'white',
+                    border: '1px solid black',
+                    boxShadow: '#3a3a3a 0px 0px 10px 10px;'
+                }}>
+                    <h3 className='handle' style={{float: 'left'}} >
+                        <span>On Screen Keyboard</span>
+                    </h3>
+                    <a onClick={() => setKeyboardMode(false)} style={{ float: 'right', cursor: 'pointer', zIndex: '1001' }}>
+                            <b>X</b>
+                        </a>
+                    <Keyboard keyboardRef={r => (keyboard.current = r)}
+                        onChange={onChange} />
+                </div>
+            </Draggable>
+            }
+
             <Grid container component="main" sx={{ height: '100vh' }}>
                 <CssBaseline />
-                <Grid item>
-                    {/* <Keyboard
-                        onChange={onChange}
-                        onKeyPress={onKeyPress}
-                    /> */}
-                </Grid>
                 <Grid
                     item
                     xs={false}
@@ -158,17 +196,18 @@ const Login = (props) => {
                             <TextField
                                 margin="normal"
                                 required
+                                onFocus={() => handleFocus('username')}
                                 error={!cred.username}
                                 fullWidth
                                 id="username"
                                 label="Username"
                                 value={cred.username}
                                 onChange={(e) => setCred({ ...cred, username: e.target.value })}
-                                autoFocus
                             />
                             <TextField
                                 margin="normal"
                                 required
+                                onFocus={() => handleFocus('password')}
                                 error={!cred.password}
                                 fullWidth
                                 value={cred.password}

@@ -179,6 +179,13 @@ export const unlockTill = createAsyncThunk(
                     thunkAPI.dispatch(hideLoading());
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
+                } else if (error.response.status === 444) {
+                    thunkAPI.dispatch(hideLoading());
+                    thunkAPI.dispatch(notify({ msg: 'Till is closed, restarting session...', sev: 'error' }));
+                    window.setTimeout(() => {
+                        thunkAPI.dispatch(logout());
+                    }, 1500)
+                    return thunkAPI.rejectWithValue('Un-authorized');
                 }
                 else {
                     thunkAPI.dispatch(hideLoading());
@@ -263,7 +270,6 @@ export const terminalSlice = createSlice({
             state.loggedInUser = action.payload.user;
             state.token = action.payload.token;
             state.till = action.payload.till;
-            console.log('seemless?');
             if (!action.payload.till.isInitialized) {
                 state.display = 'balance-setup';
             } else {

@@ -5,7 +5,7 @@ import { Button, Input, FlexboxGrid, Panel, Divider, Whisper, Popover } from 'rs
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faSackDollar, faBroom, faMoneyBillTransfer, faRepeat,
+    faSackDollar, faBroom, faMoneyBillTransfer, faRepeat, faUser, faArrowLeft,
     faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay, faRotateLeft, faDollarSign, faLock, faUnlock
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
@@ -17,9 +17,9 @@ import {
     uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates
 } from '../../store/terminalSlice';
 import {
-    selectCurrency, voidPayment, submitPayment, clearNumberInput, voidLine, scanBarcode, scanNewTransaction, setTrx,
-    selectPaymentMethod, voidTrx, suspendTrx, enablePriceChange, disablePriceChange,
-    checkOperationQrAuth, startQrAuthCheck
+    selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
+    selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
+    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck
 } from '../../store/trxSlice';
 import { notify, hideLoading, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -59,6 +59,9 @@ const Terminal = (props) => {
     const [notesImages, setNotesImages] = useState([]);
     const [authQR, setAuthQR] = useState({});
     const [play] = useSound(errorBeep);
+
+    const [groupedFastItems, setGroupedFastItems] = useState({});
+    const [selectedFGroup, setSelectedFGroup] = useState(null);
 
     useEffect(() => {
         play();
@@ -255,6 +258,18 @@ const Terminal = (props) => {
         });
     }, [])
 
+    useEffect(() => {
+        let tmp = {};
+
+        terminal.fastItems.map((obj) => {
+            if (!tmp[obj.fgroup])
+                tmp[obj.fgroup] = [];
+            tmp[obj.fgroup].push(obj);
+        });
+
+        setGroupedFastItems(tmp);
+    }, [terminal.fastItems]);
+
     const startPayment = (type, inputType) => {
         dispatch(clearNumberInput());
         dispatch(beginPayment());
@@ -262,7 +277,6 @@ const Terminal = (props) => {
             type,
             inputType
         }));
-        console.log(config[type]);
         dispatch(selectPaymentMethod(config[type]));
     }
 
@@ -391,7 +405,6 @@ const Terminal = (props) => {
         }
 
     }
-
 
     useEffect(() => {
         if (authQR.qrAuthKey) {
@@ -666,6 +679,76 @@ const Terminal = (props) => {
         </React.Fragment >;
     }
 
+    const buildFastItemGroupButtons = () => {
+        let tmp = [];
+
+        Object.keys(groupedFastItems).map((key, i) => {
+            tmp.push(
+                <Button key={i} className={classes.ActionButton}
+                    onClick={() => {
+                        setSelectedFGroup(key);
+                    }} >
+                    <div key={key + 'di'} style={{ textAlign: 'center', fontSize: '14px', }}>
+                        {key}
+                    </div>
+                </Button>
+            )
+            tmp.push(<div key={key + 'div'} style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>);
+        });
+
+        tmp.push(<div key='fsz' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+
+        return tmp;
+    }
+
+    const buildFastItemsButtonsForGroup = () => {
+        let tmp = [];
+        groupedFastItems[selectedFGroup].map((obj, i) => {
+            tmp.push(
+                <Button key={i} className={classes.ActionButton}
+                    onClick={() => {
+                        if (trxSlice.trx && trxSlice.trx.key) {
+                            dispatch(scanBarcode({
+                                barcode: obj.barcode,
+                                trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                                trxMode: terminal.trxMode,
+                                tillKey: terminal.till ? terminal.till.key : null,
+                                multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                            }))
+                        } else {
+                            dispatch(showLoading());
+                            dispatch(scanNewTransaction({
+                                barcode: obj.barcode,
+                                trxKey: null,
+                                trxMode: terminal.trxMode,
+                                tillKey: terminal.till ? terminal.till.key : null,
+                                multiplier: '1'
+                            }))
+                        }
+
+                    }} >
+                    <div key={obj.key + 'di'} style={{ textAlign: 'center', fontSize: '14px', }}>
+                        {obj.itemName}
+                    </div>
+                </Button>
+            )
+            tmp.push(<div key={obj.key + 'div'} style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>);
+        });
+        tmp.push(
+            <Button key={'backBtnD'} className={classes.ActionButton} appearance="primary" color="orange"
+                onClick={() => { setSelectedFGroup(null) }} >
+                <div key={'backBtn'} style={{ textAlign: 'center', fontSize: '14px', }}>
+                    Back
+                </div>
+            </Button>
+        )
+
+        tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+
+        return tmp;
+    }
+
+
 
     return (
         <FlexboxGrid >
@@ -691,7 +774,7 @@ const Terminal = (props) => {
                 }
 
                 {
-                    (trxSlice.qrAuthState === 'pending') && <div style={{
+                    (trxSlice.qrAuthState === 'pending') && authQR && <div style={{
                         position: 'fixed',
                         zIndex: '999',
                         backgroundColor: 'rgba(0,0,0,0.6)', height: '100%', width: '100%', top: '0%', left: '0%'
@@ -701,6 +784,14 @@ const Terminal = (props) => {
                             Access Needed
                             <hr />
                             <QRCode value={JSON.stringify(authQR)} size={180} />
+                            <br />
+                            <span> ( {authQR.source} )</span>
+                            <hr />
+                            <Button style={{ fontSize: '24px' }} appearance="primary" color="red"
+                                onClick={() => dispatch(holdQrAuthCheck())} >
+                                <FontAwesomeIcon icon={faBan} style={{ marginRight: '8px' }} />
+                                CANCEL
+                            </Button>
                         </h1>
                     </div>
                 }
@@ -709,8 +800,9 @@ const Terminal = (props) => {
             <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '87.5vh' }}>
                 <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
                     <h6 style={{ lineHeight: '5vh', textAlign: 'left' }}>
-                        <FontAwesomeIcon icon={faAddressCard} style={{ marginLeft: '7px', marginRight: '7px' }} />
-                        Cash Customer / Shini Bet
+                        <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '7px', marginRight: '7px' }} /> {terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</span>
+                        <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
+                        <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
                     </h6>
                 </div>
 
@@ -746,6 +838,37 @@ const Terminal = (props) => {
                                     </small>
                                     <b> <label id='Total' style={{ fontSize: '30px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
                                         {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(2)}
+                                    </label>
+                                    </b>
+                                </div>
+                            </FlexboxGrid.Item>
+                        </FlexboxGrid>
+                    }
+
+                    {
+                        trxSlice.lastTrxPayment && <FlexboxGrid>
+                            <FlexboxGrid.Item colspan={24} >
+                                <div style={{ border: '1px solid #e1e1e1', padding: '6px', minWidth: '60%', margin: 'auto' }}>
+                                    <small style={{ fontSize: '25px', marginRight: '5px' }}>
+                                        Paid =
+                                    </small>
+                                    <b>
+                                        <label id='Total' style={{ fontSize: '30px' }}>
+                                            {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(2)}
+                                        </label>
+                                    </b>
+                                </div>
+                            </FlexboxGrid.Item>
+                            <FlexboxGrid.Item colspan={24}>
+                                <br />
+                            </FlexboxGrid.Item>
+                            <FlexboxGrid.Item colspan={24}>
+                                <div style={{ border: '1px solid #e1e1e1', padding: '6px', minwidth: '60%', margin: 'auto' }}>
+                                    <small style={{ fontSize: '25px', marginRight: '5px' }}>
+                                        Change =
+                                    </small>
+                                    <b> <label id='Total' style={{ fontSize: '30px', color: trxSlice.lastTrxPayment.change < 0 ? 'red' : 'green' }} >
+                                        {(Math.round(trxSlice.lastTrxPayment.change * 100) / 100).toFixed(2)}
                                     </label>
                                     </b>
                                 </div>
@@ -795,8 +918,12 @@ const Terminal = (props) => {
                             }
 
                             {
-                                actionsMode === 'fastItems' &&
-                                buildFastItemButtons()
+                                actionsMode === 'fastItems' && !selectedFGroup &&
+                                buildFastItemGroupButtons()
+                            }
+                            {
+                                actionsMode === 'fastItems' && selectedFGroup &&
+                                buildFastItemsButtonsForGroup()
                             }
                             {
                                 actionsMode === 'operations' &&
