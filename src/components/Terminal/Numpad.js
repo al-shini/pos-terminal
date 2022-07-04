@@ -51,7 +51,7 @@ const Numpad = (props) => {
                         dispatch(closeTrxPayment(trxSlice.trx.key));
                         window.setTimeout(() => {
                             dispatch(clearLastPaymentHistory());
-                        }, 3500)
+                        }, 6000)
 
                         return;
                     }

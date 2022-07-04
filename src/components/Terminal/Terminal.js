@@ -513,6 +513,11 @@ const Terminal = (props) => {
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
                 <label>Visa</label>
             </Button>
+            <br />
+            <Button key='jawwalPay' className={classes.MainActionButton} onClick={() => { startPayment('jawwalPay', 'numpad') }}>
+                <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
+                <label>Jawwal Pay</label>
+            </Button>
         </React.Fragment>;
     }
 
@@ -590,45 +595,6 @@ const Terminal = (props) => {
         return tmp;
     }
 
-    const buildFastItemButtons = () => {
-        let tmp = [];
-
-        terminal.fastItems.map((obj, i) => {
-            tmp.push(
-                <Button key={i} className={classes.ActionButton}
-                    onClick={() => {
-                        if (trxSlice.trx && trxSlice.trx.key) {
-                            dispatch(scanBarcode({
-                                barcode: obj.barcode,
-                                trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                                trxMode: terminal.trxMode,
-                                tillKey: terminal.till ? terminal.till.key : null,
-                                multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
-                            }))
-                        } else {
-                            dispatch(showLoading());
-                            dispatch(scanNewTransaction({
-                                barcode: obj.barcode,
-                                trxKey: null,
-                                trxMode: terminal.trxMode,
-                                tillKey: terminal.till ? terminal.till.key : null,
-                                multiplier: '1'
-                            }))
-                        }
-
-                    }} >
-                    <div key={obj.key + 'di'} style={{ textAlign: 'center', fontSize: '14px', }}>
-                        {obj.itemName}
-                    </div>
-                </Button>
-            )
-            tmp.push(<div key={obj.key + 'div'} style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>);
-        });
-
-        tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
-
-        return tmp;
-    }
 
     const buildOperationsButtons = () => {
         return <React.Fragment>
@@ -916,6 +882,18 @@ const Terminal = (props) => {
                                 actionsMode === 'payment' && terminal.paymentType === 'visa' &&
                                 buildVisaButtons()
                             }
+
+                            {
+                                actionsMode === 'payment' && terminal.paymentType === 'jawwalPay' &&
+                                <Button className={classes.ActionButton}
+                                    appearance={'NIS' === trxSlice.selectedCurrency ? 'primary' : 'default'}
+                                    onClick={() => dispatch(selectCurrency('NIS'))} >
+                                    <div style={{ textAlign: 'center' }}>
+                                        Jawwal NIS  
+                                    </div>
+                                </Button>
+                            }
+
 
                             {
                                 actionsMode === 'fastItems' && !selectedFGroup &&
