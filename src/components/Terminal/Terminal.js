@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faBroom, faMoneyBillTransfer, faRepeat, faUser, faArrowLeft,
-    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay, faRotateLeft, faDollarSign, faLock, faUnlock
+    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay, faRotateLeft, faDollarSign, faLock, faUnlock, faIls
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -504,17 +504,17 @@ const Terminal = (props) => {
                 <label>Cash</label>
             </Button>
             <br />
-            <Button key='foregin' className={classes.MainActionButton} onClick={() => { startPayment('foreign', 'fixed') }}>
+            <Button key='foregin' disabled={terminal.trxMode === 'Refund'} className={classes.MainActionButton} onClick={() => { startPayment('foreign', 'fixed') }}>
                 <FontAwesomeIcon icon={faMoneyBillTransfer} style={{ marginRight: '5px' }} />
                 <label>Currency</label>
             </Button>
             <br />
-            <Button key='visa' className={classes.MainActionButton} onClick={() => { startPayment('visa', 'numpad') }}>
+            <Button key='visa' disabled={terminal.trxMode === 'Refund'}  className={classes.MainActionButton} onClick={() => { startPayment('visa', 'numpad') }}>
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
                 <label>Visa</label>
             </Button>
             <br />
-            <Button key='jawwalPay' className={classes.MainActionButton} onClick={() => { startPayment('jawwalPay', 'numpad') }}>
+            <Button key='jawwalPay' disabled={terminal.trxMode === 'Refund'}  className={classes.MainActionButton} onClick={() => { startPayment('jawwalPay', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>Jawwal Pay</label>
             </Button>
@@ -524,25 +524,44 @@ const Terminal = (props) => {
     const buildCashButtons = () => {
         let tmp = [];
 
-        terminal.cashButtons.map((obj, i) => {
+        if (terminal.trxMode === 'Sale') {
+            terminal.cashButtons.map((obj, i) => {
+                tmp.push(
+                    <a key={i} onClick={() => {
+                        dispatch(submitPayment({
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            paymentMethodKey: obj.paymentMethodKey,
+                            currency: obj.currency,
+                            amount: obj.amount
+                        }))
+                    }}
+                        style={{ backgroundColor: '#f7f7fa', display: 'block' }}
+
+                    >
+                        <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: obj.amount > 10 ? '90%' : 'auto', height: '60px' }} />
+                    </a>
+                )
+                tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={i + 'space'} > .</div>);
+            });
+        } else if (terminal.trxMode === 'Refund') {
             tmp.push(
-                <a key={i} onClick={() => {
+                <Button key='fulfilRefundPayment' className={classes.MainActionButton} onClick={() => { 
                     dispatch(submitPayment({
                         tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                        paymentMethodKey: obj.paymentMethodKey,
-                        currency: obj.currency,
-                        amount: obj.amount
+                        paymentMethodKey: 'Cash',
+                        currency: 'NIS',
+                        amount: trxSlice.trx ? trxSlice.trx.totalafterdiscount : 0
                     }))
-                }}
-                    style={{ backgroundColor: '#f7f7fa', display: 'block' }}
+                 }}>
+                    <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '5px' }} />
+                    <label>Refund ({trxSlice.trx.totalafterdiscount} ₪)</label>
+                </Button>
+            );
+        }
 
-                >
-                    <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: obj.amount > 10 ? '90%' : 'auto', height: '60px' }} />
-                </a>
-            )
-            tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={i + 'space'} > .</div>);
-        });
+
 
         tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
 
@@ -616,7 +635,7 @@ const Terminal = (props) => {
             }
             {
                 terminal.trxMode === 'Refund' &&
-                <Button key='sale' className={classes.MainActionButton} onClick={() => { dispatch(setTrxMode('Sale')) }}>
+                <Button disabled={trxSlice.trx !== null} key='sale' className={classes.MainActionButton} onClick={() => { dispatch(setTrxMode('Sale')) }}>
                     <div style={{ textAlign: 'center', fontSize: '14px', }}>
                         <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                         <label>Sale</label>
@@ -717,7 +736,7 @@ const Terminal = (props) => {
 
 
     return (
-        <FlexboxGrid >
+        <FlexboxGrid  >
             <FlexboxGrid.Item colspan={11} style={{ background: 'white', position: 'relative', left: '6px', width: '48.83333333%' }}  >
                 {terminal.display === 'ready' && <Invoice />}
                 {terminal.display === 'balance-setup' && <BalanceSetup />}
@@ -884,12 +903,12 @@ const Terminal = (props) => {
                             }
 
                             {
-                                actionsMode === 'payment' && terminal.paymentType === 'jawwalPay' &&
+                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'jawwalPay' &&
                                 <Button className={classes.ActionButton}
                                     appearance={'NIS' === trxSlice.selectedCurrency ? 'primary' : 'default'}
                                     onClick={() => dispatch(selectCurrency('NIS'))} >
                                     <div style={{ textAlign: 'center' }}>
-                                        Jawwal NIS  
+                                        Jawwal NIS
                                     </div>
                                 </Button>
                             }
@@ -930,7 +949,9 @@ const Terminal = (props) => {
                         <Button className={classes.POSButton}
                             appearance={actionsMode === 'payment' ? 'primary' : 'default'}
                             color='green'
-                            onClick={() => setActionsMode('payment')} >
+                            onClick={() => {
+                                setActionsMode('payment')
+                            }} >
                             <FontAwesomeIcon icon={faSackDollar} style={{ marginRight: '5px' }} />
                             <label>Payment</label>
                         </Button>
@@ -1013,7 +1034,7 @@ const Terminal = (props) => {
 
 
                 </FlexboxGrid>
-            </FlexboxGridItem>
+            </FlexboxGridItem >
         </FlexboxGrid >
     );
 }

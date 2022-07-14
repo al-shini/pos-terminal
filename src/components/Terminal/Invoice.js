@@ -121,7 +121,6 @@ const Invoice = (props) => {
                 </h4>
             </div>
 
-
             <List hover id='invoiceList' style={{ height: '67vh' }} autoScroll={false}>
                 {trxSlice.scannedItems ? trxSlice.scannedItems.map((obj, i) => {
                     return <List.Item onClick={(e) => handleItemClick(obj)}
