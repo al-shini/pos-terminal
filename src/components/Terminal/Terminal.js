@@ -14,7 +14,7 @@ import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import {
     beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry, reset,
-    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates
+    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer
 } from '../../store/terminalSlice';
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
@@ -109,7 +109,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    dispatch(hideLoading());
+                    
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -132,7 +132,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    dispatch(hideLoading());
+                    
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -155,7 +155,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    dispatch(hideLoading());
+                    
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -186,7 +186,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    dispatch(hideLoading());
+                    
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -216,7 +216,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    dispatch(hideLoading());
+                    
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -248,7 +248,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    dispatch(hideLoading());
+                    
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -269,6 +269,34 @@ const Terminal = (props) => {
 
         setGroupedFastItems(tmp);
     }, [terminal.fastItems]);
+
+    const resetToStoreCustomer = () => {
+        if (terminal.store && terminal.store.sapCustomerCode) {
+            axios({
+                method: 'post',
+                url: '/posAcc/fetchCustomer',
+                headers: {
+                    customerKey: terminal.store.sapCustomerCode
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    dispatch(setCustomer(response.data));
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    } else {
+                        
+                        dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+
+            });
+        }
+    }
 
     const startPayment = (type, inputType) => {
         dispatch(clearNumberInput());
@@ -384,7 +412,7 @@ const Terminal = (props) => {
                     if (error.response.status === 401) {
                         dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                     } else {
-                        dispatch(hideLoading());
+                        
                         dispatch(notify({ msg: error.response.data, sev: 'error' }));
                     }
                 } else {
@@ -509,15 +537,26 @@ const Terminal = (props) => {
                 <label>Currency</label>
             </Button>
             <br />
-            <Button key='visa' disabled={terminal.trxMode === 'Refund'}  className={classes.MainActionButton} onClick={() => { startPayment('visa', 'numpad') }}>
+            <Button key='visa' disabled={terminal.trxMode === 'Refund'} className={classes.MainActionButton} onClick={() => { startPayment('visa', 'numpad') }}>
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
                 <label>Visa</label>
             </Button>
             <br />
-            <Button key='jawwalPay' disabled={terminal.trxMode === 'Refund'}  className={classes.MainActionButton} onClick={() => { startPayment('jawwalPay', 'numpad') }}>
+            <Button key='jawwalPay' disabled={terminal.trxMode === 'Refund'} className={classes.MainActionButton} onClick={() => { startPayment('jawwalPay', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>Jawwal Pay</label>
             </Button>
+            <br />
+            <Button key='voucher' disabled={terminal.trxMode === 'Refund'} className={classes.MainActionButton} onClick={() => { startPayment('voucher', 'numpad') }}>
+                <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
+                <label>Voucher</label>
+            </Button>
+            <br />
+            {terminal.customer && terminal.store && <Button key='onAccount' disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key)}
+                className={classes.MainActionButton} onClick={() => { startPayment('onAccount', 'numpad') }}>
+                <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
+                <label>On Account</label>
+            </Button>}
         </React.Fragment>;
     }
 
@@ -546,7 +585,7 @@ const Terminal = (props) => {
             });
         } else if (terminal.trxMode === 'Refund') {
             tmp.push(
-                <Button key='fulfilRefundPayment' className={classes.MainActionButton} onClick={() => { 
+                <Button key='fulfilRefundPayment' className={classes.MainActionButton} onClick={() => {
                     dispatch(submitPayment({
                         tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
@@ -554,7 +593,7 @@ const Terminal = (props) => {
                         currency: 'NIS',
                         amount: trxSlice.trx ? trxSlice.trx.totalafterdiscount : 0
                     }))
-                 }}>
+                }}>
                     <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '5px' }} />
                     <label>Refund ({trxSlice.trx.totalafterdiscount} ₪)</label>
                 </Button>
@@ -694,6 +733,7 @@ const Terminal = (props) => {
                     onClick={() => {
                         if (trxSlice.trx && trxSlice.trx.key) {
                             dispatch(scanBarcode({
+                                customerKey: terminal.customer ? terminal.customer.key : null,
                                 barcode: obj.barcode,
                                 trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                                 trxMode: terminal.trxMode,
@@ -701,8 +741,9 @@ const Terminal = (props) => {
                                 multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
                             }))
                         } else {
-                            dispatch(showLoading());
+                            
                             dispatch(scanNewTransaction({
+                                customerKey: terminal.customer ? terminal.customer.key : null,
                                 barcode: obj.barcode,
                                 trxKey: null,
                                 trxMode: terminal.trxMode,
@@ -788,6 +829,16 @@ const Terminal = (props) => {
                         <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '7px', marginRight: '7px' }} /> {terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</span>
                         <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
                         <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
+                        <span style={{ marginRight: '10px', marginLeft: '10px' }}><b> | </b></span>
+                        <span>
+                            <a style={{ color: 'white' }} onClick={() => {
+                                confirm('Reset Customer?', 'This clears to default customer',
+                                    () => { resetToStoreCustomer() }
+                                )
+                            }}>
+                                <FontAwesomeIcon icon={faIdCard} style={{ marginLeft: '7px', marginRight: '7px' }} /> {terminal.customer ? terminal.customer.customerName : 'No Customer'}
+                            </a>
+                        </span>
                     </h6>
                 </div>
 
@@ -909,6 +960,29 @@ const Terminal = (props) => {
                                     onClick={() => dispatch(selectCurrency('NIS'))} >
                                     <div style={{ textAlign: 'center' }}>
                                         Jawwal NIS
+                                    </div>
+                                </Button>
+                            }
+
+                            {
+                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'voucher' &&
+                                <Button className={classes.ActionButton}
+                                    appearance={'NIS' === trxSlice.selectedCurrency ? 'primary' : 'default'}
+                                    onClick={() => dispatch(selectCurrency('NIS'))} >
+                                    <div style={{ textAlign: 'center' }}>
+                                        Voucher NIS
+                                    </div>
+                                </Button>
+                            }
+
+
+                            {
+                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'onAccount' &&
+                                <Button className={classes.ActionButton}
+                                    appearance={'NIS' === trxSlice.selectedCurrency ? 'primary' : 'default'}
+                                    onClick={() => dispatch(selectCurrency('NIS'))} >
+                                    <div style={{ textAlign: 'center' }}>
+                                        On Account NIS
                                     </div>
                                 </Button>
                             }

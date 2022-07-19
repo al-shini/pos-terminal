@@ -2,12 +2,13 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import { Outlet, useNavigate } from "react-router-dom";
 import { notify, hideLoading } from '../../store/uiSlice';
-import { seemlessLogin, unblockActions, blockActions } from '../../store/terminalSlice';
+import { seemlessLogin, unblockActions, blockActions, setStoreCustomer, fetchCustomer, setCustomer } from '../../store/terminalSlice';
 
 import Menu from './Menu';
 import axios from '../../axios';
 import config from '../../config';
 import { Box, Paper } from '@mui/material';
+import { resumeTrx } from '../../store/trxSlice';
 
 
 
@@ -17,31 +18,80 @@ const Dashboard = (props) => {
 
     const terminal = useSelector((state) => state.terminal);
 
-
     useEffect(() => {
+        if (!terminal.authenticated) {
+            console.log('validating token...');
+            axios({
+                method: 'post',
+                url: '/auth/validate-token',
+                params: {
+                    deviceId: config.deviceId
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    console.log('response from seemlessLogin', response.data);
+                    dispatch(seemlessLogin(response.data));
+                    updateCustomer(response.data)
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        console.log('Authorization invalid');
+                        navigate('/');
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+            });
+        }
+    }, []);
+
+    const updateCustomer = (loginResponse) => {
         axios({
             method: 'post',
-            url: '/auth/validate-token',
-            params: {
-                deviceId: config.deviceId
+            url: '/posAcc/fetchCustomer',
+            headers: {
+                customerKey: loginResponse.store.sapCustomerCode
             }
         }).then((response) => {
             if (response && response.data) {
-                console.log('valdiate token', response.data);
-                dispatch(seemlessLogin(response.data));
-                dispatch(hideLoading())
+                dispatch(setStoreCustomer(response.data))
+                checkOpenTrx(loginResponse.till, response.data);
+            }
+        }).catch((error) => {
+            dispatch(notify({ msg: error ? error.message : error, sev: 'error' }));
+        });
+    }
+
+    const checkOpenTrx = (till, storeCustomer) => {
+        console.log('checkOpenTrx...');
+        return axios({
+            method: 'post',
+            url: '/trx/checkOpenTrx',
+            data: {
+                tillKey: till.key
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                dispatch(resumeTrx(response.data));
+                if (response.data.customer) {
+                    dispatch(setCustomer(response.data.customer));
+                } else {
+                    dispatch(setCustomer(storeCustomer))
+                }
             }
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
-                    console.log('Authorization invalid');
-                    navigate('/');
+                    dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                 }
             } else {
                 dispatch(notify({ msg: error.message, sev: 'error' }));
             }
+
         });
-    }, []);
+    }
+
 
     useEffect(() => {
         if (!terminal.authenticated) {

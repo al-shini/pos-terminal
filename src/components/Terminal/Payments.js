@@ -27,7 +27,7 @@ const Invoice = (props) => {
             }
         }).then((response) => {
             if (response && response.data) {
-                dispatch(hideLoading());
+                
                 dispatch(uploadPayments(response.data));
             }
         }).catch((error) => {
@@ -35,7 +35,7 @@ const Invoice = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    dispatch(hideLoading());
+                    
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {

@@ -67,7 +67,7 @@ const Login = (props) => {
     }, [loginQR]);
 
     const reloadQrAuth = () => {
-        dispatch(showLoading());
+        
         axios({
             method: 'post',
             url: '/utilities/generateQR',
@@ -81,7 +81,7 @@ const Login = (props) => {
             } else {
                 dispatch(notify({ msg: 'Incorrect Login QR response', sev: 'error' }))
             }
-            dispatch(hideLoading());
+            
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
@@ -90,7 +90,7 @@ const Login = (props) => {
             } else {
                 dispatch(notify({ msg: error.message, sev: 'error' }));
             }
-            dispatch(hideLoading());
+            
         });
     }
 

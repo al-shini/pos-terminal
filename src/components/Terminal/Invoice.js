@@ -7,12 +7,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp, faFaceSmileBeam } from '@fortawesome/free-solid-svg-icons'
 import Typography from '@mui/material/Typography';
 import BarcodeReader from 'react-barcode-reader';
-import { scanBarcode , scanNewTransaction} from '../../store/trxSlice';
+import { scanBarcode, scanNewTransaction } from '../../store/trxSlice';
 
 import axios from '../../axios';
 import { resumeTrx, selectLine } from '../../store/trxSlice';
 import { showLoading, hideLoading, notify } from '../../store/uiSlice';
 import { textAlign } from '@mui/system';
+import { setCustomer } from '../../store/terminalSlice';
 
 const Invoice = (props) => {
 
@@ -22,32 +23,6 @@ const Invoice = (props) => {
 
     const dispatch = useDispatch();
 
-    useEffect(() => {
-        dispatch(showLoading());
-        return axios({
-            method: 'post',
-            url: '/trx/checkOpenTrx',
-            data: {
-                tillKey: terminal.till ? terminal.till.key : null
-            }
-        }).then((response) => {
-            if (response && response.data) {
-                dispatch(hideLoading());
-                dispatch(resumeTrx(response.data));
-            }
-        }).catch((error) => {
-            if (error.response) {
-                if (error.response.status === 401) {
-                    dispatch(hideLoading());
-                    dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
-                }
-            } else {
-                dispatch(hideLoading());
-                dispatch(notify({ msg: error.message, sev: 'error' }));
-            }
-
-        });
-    }, [])
 
     const scrollUp = () => {
         document.querySelector('#invoiceList').scroll({
@@ -67,6 +42,7 @@ const Invoice = (props) => {
         if (!terminal.paymentMode) {
             if (trxSlice.trx && trxSlice.trx.key) {
                 dispatch(scanBarcode({
+                    customerKey: terminal.customer ? terminal.customer.key : null,
                     barcode: scannedValue,
                     trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                     trxMode: terminal.trxMode,
@@ -74,8 +50,9 @@ const Invoice = (props) => {
                     multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
                 }))
             } else {
-                dispatch(showLoading());
+                
                 dispatch(scanNewTransaction({
+                    customerKey: terminal.customer ? terminal.customer.key : null,
                     barcode: scannedValue,
                     trxKey: null,
                     trxMode: terminal.trxMode,

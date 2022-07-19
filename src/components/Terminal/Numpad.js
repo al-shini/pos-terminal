@@ -58,6 +58,21 @@ const Numpad = (props) => {
                 }
 
                 if (terminal.paymentInput === 'numpad') {
+                    if (!trxSlice.selectedCurrency) {
+                        dispatch(notify({
+                            msg: 'Please select currency',
+                            sev: 'error'
+                        }))
+                        return;
+                    }
+                    if (!trxSlice.numberInputValue) {
+                        dispatch(notify({
+                            msg: 'Please specify valid amount',
+                            sev: 'error'
+                        }))
+                        return;
+
+                    }
                     dispatch(submitPayment({
                         tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
@@ -74,6 +89,7 @@ const Numpad = (props) => {
 
                     if (trxSlice.trx && trxSlice.trx.key) {
                         dispatch(scanBarcode({
+                            customerKey: terminal.customer ? terminal.customer.key : null,
                             barcode: trxSlice.numberInputValue,
                             trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                             trxMode: terminal.trxMode,
@@ -81,8 +97,9 @@ const Numpad = (props) => {
                             multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
                         }))
                     } else {
-                        dispatch(showLoading());
+
                         dispatch(scanNewTransaction({
+                            customerKey: terminal.customer ? terminal.customer.key : null,
                             barcode: trxSlice.numberInputValue,
                             trxKey: null,
                             trxMode: terminal.trxMode,
