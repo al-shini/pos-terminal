@@ -39,11 +39,13 @@ import NIS_20 from '../../assets/money-notes/20.0NIS.png';
 import NIS_50 from '../../assets/money-notes/50.0NIS.png';
 import NIS_100 from '../../assets/money-notes/100.0NIS.png';
 import NIS_200 from '../../assets/money-notes/200.0NIS.png';
-import JOD_5 from '../../assets/money-notes/5.0JOD.png';
+import EUR_1 from '../../assets/money-notes/1.0EUR.png';
+import JOD_1 from '../../assets/money-notes/1.0JOD.png';
 import JOD_10 from '../../assets/money-notes/10.0JOD.png';
 import JOD_20 from '../../assets/money-notes/20.0JOD.png';
 import JOD_50 from '../../assets/money-notes/50.0JOD.png';
 import EUR_10 from '../../assets/money-notes/10.0EUR.png';
+import USD_1 from '../../assets/money-notes/1.0USD.png';
 import USD_20 from '../../assets/money-notes/20.0USD.png';
 import USD_50 from '../../assets/money-notes/50.0USD.png';
 import USD_100 from '../../assets/money-notes/100.0USD.png';
@@ -81,15 +83,16 @@ const Terminal = (props) => {
         arr['50NIS'] = NIS_50;
         arr['100NIS'] = NIS_100;
         arr['200NIS'] = NIS_200;
-        arr['5JOD'] = JOD_5;
+        arr['1JOD'] = JOD_1;
         arr['10JOD'] = JOD_10;
         arr['20JOD'] = JOD_20;
         arr['50JOD'] = JOD_50;
         arr['10EUR'] = EUR_10;
+        arr['1USD'] = USD_1;
         arr['20USD'] = USD_20;
         arr['50USD'] = USD_50;
         arr['100USD'] = USD_100;
-
+        arr['1EUR'] = EUR_1;
         setNotesImages(arr);
     }, [])
 
@@ -109,7 +112,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    
+
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -132,7 +135,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    
+
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -155,7 +158,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    
+
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -186,7 +189,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    
+
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -216,7 +219,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    
+
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -248,7 +251,7 @@ const Terminal = (props) => {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    
+
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -287,7 +290,7 @@ const Terminal = (props) => {
                     if (error.response.status === 401) {
                         dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                     } else {
-                        
+
                         dispatch(notify({ msg: error.response.data, sev: 'error' }));
                     }
                 } else {
@@ -383,7 +386,32 @@ const Terminal = (props) => {
         if (!trxSlice.priceChangeMode) {
             dispatch(clearNumberInput());
             dispatch(reset());
-            dispatch(enablePriceChange());
+            axios({
+                method: 'post',
+                url: '/utilities/generateQR',
+                data: {
+                    hardwareId: config.deviceId,
+                    source: 'PriceChange',
+                    sourceKey: trxSlice.selectedLine.key,
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    setAuthQR({
+                        ...response.data,
+                        source: 'PriceChange'
+                    });
+                } else {
+                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+            });
         } else if (trxSlice.priceChangeMode) {
             dispatch(clearNumberInput());
             dispatch(reset());
@@ -412,7 +440,7 @@ const Terminal = (props) => {
                     if (error.response.status === 401) {
                         dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                     } else {
-                        
+
                         dispatch(notify({ msg: error.response.data, sev: 'error' }));
                     }
                 } else {
@@ -486,9 +514,32 @@ const Terminal = (props) => {
 
     const handleSuspendTrx = () => {
         if (trxSlice.trx) {
-            confirm('Suspend Transaction?', '',
-                () => { dispatch(suspendTrx(trxSlice.trx.key)) }
-            )
+            axios({
+                method: 'post',
+                url: '/utilities/generateQR',
+                data: {
+                    hardwareId: config.deviceId,
+                    source: 'SuspendTRX',
+                    sourceKey: trxSlice.trx.key,
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    setAuthQR({
+                        ...response.data,
+                        source: 'SuspendTRX'
+                    });
+                } else {
+                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+            });
         } else {
             dispatch(notify({
                 msg: 'No valid Transaction to suspend',
@@ -621,7 +672,7 @@ const Terminal = (props) => {
                         amount: obj.amount
                     }))
                 }} style={{ backgroundColor: '#f7f7fa', display: 'block' }} >
-                    <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: obj.amount > 10 ? '90%' : 'auto', height: '60px' }} />
+                    <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: '90%', height: '57px' }} />
                 </a>
             )
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.uuid + 'space'} > .</div>);
@@ -741,7 +792,7 @@ const Terminal = (props) => {
                                 multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
                             }))
                         } else {
-                            
+
                             dispatch(scanNewTransaction({
                                 customerKey: terminal.customer ? terminal.customer.key : null,
                                 barcode: obj.barcode,
@@ -829,21 +880,21 @@ const Terminal = (props) => {
                         <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '7px', marginRight: '7px' }} /> {terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</span>
                         <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
                         <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
-                        <span style={{ marginRight: '10px', marginLeft: '10px' }}><b> | </b></span>
-                        <span>
-                            <a style={{ color: 'white' }} onClick={() => {
-                                confirm('Reset Customer?', 'This clears to default customer',
-                                    () => { resetToStoreCustomer() }
-                                )
-                            }}>
-                                <FontAwesomeIcon icon={faIdCard} style={{ marginLeft: '7px', marginRight: '7px' }} /> {terminal.customer ? terminal.customer.customerName : 'No Customer'}
-                            </a>
-                        </span>
                     </h6>
                 </div>
 
                 <div style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', height: '33vh' }}>
-                    <div style={{ padding: '4px' }}>
+                    <span>
+                        <a style={{ color: '#2196f3', padding: '2px' }} onClick={() => {
+                            confirm('Reset Customer?', 'This clears to default customer',
+                                () => { resetToStoreCustomer() }
+                            )
+                        }}>
+                            <FontAwesomeIcon icon={faIdCard} style={{ marginLeft: '7px', marginRight: '7px' }} /> {terminal.customer ? terminal.customer.customerName : 'No Customer'}
+                        </a>
+                    </span>
+                    <Divider style={{ margin: '7px' }} />
+                    <div style={{ padding: '0px' }}>
                         <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
                             {uiSlice.toastMsg.toString()}
                         </Alert>
@@ -853,12 +904,12 @@ const Terminal = (props) => {
                         terminal.paymentMode &&
                         <FlexboxGrid>
                             <FlexboxGrid.Item colspan={24} >
-                                <div style={{ border: '1px solid #e1e1e1', padding: '6px', minWidth: '60%', margin: 'auto' }}>
-                                    <small style={{ fontSize: '25px', marginRight: '5px' }}>
+                                <div style={{ border: '1px solid #e1e1e1', padding: '3px', minWidth: '60%', margin: 'auto' }}>
+                                    <small style={{ fontSize: '20px', marginRight: '5px' }}>
                                         Paid =
                                     </small>
                                     <b>
-                                        <label id='Total' style={{ fontSize: '30px' }}>
+                                        <label id='Total' style={{ fontSize: '25px' }}>
                                             {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(2)}
                                         </label>
                                     </b>
@@ -868,14 +919,20 @@ const Terminal = (props) => {
                                 <br />
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={24}>
-                                <div style={{ border: '1px solid #e1e1e1', padding: '6px', minwidth: '60%', margin: 'auto' }}>
-                                    <small style={{ fontSize: '25px', marginRight: '5px' }}>
+                                <div style={{ border: '1px solid #e1e1e1', padding: '3px', minwidth: '60%', margin: 'auto' }}>
+                                    <small style={{ fontSize: '20px', marginRight: '5px' }}>
                                         Change =
                                     </small>
-                                    <b> <label id='Total' style={{ fontSize: '30px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
+                                    <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
                                         {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(2)}
                                     </label>
                                     </b>
+                                    {
+                                        terminal.paymentInput === 'numpad' && trxSlice.selectedCurrency !== 'NIS' &&
+                                        <small style={{ fontSize: '15px', marginLeft: '5px' }}>
+                                            ( { (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2) } {trxSlice.selectedCurrency} )
+                                        </small>
+                                    }
                                 </div>
                             </FlexboxGrid.Item>
                         </FlexboxGrid>
@@ -884,12 +941,12 @@ const Terminal = (props) => {
                     {
                         trxSlice.lastTrxPayment && <FlexboxGrid>
                             <FlexboxGrid.Item colspan={24} >
-                                <div style={{ border: '1px solid #e1e1e1', padding: '6px', minWidth: '60%', margin: 'auto' }}>
-                                    <small style={{ fontSize: '25px', marginRight: '5px' }}>
+                                <div style={{ border: '1px solid #e1e1e1', padding: '3px', minWidth: '60%', margin: 'auto' }}>
+                                    <small style={{ fontSize: '20px', marginRight: '5px' }}>
                                         Paid =
                                     </small>
                                     <b>
-                                        <label id='Total' style={{ fontSize: '30px' }}>
+                                        <label id='Total' style={{ fontSize: '25px' }}>
                                             {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(2)}
                                         </label>
                                     </b>
@@ -899,11 +956,11 @@ const Terminal = (props) => {
                                 <br />
                             </FlexboxGrid.Item>
                             <FlexboxGrid.Item colspan={24}>
-                                <div style={{ border: '1px solid #e1e1e1', padding: '6px', minwidth: '60%', margin: 'auto' }}>
-                                    <small style={{ fontSize: '25px', marginRight: '5px' }}>
+                                <div style={{ border: '1px solid #e1e1e1', padding: '3px', minwidth: '60%', margin: 'auto' }}>
+                                    <small style={{ fontSize: '20px', marginRight: '5px' }}>
                                         Change =
                                     </small>
-                                    <b> <label id='Total' style={{ fontSize: '30px', color: trxSlice.lastTrxPayment.change < 0 ? 'red' : 'green' }} >
+                                    <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.lastTrxPayment.change < 0 ? 'red' : 'green' }} >
                                         {(Math.round(trxSlice.lastTrxPayment.change * 100) / 100).toFixed(2)}
                                     </label>
                                     </b>

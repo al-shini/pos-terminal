@@ -71,7 +71,7 @@ export const checkLoginQrAuth = createAsyncThunk(
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 return thunkAPI.rejectWithValue(error.message);
             }
@@ -80,28 +80,10 @@ export const checkLoginQrAuth = createAsyncThunk(
     }
 )
 
-const fetchCustomer = (customerKey) => {
-    axios({
-        method: 'post',
-        url: '/posAcc/fetchCustomer',
-        headers: {
-            customerKey
-        }
-    }).then((response) => {
-        if (response && response.data) {
-            return response.data;
-        } else {
-            return null;
-        }
-    }).catch((error) => {
-        return null;
-    });
-}
-
 export const login = createAsyncThunk(
     'login',
     async (payload, thunkAPI) => {
-        
+
         return axios({
             method: 'post',
             url: '/auth/login',
@@ -110,11 +92,21 @@ export const login = createAsyncThunk(
             }
         }).then((response) => {
             if (response && response.data) {
-                const customer = fetchCustomer(response.data.store.sapCustomerCode);
-                thunkAPI.dispatch(setStoreCustomer(customer))
-                if (!thunkAPI.getState().terminal.customer) {
-                    thunkAPI.dispatch(setCustomer(response.data))
-                }
+                axios({
+                    method: 'post',
+                    url: '/posAcc/fetchCustomer',
+                    headers: {
+                        customerKey: response.data.store.sapCustomerCode
+                    }
+                }).then((response) => {
+                    if (response && response.data) {
+                        thunkAPI.dispatch(setStoreCustomer(response.data))
+                        if (!thunkAPI.getState().terminal.customer) {
+                            thunkAPI.dispatch(setCustomer(response.data))
+                        }
+                    }
+                })
+
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -122,17 +114,17 @@ export const login = createAsyncThunk(
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 }
                 else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 return thunkAPI.rejectWithValue(error.message);
             }
@@ -144,7 +136,7 @@ export const login = createAsyncThunk(
 export const lockTill = createAsyncThunk(
     'lockTill',
     async (payload, thunkAPI) => {
-        
+
         return axios({
             method: 'post',
             url: '/trx/lockTill',
@@ -153,7 +145,7 @@ export const lockTill = createAsyncThunk(
             }
         }).then((response) => {
             if (response && response.data) {
-                
+
                 thunkAPI.dispatch(blockActions());
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
@@ -162,17 +154,17 @@ export const lockTill = createAsyncThunk(
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 }
                 else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 return thunkAPI.rejectWithValue(error.message);
             }
@@ -184,7 +176,7 @@ export const lockTill = createAsyncThunk(
 export const unlockTill = createAsyncThunk(
     'unlockTill',
     async (payload, thunkAPI) => {
-        
+
         return axios({
             method: 'post',
             url: '/trx/unlockTill',
@@ -193,7 +185,7 @@ export const unlockTill = createAsyncThunk(
             }
         }).then((response) => {
             if (response && response.data) {
-                
+
                 thunkAPI.dispatch(unblockActions());
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
@@ -202,11 +194,11 @@ export const unlockTill = createAsyncThunk(
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 } else if (error.response.status === 444) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Till is closed, restarting session...', sev: 'error' }));
                     window.setTimeout(() => {
                         thunkAPI.dispatch(logout());
@@ -214,12 +206,12 @@ export const unlockTill = createAsyncThunk(
                     return thunkAPI.rejectWithValue('Un-authorized');
                 }
                 else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 return thunkAPI.rejectWithValue(error.message);
             }
@@ -231,7 +223,7 @@ export const unlockTill = createAsyncThunk(
 export const submitOpeningBalance = createAsyncThunk(
     'submitOpeningBalance',
     async (payload, thunkAPI) => {
-        
+
         return axios({
             method: 'post',
             url: '/actions/initializeTill',
@@ -243,7 +235,7 @@ export const submitOpeningBalance = createAsyncThunk(
             }
         }).then((response) => {
             if (response && response.data) {
-                
+
                 thunkAPI.dispatch(notify('Openinig Balance Variance Updated!'));
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
@@ -252,17 +244,17 @@ export const submitOpeningBalance = createAsyncThunk(
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Un-authorized', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 }
                 else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 return thunkAPI.rejectWithValue(error.message);
             }
@@ -309,7 +301,7 @@ export const terminalSlice = createSlice({
         },
         setStoreCustomer: (state, action) => {
             state.storeCustomer = action.payload;
-        }, 
+        },
         resetCustomer: (state, action) => {
             state.customer = state.storeCustomer;
         },
@@ -470,7 +462,7 @@ export const terminalSlice = createSlice({
 })
 
 
-export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode, blockActions, unblockActions, setCustomer, setStoreCustomer,resetCustomer,
+export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode, blockActions, unblockActions, setCustomer, setStoreCustomer, resetCustomer,
     uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems,
     uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound } = terminalSlice.actions
 export default terminalSlice.reducer

@@ -510,6 +510,16 @@ export const checkOperationQrAuth = createAsyncThunk(
                             thunkAPI.dispatch(holdQrAuthCheck());
                             break;
                         }
+                        case 'SuspendTRX': {
+                            thunkAPI.dispatch(suspendTrx(response.data.sourceKey));
+                            thunkAPI.dispatch(holdQrAuthCheck());
+                            break;
+                        }
+                        case 'PriceChange': {
+                            thunkAPI.dispatch(enablePriceChange());
+                            thunkAPI.dispatch(holdQrAuthCheck());
+                            break;
+                        }
                     }
                 } else {
                     if (thunkAPI.getState().trx.qrAuthState === 'pending') {

@@ -107,7 +107,7 @@ const Invoice = (props) => {
                             <FlexboxGrid.Item colspan={1}>
 
                             </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={2}>
+                            <FlexboxGrid.Item colspan={3}>
                                 <Typography variant='subtitle1'>
                                     <span
                                         style={{
@@ -118,7 +118,7 @@ const Invoice = (props) => {
                                     </span>
                                 </Typography>
                             </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={18}>
+                            <FlexboxGrid.Item colspan={17}>
                                 <span
                                     style={{
                                         textDecoration: obj.voided ? 'line-through' : '',
