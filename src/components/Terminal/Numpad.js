@@ -42,6 +42,7 @@ const Numpad = (props) => {
     const handleOk = () => {
         if (terminal.till && terminal.till.isInitialized) {
             if (terminal.paymentMode) {
+                console.log('paying');
                 let paymentComplete = false;
 
                 if (trxSlice.trx) {

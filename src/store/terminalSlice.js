@@ -25,7 +25,9 @@ const initialState = {
     currencies: [],
     exchangeRates: {},
     blockActions: false,
-    errorSound: false
+    errorSound: false,
+    managerMode: true,
+    managerUser: null
 }
 
 /**
@@ -377,6 +379,12 @@ export const terminalSlice = createSlice({
         },
         unblockActions: (state) => {
             state.blockActions = false
+        },
+        setManagerMode: (state, action) => {
+            state.managerMode = action.payload
+        },
+        setManagerUser: (state, action) => {
+            state.managerUser = action.payload
         }
     },
     extraReducers: (builder) => {
@@ -464,5 +472,5 @@ export const terminalSlice = createSlice({
 
 export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode, blockActions, unblockActions, setCustomer, setStoreCustomer, resetCustomer,
     uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems,
-    uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound } = terminalSlice.actions
+    uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound, setManagerMode, setManagerUser } = terminalSlice.actions
 export default terminalSlice.reducer

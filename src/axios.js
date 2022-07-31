@@ -2,8 +2,8 @@ import axios from 'axios';
 
 
 const instance = axios.create({
-    // baseURL: 'http://172.60.2.111:8080'
-    baseURL: 'http://127.0.0.1:8080'
+    // baseURL: 'http://192.168.10.49:8080'
+    baseURL: 'http://192.168.7.66:8080'
 
 });
 

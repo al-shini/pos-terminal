@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faBroom, faMoneyBillTransfer, faRepeat, faUser, faArrowLeft,
-    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay, faRotateLeft, faDollarSign, faLock, faUnlock, faIls
+    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay, faRotateLeft, faDollarSign, faLock, faUnlock, faIls, faSearch
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -14,12 +14,12 @@ import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import {
     beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry, reset,
-    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer
+    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer, setManagerMode
 } from '../../store/terminalSlice';
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
-    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck
+    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine
 } from '../../store/trxSlice';
 import { notify, hideLoading, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -314,65 +314,82 @@ const Terminal = (props) => {
     const handleVoidLine = () => {
         if (trxSlice.trx) {
             if (terminal.paymentMode) {
+
                 if (trxSlice.selectedPayment) {
-                    axios({
-                        method: 'post',
-                        url: '/utilities/generateQR',
-                        data: {
-                            hardwareId: config.deviceId,
-                            source: 'VoidPayment',
-                            sourceKey: trxSlice.selectedPayment.key,
-                        }
-                    }).then((response) => {
-                        if (response && response.data) {
-                            setAuthQR({
-                                ...response.data,
-                                source: 'VoidPayment'
-                            });
-                        } else {
-                            dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-                        }
-                    }).catch((error) => {
-                        if (error.response) {
-                            if (error.response.status === 401) {
-                                dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    confirm('Void Payment?', trxSlice.selectedPayment.amount + ' ' + trxSlice.selectedPayment.currency,
+                        () => {
+                            if (terminal.managerMode) {
+                                dispatch(voidPayment(trxSlice.selectedPayment.key));
+                            } else {
+                                axios({
+                                    method: 'post',
+                                    url: '/utilities/generateQR',
+                                    data: {
+                                        hardwareId: config.deviceId,
+                                        source: 'VoidPayment',
+                                        sourceKey: trxSlice.selectedPayment.key,
+                                    }
+                                }).then((response) => {
+                                    if (response && response.data) {
+                                        setAuthQR({
+                                            ...response.data,
+                                            source: 'VoidPayment'
+                                        });
+                                    } else {
+                                        dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                                    }
+                                }).catch((error) => {
+                                    if (error.response) {
+                                        if (error.response.status === 401) {
+                                            dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                                        }
+                                    } else {
+                                        dispatch(notify({ msg: error.message, sev: 'error' }));
+                                    }
+                                });
                             }
-                        } else {
-                            dispatch(notify({ msg: error.message, sev: 'error' }));
                         }
-                    });
+                    )
 
                 } else {
                     dispatch(notify({ msg: 'No payment line selected', sev: 'warning' }));
                 }
             } else {
                 if (trxSlice.selectedLine) {
-                    axios({
-                        method: 'post',
-                        url: '/utilities/generateQR',
-                        data: {
-                            hardwareId: config.deviceId,
-                            source: 'VoidLine',
-                            sourceKey: trxSlice.selectedLine.key,
-                        }
-                    }).then((response) => {
-                        if (response && response.data) {
-                            setAuthQR({
-                                ...response.data,
-                                source: 'VoidLine'
-                            });
-                        } else {
-                            dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-                        }
-                    }).catch((error) => {
-                        if (error.response) {
-                            if (error.response.status === 401) {
-                                dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    confirm('Void Line?', trxSlice.selectedLine.description,
+                        () => {
+                            if (terminal.managerMode) {
+                                dispatch(voidLine(trxSlice.selectedLine.key));
+                            } else {
+                                axios({
+                                    method: 'post',
+                                    url: '/utilities/generateQR',
+                                    data: {
+                                        hardwareId: config.deviceId,
+                                        source: 'VoidLine',
+                                        sourceKey: trxSlice.selectedLine.key,
+                                    }
+                                }).then((response) => {
+                                    if (response && response.data) {
+                                        setAuthQR({
+                                            ...response.data,
+                                            source: 'VoidLine'
+                                        });
+                                    } else {
+                                        dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                                    }
+                                }).catch((error) => {
+                                    if (error.response) {
+                                        if (error.response.status === 401) {
+                                            dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                                        }
+                                    } else {
+                                        dispatch(notify({ msg: error.message, sev: 'error' }));
+                                    }
+                                });
                             }
-                        } else {
-                            dispatch(notify({ msg: error.message, sev: 'error' }));
                         }
-                    });
+                    )
                 } else {
                     dispatch(notify({ msg: 'No transaction line selected', sev: 'warning' }));
                 }
@@ -385,36 +402,40 @@ const Terminal = (props) => {
     const handlePriceChange = () => {
         if (!trxSlice.priceChangeMode) {
             dispatch(clearNumberInput());
-            dispatch(reset());
-            axios({
-                method: 'post',
-                url: '/utilities/generateQR',
-                data: {
-                    hardwareId: config.deviceId,
-                    source: 'PriceChange',
-                    sourceKey: trxSlice.selectedLine.key,
-                }
-            }).then((response) => {
-                if (response && response.data) {
-                    setAuthQR({
-                        ...response.data,
-                        source: 'PriceChange'
-                    });
-                } else {
-                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-                }
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+            // dispatch(reset());
+            if (terminal.managerMode) {
+                dispatch(enablePriceChange());
+            } else {
+                axios({
+                    method: 'post',
+                    url: '/utilities/generateQR',
+                    data: {
+                        hardwareId: config.deviceId,
+                        source: 'PriceChange',
+                        sourceKey: trxSlice.selectedLine.key,
                     }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
-                }
-            });
+                }).then((response) => {
+                    if (response && response.data) {
+                        setAuthQR({
+                            ...response.data,
+                            source: 'PriceChange'
+                        });
+                    } else {
+                        dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                    }
+                }).catch((error) => {
+                    if (error.response) {
+                        if (error.response.status === 401) {
+                            dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                        }
+                    } else {
+                        dispatch(notify({ msg: error.message, sev: 'error' }));
+                    }
+                });
+            }
         } else if (trxSlice.priceChangeMode) {
             dispatch(clearNumberInput());
-            dispatch(reset());
+            // dispatch(reset());
             dispatch(disablePriceChange());
         }
     }
@@ -462,6 +483,39 @@ const Terminal = (props) => {
 
     }
 
+    const handleManagerMode = () => {
+        if (!terminal.managerMode) {
+            axios({
+                method: 'post',
+                url: '/utilities/generateQR',
+                data: {
+                    hardwareId: config.deviceId,
+                    source: 'ManagerMode',
+                    sourceKey: terminal.till.key,
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    setAuthQR({
+                        ...response.data,
+                        source: 'ManagerMode'
+                    });
+                } else {
+                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+            });
+        } else {
+            dispatch(setManagerMode(false))
+        }
+    }
+
     useEffect(() => {
         if (authQR.qrAuthKey) {
             dispatch(startQrAuthCheck());
@@ -478,32 +532,40 @@ const Terminal = (props) => {
 
     const handleVoidTrx = () => {
         if (trxSlice.trx) {
-            axios({
-                method: 'post',
-                url: '/utilities/generateQR',
-                data: {
-                    hardwareId: config.deviceId,
-                    source: 'VoidTRX',
-                    sourceKey: trxSlice.trx.key,
-                }
-            }).then((response) => {
-                if (response && response.data) {
-                    setAuthQR({
-                        ...response.data,
-                        source: 'VoidTRX'
-                    });
-                } else {
-                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-                }
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+            confirm('Void Transaction?', '',
+                () => {
+                    if (terminal.managerMode) {
+                        dispatch(voidTrx(trxSlice.trx.key));
+                    } else {
+                        axios({
+                            method: 'post',
+                            url: '/utilities/generateQR',
+                            data: {
+                                hardwareId: config.deviceId,
+                                source: 'VoidTRX',
+                                sourceKey: trxSlice.trx.key,
+                            }
+                        }).then((response) => {
+                            if (response && response.data) {
+                                setAuthQR({
+                                    ...response.data,
+                                    source: 'VoidTRX'
+                                });
+                            } else {
+                                dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                            }
+                        }).catch((error) => {
+                            if (error.response) {
+                                if (error.response.status === 401) {
+                                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                                }
+                            } else {
+                                dispatch(notify({ msg: error.message, sev: 'error' }));
+                            }
+                        });
                     }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
                 }
-            });
+            )
         } else {
             dispatch(notify({
                 msg: 'No valid Transaction to void',
@@ -514,32 +576,42 @@ const Terminal = (props) => {
 
     const handleSuspendTrx = () => {
         if (trxSlice.trx) {
-            axios({
-                method: 'post',
-                url: '/utilities/generateQR',
-                data: {
-                    hardwareId: config.deviceId,
-                    source: 'SuspendTRX',
-                    sourceKey: trxSlice.trx.key,
-                }
-            }).then((response) => {
-                if (response && response.data) {
-                    setAuthQR({
-                        ...response.data,
-                        source: 'SuspendTRX'
-                    });
-                } else {
-                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-                }
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+            confirm('Suspend Transaction?', '',
+                () => {
+                    if (terminal.managerMode) {
+
+                        dispatch(suspendTrx(trxSlice.trx.key));
+
+                    } else {
+                        axios({
+                            method: 'post',
+                            url: '/utilities/generateQR',
+                            data: {
+                                hardwareId: config.deviceId,
+                                source: 'SuspendTRX',
+                                sourceKey: trxSlice.trx.key,
+                            }
+                        }).then((response) => {
+                            if (response && response.data) {
+                                setAuthQR({
+                                    ...response.data,
+                                    source: 'SuspendTRX'
+                                });
+                            } else {
+                                dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                            }
+                        }).catch((error) => {
+                            if (error.response) {
+                                if (error.response.status === 401) {
+                                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                                }
+                            } else {
+                                dispatch(notify({ msg: error.message, sev: 'error' }));
+                            }
+                        });
                     }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
                 }
-            });
+            )
         } else {
             dispatch(notify({
                 msg: 'No valid Transaction to suspend',
@@ -711,6 +783,15 @@ const Terminal = (props) => {
                 <div style={{ textAlign: 'center', fontSize: '14px', }}>
                     <FontAwesomeIcon icon={faPause} style={{ marginRight: '5px' }} />
                     <label>Suspend Trx</label>
+                </div>
+            </Button>
+            <br />
+            <Button key='refund' className={classes.MainActionButton}
+                onClick={handleVoidTrx}
+                disabled={terminal.paymentMode} >
+                <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
+                    <label>Void TRX </label>
                 </div>
             </Button>
             <br />
@@ -893,6 +974,16 @@ const Terminal = (props) => {
                             <FontAwesomeIcon icon={faIdCard} style={{ marginLeft: '7px', marginRight: '7px' }} /> {terminal.customer ? terminal.customer.customerName : 'No Customer'}
                         </a>
                     </span>
+                    {terminal.managerMode && <Divider vertical /> &&
+                        <span>
+                            <a style={{ color: 'red', padding: '2px' }} onClick={() => {
+                                confirm('Reset Customer?', 'This clears to default customer',
+                                    () => { resetToStoreCustomer() }
+                                )
+                            }}>
+                                <FontAwesomeIcon icon={faShieldHalved} style={{ marginLeft: '7px', marginRight: '7px' }} /> Manager
+                            </a>
+                        </span>}
                     <Divider style={{ margin: '7px' }} />
                     <div style={{ padding: '0px' }}>
                         <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
@@ -930,7 +1021,7 @@ const Terminal = (props) => {
                                     {
                                         terminal.paymentInput === 'numpad' && trxSlice.selectedCurrency !== 'NIS' &&
                                         <small style={{ fontSize: '15px', marginLeft: '5px' }}>
-                                            ( { (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2) } {trxSlice.selectedCurrency} )
+                                            ( {(Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2)} {trxSlice.selectedCurrency} )
                                         </small>
                                     }
                                 </div>
@@ -1070,9 +1161,18 @@ const Terminal = (props) => {
             <FlexboxGridItem colspan={24} style={{ left: '6px' }}>
                 <FlexboxGrid  >
                     <FlexboxGrid.Item colspan={3} >
-                        <Button color={'orange'} appearance="primary" className={classes.POSButton} disabled >
+                        <Button color={terminal.managerMode ? 'red' : 'orange'} appearance="primary" className={classes.POSButton} onClick={handleManagerMode} >
                             <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '5px' }} />
-                            <label>Manager</label>
+                            {
+                                terminal.managerMode && <div>
+                                    Exit Manager
+                                </div>
+                            }
+                            {
+                                !terminal.managerMode && <div>
+                                    Enter Manager
+                                </div>
+                            }
                         </Button>
                     </FlexboxGrid.Item>
 
@@ -1108,7 +1208,15 @@ const Terminal = (props) => {
                         </Button>
                     </FlexboxGrid.Item>
 
-
+                    <FlexboxGrid.Item colspan={3}>
+                        <Button className={classes.POSButton}
+                            onClick={handleVoidLine}
+                            disabled
+                            appearance='primary' color='blue'>
+                            <FontAwesomeIcon icon={faSearch} style={{ marginRight: '5px' }} />
+                            <div>Search Line</div>
+                        </Button>
+                    </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
                         {terminal.paymentMode &&
                             <Button className={classes.POSButton}
@@ -1116,7 +1224,7 @@ const Terminal = (props) => {
                                 disabled={!trxSlice.selectedPayment || !trxSlice.selectedPayment.key}
                                 appearance='primary' color='blue'>
                                 <FontAwesomeIcon icon={faEraser} style={{ marginRight: '5px' }} />
-                                <label>Void Payment</label>
+                                <div>Void Payment</div>
                             </Button>
                         }
                         {!terminal.paymentMode &&
@@ -1125,18 +1233,9 @@ const Terminal = (props) => {
                                 disabled={!trxSlice.selectedLine || !trxSlice.selectedLine.key}
                                 appearance='primary' color='blue'>
                                 <FontAwesomeIcon icon={faEraser} style={{ marginRight: '5px' }} />
-                                <label>Void Line</label>
+                                <div>Void Line</div>
                             </Button>
                         }
-                    </FlexboxGrid.Item>
-                    <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton}
-                            onClick={handleVoidTrx}
-                            disabled={terminal.paymentMode}
-                            appearance='primary' color='blue'>
-                            <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
-                            <label>Void TRX</label>
-                        </Button>
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
                         <Button className={classes.POSButton}
@@ -1144,7 +1243,7 @@ const Terminal = (props) => {
                             onClick={handlePriceChange}
                             appearance='primary' color={trxSlice.priceChangeMode ? 'orange' : 'blue'}  >
                             <FontAwesomeIcon icon={faRepeat} style={{ marginRight: '5px' }} />
-                            <label>{trxSlice.priceChangeMode ? 'CANCEL' : 'Price Change'}</label>
+                            <div>{trxSlice.priceChangeMode ? 'CANCEL' : 'Change Price'}</div>
                         </Button>
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>

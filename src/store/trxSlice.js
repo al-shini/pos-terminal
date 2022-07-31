@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { showLoading, hideLoading, notify } from './uiSlice'
-import { resetCustomer, setCustomer, triggerErrorSound } from './terminalSlice';
+import { resetCustomer, setCustomer, setManagerMode, setManagerUser, triggerErrorSound } from './terminalSlice';
 import { reset } from './terminalSlice'
 import axios from '../axios';
 
@@ -42,7 +42,7 @@ export const scanNewTransaction = createAsyncThunk(
                 }
             }).then((response) => {
                 if (response && response.data) {
-                    
+
                     return thunkAPI.fulfillWithValue(response.data);
                 } else {
                     return thunkAPI.rejectWithValue('Incorrect server response');
@@ -51,17 +51,17 @@ export const scanNewTransaction = createAsyncThunk(
                 console.log(error);
                 if (error.response) {
                     if (error.response.status === 401) {
-                        
+
                         thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                         return thunkAPI.rejectWithValue('Un-authorized');
                     } else {
                         thunkAPI.dispatch(triggerErrorSound());
-                        
+
                         thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                         return thunkAPI.rejectWithValue(error.response.data);
                     }
                 } else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 }
             });
@@ -72,7 +72,7 @@ export const scanNewTransaction = createAsyncThunk(
                 data: payload
             }).then((response) => {
                 if (response && response.data) {
-                    
+
                     if (!payload.barcode.includes('C-')) {
                         thunkAPI.dispatch(scanBarcode(
                             {
@@ -95,17 +95,17 @@ export const scanNewTransaction = createAsyncThunk(
                 console.log(error);
                 if (error.response) {
                     if (error.response.status === 401) {
-                        
+
                         thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                         return thunkAPI.rejectWithValue('Un-authorized');
                     } else {
                         thunkAPI.dispatch(triggerErrorSound());
-                        
+
                         thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                         return thunkAPI.rejectWithValue(error.response.data);
                     }
                 } else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 }
             });
@@ -129,7 +129,7 @@ export const scanBarcode = createAsyncThunk(
             data: payload
         }).then((response) => {
             if (response && response.data) {
-                
+
                 console.log('response.data', response.data)
                 thunkAPI.dispatch(scroll());
                 if (response.data.customer) {
@@ -143,17 +143,17 @@ export const scanBarcode = createAsyncThunk(
             console.log(error);
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 } else {
                     thunkAPI.dispatch(triggerErrorSound());
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
@@ -164,14 +164,14 @@ export const scanBarcode = createAsyncThunk(
 export const submitPayment = createAsyncThunk(
     'submitPayment',
     async (payload, thunkAPI) => {
-        
+
         return axios({
             method: 'post',
             url: '/trx/submitPayment',
             data: payload
         }).then((response) => {
             if (response && response.data) {
-                
+
                 console.log('response.data', response.data)
                 thunkAPI.dispatch(clearNumberInput());
                 return thunkAPI.fulfillWithValue(response.data);
@@ -182,20 +182,20 @@ export const submitPayment = createAsyncThunk(
             console.log(error);
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 } else if (error.response.status === 499) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
@@ -206,7 +206,7 @@ export const submitPayment = createAsyncThunk(
 export const closeTrxPayment = createAsyncThunk(
     'closeTrxPayment',
     async (payload, thunkAPI) => {
-        
+
         return axios({
             method: 'post',
             url: '/trx/closeTrxPayment',
@@ -215,7 +215,7 @@ export const closeTrxPayment = createAsyncThunk(
             }
         }).then((response) => {
             if (response && response.data) {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'Transaction paid, print invoice ☺', sev: 'info' }));
                 axios({
                     method: 'get',
@@ -234,20 +234,20 @@ export const closeTrxPayment = createAsyncThunk(
             console.log(error);
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 } else if (error.response.status === 499) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
@@ -258,7 +258,7 @@ export const closeTrxPayment = createAsyncThunk(
 export const voidTrx = createAsyncThunk(
     'voidTrx',
     async (payload, thunkAPI) => {
-        
+
         return axios({
             method: 'post',
             url: '/trx/voidTrx',
@@ -267,7 +267,7 @@ export const voidTrx = createAsyncThunk(
             }
         }).then((response) => {
             if (response && response.data) {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'Transaction ' + response.data.key + ' voided', sev: 'info' }));
                 thunkAPI.dispatch(resetCustomer());
                 thunkAPI.dispatch(reset());
@@ -279,20 +279,20 @@ export const voidTrx = createAsyncThunk(
             console.log(error);
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 } else if (error.response.status === 499) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
@@ -303,7 +303,7 @@ export const voidTrx = createAsyncThunk(
 export const suspendTrx = createAsyncThunk(
     'suspendTrx',
     async (payload, thunkAPI) => {
-        
+
         return axios({
             method: 'post',
             url: '/trx/suspendTrx',
@@ -312,7 +312,7 @@ export const suspendTrx = createAsyncThunk(
             }
         }).then((response) => {
             if (response && response.data) {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'Transaction ' + response.data.key + ' suspended', sev: 'info' }));
                 thunkAPI.dispatch(resetCustomer());
                 thunkAPI.dispatch(reset());
@@ -333,20 +333,20 @@ export const suspendTrx = createAsyncThunk(
             console.log(error);
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 } else if (error.response.status === 499) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
@@ -357,7 +357,7 @@ export const suspendTrx = createAsyncThunk(
 export const voidPayment = createAsyncThunk(
     'voidPayment',
     async (payload, thunkAPI) => {
-        
+
         const data = {
             trxKey: thunkAPI.getState().trx.trx.key,
             lineKey: payload
@@ -368,7 +368,7 @@ export const voidPayment = createAsyncThunk(
             data
         }).then((response) => {
             if (response && response.data) {
-                
+
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -377,20 +377,20 @@ export const voidPayment = createAsyncThunk(
             console.log(error);
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 } else if (error.response.status === 499) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
@@ -401,7 +401,7 @@ export const voidPayment = createAsyncThunk(
 export const voidLine = createAsyncThunk(
     'voidLine',
     async (payload, thunkAPI) => {
-        
+
         const data = {
             trxKey: thunkAPI.getState().trx.trx.key,
             lineKey: payload
@@ -412,7 +412,7 @@ export const voidLine = createAsyncThunk(
             data
         }).then((response) => {
             if (response && response.data) {
-                
+
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -421,20 +421,20 @@ export const voidLine = createAsyncThunk(
             console.log(error);
             if (error.response) {
                 if (error.response.status === 401) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 } else if (error.response.status === 499) {
-                    
+
                     thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 } else {
-                    
+
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
@@ -455,7 +455,7 @@ export const changePrice = createAsyncThunk(
         }).then((response) => {
             if (response && response.data) {
                 thunkAPI.dispatch(notify({ msg: 'Line Price Changed', sev: 'info' }));
-                thunkAPI.dispatch(reset());
+                // thunkAPI.dispatch(reset());
                 thunkAPI.dispatch(clearNumberInput());
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
@@ -520,6 +520,12 @@ export const checkOperationQrAuth = createAsyncThunk(
                             thunkAPI.dispatch(holdQrAuthCheck());
                             break;
                         }
+                        case 'ManagerMode': {
+                            thunkAPI.dispatch(setManagerMode(true));
+                            thunkAPI.dispatch(setManagerUser(response.data));
+                            thunkAPI.dispatch(holdQrAuthCheck());
+                            break;
+                        }
                     }
                 } else {
                     if (thunkAPI.getState().trx.qrAuthState === 'pending') {
@@ -543,7 +549,7 @@ export const checkOperationQrAuth = createAsyncThunk(
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-                
+
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 return thunkAPI.rejectWithValue(error.message);
             }
