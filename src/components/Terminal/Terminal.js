@@ -620,6 +620,43 @@ const Terminal = (props) => {
         }
     }
 
+    const handleSwitchToRefund = () => {
+            confirm('Switch to Refund Mode?', '',
+                () => {
+                    if (terminal.managerMode) {
+                        dispatch(suspendTrx(trxSlice.trx.key));
+                    } else {
+                        axios({
+                            method: 'post',
+                            url: '/utilities/generateQR',
+                            data: {
+                                hardwareId: config.deviceId,
+                                source: 'Refund',
+                                sourceKey: null,
+                            }
+                        }).then((response) => {
+                            if (response && response.data) {
+                                setAuthQR({
+                                    ...response.data,
+                                    source: 'Refund'
+                                });
+                            } else {
+                                dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                            }
+                        }).catch((error) => {
+                            if (error.response) {
+                                if (error.response.status === 401) {
+                                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                                }
+                            } else {
+                                dispatch(notify({ msg: error.message, sev: 'error' }));
+                            }
+                        });
+                    }
+                }
+            )
+    }
+
     const handleLockTill = () => {
         if (terminal.till) {
             if (terminal.till.status === 'O') {
@@ -797,7 +834,7 @@ const Terminal = (props) => {
             <br />
             {
                 terminal.trxMode === 'Sale' &&
-                <Button disabled={trxSlice.trx !== null} key='refund' className={classes.MainActionButton} onClick={() => { dispatch(setTrxMode('Refund')) }}>
+                <Button disabled={trxSlice.trx !== null} key='refund' className={classes.MainActionButton} onClick={handleSwitchToRefund}>
                     <div style={{ textAlign: 'center', fontSize: '14px', }}>
                         <FontAwesomeIcon icon={faRotateLeft} style={{ marginRight: '5px' }} />
                         <label>Refund</label>

@@ -26,7 +26,7 @@ const initialState = {
     exchangeRates: {},
     blockActions: false,
     errorSound: false,
-    managerMode: true,
+    managerMode: false,
     managerUser: null
 }
 
@@ -382,6 +382,9 @@ export const terminalSlice = createSlice({
         },
         setManagerMode: (state, action) => {
             state.managerMode = action.payload
+            if(!action.payload){
+                state.managerUser = null;
+            }
         },
         setManagerUser: (state, action) => {
             state.managerUser = action.payload

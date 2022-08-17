@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { showLoading, hideLoading, notify } from './uiSlice'
-import { resetCustomer, setCustomer, setManagerMode, setManagerUser, triggerErrorSound } from './terminalSlice';
+import { resetCustomer, setCustomer, setManagerMode, setManagerUser, setTrxMode, triggerErrorSound } from './terminalSlice';
 import { reset } from './terminalSlice'
 import axios from '../axios';
 
@@ -224,6 +224,8 @@ export const closeTrxPayment = createAsyncThunk(
                     console.log(error.response, error.message);
                     thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
                 });
+                thunkAPI.dispatch(setManagerMode(false));
+                thunkAPI.dispatch(setManagerUser(null));
                 thunkAPI.dispatch(resetCustomer());
                 thunkAPI.dispatch(reset());
                 return thunkAPI.fulfillWithValue(response.data);
@@ -271,6 +273,8 @@ export const voidTrx = createAsyncThunk(
                 thunkAPI.dispatch(notify({ msg: 'Transaction ' + response.data.key + ' voided', sev: 'info' }));
                 thunkAPI.dispatch(resetCustomer());
                 thunkAPI.dispatch(reset());
+                thunkAPI.dispatch(setManagerMode(false));
+                thunkAPI.dispatch(setManagerUser(null));
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -316,7 +320,8 @@ export const suspendTrx = createAsyncThunk(
                 thunkAPI.dispatch(notify({ msg: 'Transaction ' + response.data.key + ' suspended', sev: 'info' }));
                 thunkAPI.dispatch(resetCustomer());
                 thunkAPI.dispatch(reset());
-
+                thunkAPI.dispatch(setManagerMode(false));
+                thunkAPI.dispatch(setManagerUser(null));
                 axios({
                     method: 'get',
                     url: 'http://localhost:3001/printSuspendTrx?trxKey=' + response.data.key,
@@ -523,6 +528,11 @@ export const checkOperationQrAuth = createAsyncThunk(
                         case 'ManagerMode': {
                             thunkAPI.dispatch(setManagerMode(true));
                             thunkAPI.dispatch(setManagerUser(response.data));
+                            thunkAPI.dispatch(holdQrAuthCheck());
+                            break;
+                        }
+                        case 'Refund': {
+                            thunkAPI.dispatch(setTrxMode('Refund'));
                             thunkAPI.dispatch(holdQrAuthCheck());
                             break;
                         }

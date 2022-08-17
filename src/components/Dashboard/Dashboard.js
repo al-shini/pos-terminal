@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import { Outlet, useNavigate } from "react-router-dom";
 import { notify, hideLoading } from '../../store/uiSlice';
-import { seemlessLogin, unblockActions, blockActions, setStoreCustomer, fetchCustomer, setCustomer } from '../../store/terminalSlice';
+import { seemlessLogin, unblockActions, blockActions, setStoreCustomer, fetchCustomer, setCustomer, setTrxMode } from '../../store/terminalSlice';
 
 import Menu from './Menu';
 import axios from '../../axios';
@@ -74,6 +74,8 @@ const Dashboard = (props) => {
         }).then((response) => {
             if (response && response.data) {
                 dispatch(resumeTrx(response.data));
+                console.log(response.data)
+                dispatch(setTrxMode(response.data.trx.type))
                 if (response.data.customer) {
                     dispatch(setCustomer(response.data.customer));
                 } else {
