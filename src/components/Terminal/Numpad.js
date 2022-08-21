@@ -10,7 +10,7 @@ import styles from './Numpad.module.css';
 import classes from './Terminal.module.css';
 
 import { changePrice, clearLastPaymentHistory, handleNumberInputChange, scanBarcode, scanNewTransaction, submitPayment } from '../../store/trxSlice';
-import { notify, showLoading } from '../../store/uiSlice';
+import { notify } from '../../store/uiSlice';
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
 import { submitOpeningBalance } from '../../store/terminalSlice';
@@ -23,7 +23,7 @@ const Numpad = (props) => {
     const dispatch = useDispatch();
 
     const onInputChange = (e) => {
-        let regex = /^[a-zA-Z!@#\$%\^\&*\)\(+=_-]+$/g;
+        let regex = /^[a-zA-Z!@#$%^&*)(+=_-]+$/g;
 
         if (!terminal.paymentMode && e.includes('.')) {
             return;
@@ -42,13 +42,9 @@ const Numpad = (props) => {
     const handleOk = () => {
         if (terminal.till && terminal.till.isInitialized) {
             if (terminal.paymentMode) {
-                console.log('paying');
-                let paymentComplete = false;
-
                 if (trxSlice.trx) {
                     const change = trxSlice.trx.customerchange;
                     if (change >= 0) {
-                        paymentComplete = true;
                         dispatch(closeTrxPayment(trxSlice.trx.key));
                         window.setTimeout(() => {
                             dispatch(clearLastPaymentHistory());

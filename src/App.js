@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, HashRouter } from "react-router-dom";
+import { Routes, Route, HashRouter } from "react-router-dom";
 import { useSelector } from 'react-redux'
 
 import Login from './components/Login/Login';
@@ -8,9 +8,7 @@ import Dashboard from "./components/Dashboard/Dashboard";
 
 
 import Backdrop from '@mui/material/Backdrop';
-import Snackbar from '@mui/material/Snackbar';
 import CircularProgress from '@mui/material/CircularProgress';
-import Alert from "@mui/material/Alert";
 
 
 
@@ -26,14 +24,6 @@ const App = () => {
       >
         <CircularProgress color="inherit" />
       </Backdrop>
-
-      {/* <Snackbar
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        open={uiSlice.toastOpen} >
-        <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
-          {uiSlice.toastMsg}
-        </Alert>
-      </Snackbar> */}
 
       <Routes>
         <Route path="/" element={<Login />} />

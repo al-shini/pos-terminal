@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 
-import { FlexboxGrid, PanelGroup, Panel, InputNumber, Button, Divider } from 'rsuite';
-import { updateBalance, submitOpeningBalance } from '../../store/terminalSlice';
+import { Panel, InputNumber, Button  } from 'rsuite';
+import {  submitOpeningBalance } from '../../store/terminalSlice';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane } from '@fortawesome/free-solid-svg-icons'
 const BalanceSetup = (props) => {
 
-    const terminal = useSelector((state) => state.terminal);
     const trxSlice = useSelector((state) => state.trx);
     const dispatch = useDispatch();
 

@@ -1,14 +1,14 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 
-import { FlexboxGrid, List, IconButton, Button } from 'rsuite';
+import { FlexboxGrid, List, IconButton } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
 
 import axios from '../../axios';
 import { selectPayment, uploadPayments } from '../../store/trxSlice';
-import { notify, hideLoading } from '../../store/uiSlice';
+import { notify } from '../../store/uiSlice';
 
 const Invoice = (props) => {
 
@@ -73,7 +73,7 @@ const Invoice = (props) => {
         dispatch(selectPayment(obj))
     }
 
-    const isEven = (number) => number % 2 == 0;
+    const isEven = (number) => number % 2 === 0;
 
 
     return (

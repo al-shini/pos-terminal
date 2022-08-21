@@ -2,7 +2,7 @@ import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/terminalSlice';
 
-import { Navbar, Stack, Button, Divider } from 'rsuite';
+import { Navbar, Button, Divider } from 'rsuite';
 
 import DazzleLogo from '../../assets/dazzle-logo.png';
 
@@ -24,7 +24,7 @@ const Menu = (props) => {
   return (
     <Navbar>
       <div style={{ position: 'absolute', left: '0%', height: '5vh', lineHeight: '5vh' }}>
-        <img src={DazzleLogo} style={{ height: '100%', maxHeight: '6vh' }} />
+        <img src={DazzleLogo} style={{ height: '100%', maxHeight: '6vh' }} alt='none' />
       </div>
 
       <div style={{ position: 'absolute', left: '7vw', height: '5vh', lineHeight: '5vh' }}>
