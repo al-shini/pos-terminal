@@ -25,9 +25,9 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    # - run: npm ci
-    # - run: $env:CI=$false; npm run package
-    - run: tar -a -c -f build.zip ./src
+    - run: npm ci
+    - run: $env:CI=$false; npm run package
+    - run: tar -a -c -f build.zip ./out
     # - uses: vimtor/action-zip@v1
     #   with:
     #     files: ./out
