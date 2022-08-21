@@ -25,8 +25,8 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - run: npm ci
-    - run: CI=false npm run package
+    #- run: npm ci
+    #- run: CI=false npm run package
 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
@@ -34,4 +34,4 @@ jobs:
         automatic_release_tag: "latest"
         prerelease: true
         title: "Production Build"
-        files: /out/*/**
+        files: **
