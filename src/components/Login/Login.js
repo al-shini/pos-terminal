@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from "react-router-dom";
-
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
 import TextField from '@mui/material/TextField';
@@ -177,9 +176,10 @@ const Login = (props) => {
 
                     <div style={{ textAlign: 'center', margin: '15px' }}>
                         <QRCode onClick={reloadQrAuth} value={JSON.stringify(loginQR)} size={180} />
+                        <br/>
+                        <small style={{color: 'grey', fontSize: '60%'}}>Device ID: {config.deviceId} @ {config.serverIp}</small>
                     </div>
                     <h6 style={{ textAlign: 'center' }}>
-                        <br />
                         OR
                     </h6>
                     <Box

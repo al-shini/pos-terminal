@@ -1,10 +1,8 @@
 import axios from 'axios';
-
+import config from './config';
 
 const instance = axios.create({
-    // baseURL: 'http://192.168.10.49:8080'
-    baseURL: 'http://192.168.7.66:8080'
-
+    baseURL: 'http://'+config.serverIp+':8080/'
 });
 
 
@@ -16,7 +14,7 @@ instance.interceptors.request.use(request => {
 
     if (token) {
         request.headers.Authorization = `Bearer ${token}`;
-    }else{
+    } else {
         request.headers.Authorization = `Bearer `;
     }
 

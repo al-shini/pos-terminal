@@ -3,6 +3,10 @@ const path = require("path");
 const { app, BrowserWindow } = require("electron");
 const isDev = require("electron-is-dev");
 
+const fs = require('fs');
+let localConfigFile = fs.readFileSync('C:/posconfig.json');
+let localConfig = JSON.parse(localConfigFile);
+
 // Conditionally include the dev tools installer to load React Dev Tools
 let installExtension, REACT_DEVELOPER_TOOLS; // NEW!
 
@@ -24,27 +28,31 @@ function createWindow() {
         width: 1024,
         height: 768,
         resizable: true,
-        show: false,
-        fullscreen: true,
+        show: true,
+        fullscreen: false,
         webPreferences: {
             nodeIntegration: true
         }
     });
 
-    win.setMenu(null);
+    // win.setMenu(null);
+
+    const params = `baseURL=${localConfig.baseURL}&deviceId=${localConfig.deviceId}`;
 
     // and load the index.html of the app.
-    // win.loadFile("index.html");
+
     win.loadURL(
         isDev
-            ? "http://localhost:3000"
-            : `file://${path.join(__dirname, "../build/index.html")}`
+            ? `http://localhost:3000?${params}`
+            : `file://${path.join(__dirname, "../build/index.html?" + params)}`
     );
+
     win.show();
     // Open the DevTools.
     if (isDev) {
         win.webContents.openDevTools({ mode: "detach" });
     }
+
 }
 
 // This method will be called when Electron has finished

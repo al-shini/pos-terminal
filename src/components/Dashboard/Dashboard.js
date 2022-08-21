@@ -75,7 +75,8 @@ const Dashboard = (props) => {
             if (response && response.data) {
                 dispatch(resumeTrx(response.data));
                 console.log(response.data)
-                dispatch(setTrxMode(response.data.trx.type))
+                if (response.data.trx)
+                    dispatch(setTrxMode(response.data.trx.type))
                 if (response.data.customer) {
                     dispatch(setCustomer(response.data.customer));
                 } else {
