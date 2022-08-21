@@ -27,7 +27,7 @@ jobs:
         cache: 'npm'
     #- run: npm ci
     #- run: CI=false npm run package
-    - run: tar -zcvf build.tar.gz /src
+    - run: tar -zcvf build.tar.gz ./src
 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
