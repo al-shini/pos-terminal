@@ -27,11 +27,8 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: $env:CI=$false; npm run package
-    - run: tar -a -c -f build.zip ./out
-    # - uses: vimtor/action-zip@v1
-    #   with:
-    #     files: ./out
-    #     dest: result.zip
+    - run: tar -a -c -f build.zip ./out/plus-pos-win32-x64
+
 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:

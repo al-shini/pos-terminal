@@ -85,7 +85,7 @@
     "forge": {
       "packagerConfig": {
         "icon": "src/icons/win/icon.ico",
-        "name": "Shini Plus POS"
+        "name": "plus-pos"
       },
       "makers": [
         {
