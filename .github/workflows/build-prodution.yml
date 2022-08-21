@@ -25,13 +25,12 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    # - run: npm ci
-    # - run: CI=false npm run package
-    # - run: tar -zcvf build.tar.gz ./src
+    - run: npm ci
+    - run: CI=false npm run package
 
     - uses: vimtor/action-zip@v1
       with:
-        files: ./src
+        files: ./out
         dest: result.zip
 
     - uses: "marvinpinto/action-automatic-releases@latest"
@@ -40,4 +39,4 @@ jobs:
         automatic_release_tag: "latest"
         prerelease: true
         title: "Production Build"
-        files: result.zip
+        files: build.zip
