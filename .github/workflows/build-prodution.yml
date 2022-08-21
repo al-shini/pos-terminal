@@ -28,10 +28,10 @@ jobs:
     - run: npm ci
     - run: CI=false npm run package
 
-    - uses: marvinpinto/action-automatic-releases@latest
-        with:
-          repo_token: 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
-          automatic_release_tag: latest
-          prerelease: true
-          title: Production Build
-          files: /out/*/**
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.TOKEN_SECRET }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: "Production Build"
+        files: /out/*/**
