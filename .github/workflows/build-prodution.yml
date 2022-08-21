@@ -27,7 +27,7 @@ jobs:
         cache: 'npm'
     #- run: npm ci
     #- run: CI=false npm run package
-    - run: ls
+    - run: tar -zcvf build.tar.gz /src
 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
@@ -35,4 +35,4 @@ jobs:
         automatic_release_tag: "latest"
         prerelease: true
         title: "Production Build"
-        files: /src/**/*.*
+        files: build.tar.gz
