@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
-
-import { Stack, FlexboxGrid, List, IconButton, Divider } from 'rsuite';
+import { FlexboxGrid, List, IconButton, Divider } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp, faFaceSmileBeam } from '@fortawesome/free-solid-svg-icons'
@@ -9,14 +8,9 @@ import Typography from '@mui/material/Typography';
 import BarcodeReader from 'react-barcode-reader';
 import { scanBarcode, scanNewTransaction } from '../../store/trxSlice';
 
-import axios from '../../axios';
-import { resumeTrx, selectLine } from '../../store/trxSlice';
-import { showLoading, hideLoading, notify } from '../../store/uiSlice';
-import { textAlign } from '@mui/system';
-import { setCustomer } from '../../store/terminalSlice';
+import { selectLine } from '../../store/trxSlice';
 
 const Invoice = (props) => {
-
 
     const terminal = useSelector((state) => state.terminal);
     const trxSlice = useSelector((state) => state.trx);
@@ -78,7 +72,7 @@ const Invoice = (props) => {
         dispatch(selectLine(obj))
     }
 
-    const isEven = (number) => number % 2 == 0;
+    const isEven = (number) => number % 2 === 0;
 
 
     return (

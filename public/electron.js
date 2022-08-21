@@ -37,7 +37,7 @@ function createWindow() {
 
     // win.setMenu(null);
 
-    const params = `baseURL=${localConfig.baseURL}&deviceId=${localConfig.deviceId}`;
+    const params = `serverIp=${localConfig.serverIp}&deviceId=${localConfig.deviceId}`;
 
     // and load the index.html of the app.
 

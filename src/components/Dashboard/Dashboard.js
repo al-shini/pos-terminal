@@ -1,13 +1,11 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import { Outlet, useNavigate } from "react-router-dom";
-import { notify, hideLoading } from '../../store/uiSlice';
-import { seemlessLogin, unblockActions, blockActions, setStoreCustomer, fetchCustomer, setCustomer, setTrxMode } from '../../store/terminalSlice';
-
-import Menu from './Menu';
+import { notify } from '../../store/uiSlice';
+import { seemlessLogin, unblockActions, blockActions, setStoreCustomer, setCustomer, setTrxMode } from '../../store/terminalSlice';
 import axios from '../../axios';
 import config from '../../config';
-import { Box, Paper } from '@mui/material';
+import { Box } from '@mui/material';
 import { resumeTrx } from '../../store/trxSlice';
 
 

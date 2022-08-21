@@ -15,13 +15,12 @@ import PosBG from '../../assets/pos-bg.png';
 import DazzleLogo from '../../assets/dazzle-logo.png';
 
 import { login, checkLoginQrAuth } from '../../store/terminalSlice';
-import { notify, showLoading, hideLoading } from '../../store/uiSlice';
-import { Drawer } from 'rsuite';
+import { notify } from '../../store/uiSlice';
 import config from '../../config';
 import axios from '../../axios'
 import Keyboard from 'react-simple-keyboard';
 import 'react-simple-keyboard/build/css/index.css';
-import Draggable, { DraggableCore } from 'react-draggable';
+import Draggable from 'react-draggable';
 
 const Login = (props) => {
     const dispatch = useDispatch();
@@ -49,7 +48,7 @@ const Login = (props) => {
         event.preventDefault();
     };
 
-    useEffect(async () => {
+    useEffect(() => {
         reloadQrAuth();
     }, []);
 
@@ -66,7 +65,7 @@ const Login = (props) => {
     }, [loginQR]);
 
     const reloadQrAuth = () => {
-        
+
         axios({
             method: 'post',
             url: '/utilities/generateQR',
@@ -80,7 +79,7 @@ const Login = (props) => {
             } else {
                 dispatch(notify({ msg: 'Incorrect Login QR response', sev: 'error' }))
             }
-            
+
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
@@ -89,7 +88,7 @@ const Login = (props) => {
             } else {
                 dispatch(notify({ msg: error.message, sev: 'error' }));
             }
-            
+
         });
     }
 
@@ -128,31 +127,31 @@ const Login = (props) => {
             </Snackbar>
 
             {keyboardMode &&
-            <Draggable
-                handle=".handle"
-                defaultPosition={{ x: 0, y: 0 }}
-                position={null}
-                grid={[25, 25]}
-                scale={1} >
-                <div style={{
-                    position: 'fixed',
-                    width: '60vw',
-                    zIndex: '1000',
-                    padding: '10px',
-                    background: 'white',
-                    border: '1px solid black',
-                    boxShadow: '#3a3a3a 0px 0px 10px 10px;'
-                }}>
-                    <h3 className='handle' style={{float: 'left'}} >
-                        <span>On Screen Keyboard</span>
-                    </h3>
-                    <a onClick={() => setKeyboardMode(false)} style={{ float: 'right', cursor: 'pointer', zIndex: '1001' }}>
+                <Draggable
+                    handle=".handle"
+                    defaultPosition={{ x: 0, y: 0 }}
+                    position={null}
+                    grid={[25, 25]}
+                    scale={1} >
+                    <div style={{
+                        position: 'fixed',
+                        width: '60vw',
+                        zIndex: '1000',
+                        padding: '10px',
+                        background: 'white',
+                        border: '1px solid black',
+                        boxShadow: '#3a3a3a 0px 0px 10px 10px;'
+                    }}>
+                        <h3 className='handle' style={{ float: 'left' }} >
+                            <span>On Screen Keyboard</span>
+                        </h3>
+                        <a href='#' onClick={() => setKeyboardMode(false)} style={{ float: 'right', cursor: 'pointer', zIndex: '1001' }}>
                             <b>X</b>
                         </a>
-                    <Keyboard keyboardRef={r => (keyboard.current = r)}
-                        onChange={onChange} />
-                </div>
-            </Draggable>
+                        <Keyboard keyboardRef={r => (keyboard.current = r)}
+                            onChange={onChange} />
+                    </div>
+                </Draggable>
             }
 
             <Grid container component="main" sx={{ height: '100vh' }}>
@@ -176,8 +175,8 @@ const Login = (props) => {
 
                     <div style={{ textAlign: 'center', margin: '15px' }}>
                         <QRCode onClick={reloadQrAuth} value={JSON.stringify(loginQR)} size={180} />
-                        <br/>
-                        <small style={{color: 'grey', fontSize: '60%'}}>Device ID: {config.deviceId} @ {config.serverIp}</small>
+                        <br />
+                        <small style={{ color: 'grey', fontSize: '60%' }}>Device ID: {config.deviceId} @ {config.serverIp}</small>
                     </div>
                     <h6 style={{ textAlign: 'center' }}>
                         OR

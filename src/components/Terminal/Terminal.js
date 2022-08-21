@@ -1,19 +1,19 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import axios from '../../axios';
-import { Button, Input, FlexboxGrid, Panel, Divider, Whisper, Popover } from 'rsuite';
+import { Button, FlexboxGrid, Divider} from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faSackDollar, faBroom, faMoneyBillTransfer, faRepeat, faUser, faArrowLeft,
-    faAddressCard, faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faBullhorn, faEraser, faBan, faPause, faPlay, faRotateLeft, faDollarSign, faLock, faUnlock, faIls, faSearch
+    faSackDollar, faMoneyBillTransfer, faRepeat, faUser, 
+     faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes,  faEraser, faBan, faPause,  faRotateLeft, faDollarSign, faLock, faUnlock,  faSearch
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
 import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import {
-    beginPayment, uploadCurrencies, abort, logout, exitNumpadEntry, reset,
+    beginPayment, uploadCurrencies, abort, exitNumpadEntry, reset,
     uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer, setManagerMode
 } from '../../store/terminalSlice';
 import {
@@ -21,7 +21,7 @@ import {
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
     checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine
 } from '../../store/trxSlice';
-import { notify, hideLoading, showLoading } from '../../store/uiSlice';
+import { notify} from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import Alert from "@mui/material/Alert";
 import confirm from '../UI/ConfirmDlg';
