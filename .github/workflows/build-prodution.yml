@@ -10,8 +10,8 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: windows-latest
+    
 
     strategy:
       matrix:
@@ -25,9 +25,14 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    #- run: npm ci
-    #- run: CI=false npm run package
-    - run: tar -zcvf build.tar.gz ./src
+    # - run: npm ci
+    # - run: CI=false npm run package
+    # - run: tar -zcvf build.tar.gz ./src
+
+    - uses: vimtor/action-zip@v1
+      with:
+        files: ./src
+        dest: result.zip
 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
@@ -35,4 +40,4 @@ jobs:
         automatic_release_tag: "latest"
         prerelease: true
         title: "Production Build"
-        files: ./src/**
+        files: result.zip
