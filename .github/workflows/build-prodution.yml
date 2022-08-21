@@ -28,9 +28,9 @@ jobs:
     - run: npm ci
     - run: CI=false npm run package
 
-    - uses: "marvinpinto/action-automatic-releases@latest"
+    - uses: marvinpinto/action-automatic-releases@latest
         with:
-          repo_token: "${{ secrets.TOKEN_SECRET }}"
+          repo_token: ${{ secrets.TOKEN_SECRET }}
           automatic_release_tag: "latest"
           prerelease: true
           title: "Production Build"
