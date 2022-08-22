@@ -10,8 +10,8 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: windows-latest
+    
 
     strategy:
       matrix:
@@ -26,5 +26,14 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     - run: npm ci
-    - run: CI=false npm run package
-    
+    - run: $env:CI=$false; npm run package
+    - run: tar -a -c -f build.zip ./out/plus-pos-win32-x64
+
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.TOKEN_SECRET }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: "Production Build"
+        files: build.zip

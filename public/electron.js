@@ -29,13 +29,13 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: false,
+        fullscreen: true,
         webPreferences: {
             nodeIntegration: true
         }
     });
 
-    // win.setMenu(null);
+    win.setMenu(null);
 
     const params = `serverIp=${localConfig.serverIp}&deviceId=${localConfig.deviceId}`;
 
