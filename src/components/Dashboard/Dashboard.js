@@ -41,6 +41,10 @@ const Dashboard = (props) => {
                     dispatch(notify({ msg: error.message, sev: 'error' }));
                 }
             });
+        } else {
+            if(!terminal.storeCustomer){
+                updateCustomer({...terminal});
+            }
         }
     }, []);
 

@@ -164,11 +164,19 @@ export const scanBarcode = createAsyncThunk(
 export const submitPayment = createAsyncThunk(
     'submitPayment',
     async (payload, thunkAPI) => {
+        let data = {
+            ...payload
+        };
+        let multi = thunkAPI.getState().trx.multiplier;
+        if(!multi || multi === 0)
+        multi = 1;
+
+        data.amount = data.amount * multi;
 
         return axios({
             method: 'post',
             url: '/trx/submitPayment',
-            data: payload
+            data
         }).then((response) => {
             if (response && response.data) {
 

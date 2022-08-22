@@ -127,8 +127,8 @@ const Numpad = (props) => {
                 <Panel className={classes.Panel} >
                     <FlexboxGrid>
                         {
-                            (!terminal.paymentMode) &&
-                            <FlexboxGridItem colspan={4}>
+                            // (!terminal.paymentMode) &&
+                            <FlexboxGridItem colspan={5}>
                                 {
                                     !trxSlice.priceChangeMode &&
                                     <Input value={trxSlice.multiplier ? ('' + trxSlice.multiplier).concat(' X') : '-'}
@@ -146,9 +146,9 @@ const Numpad = (props) => {
                             </FlexboxGridItem>
                         }
                         <FlexboxGridItem colspan={terminal.paymentMode ?
-                            (terminal.exchangeRates[trxSlice.selectedCurrency] && terminal.exchangeRates[trxSlice.selectedCurrency] > 1 && terminal.paymentInput === 'numpad') ? 20 : 24
+                            (terminal.exchangeRates[trxSlice.selectedCurrency] && terminal.exchangeRates[trxSlice.selectedCurrency] > 1 && terminal.paymentInput === 'numpad') ? 19 : 19
 
-                            : 20}>
+                            : 19}>
                             <Input onChange={onInputChange} value={trxSlice.numberInputValue}
                                 disabled={terminal.paymentMode && terminal.paymentInput === 'fixed'}
                                 placeholder={terminal.paymentMode && terminal.paymentInput === 'numpad'
@@ -173,66 +173,66 @@ const Numpad = (props) => {
             <FlexboxGrid.Item colspan={18}>
                 <FlexboxGrid dir='column' >
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '1', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={fa1} />} />
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '2', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={fa2} />} />
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '3', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={fa3} />} />
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/   
                             onClick={() => dispatch(handleNumberInputEntry({ value: '4', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={fa4} />} />
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '5', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={fa5} />} />
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '6', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={fa6} />} />
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '7', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={fa7} />} />
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '8', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={fa8} />} />
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '9', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={fa9} />} />
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <Button disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <Button /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '0', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} >
                             <span style={{ fontSize: '20px' }}>0</span>
                         </Button>
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <Button disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <Button /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '.', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} >
                             <span style={{ fontSize: '40px', position: 'relative', bottom: 11 }}>.</span>
                         </Button>
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(clearNumberInput())} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={faC} />} appearance='primary' color='red' />
                     </FlexboxGrid.Item>
 
@@ -242,13 +242,13 @@ const Numpad = (props) => {
             <FlexboxGrid.Item colspan={6}>
                 <FlexboxGrid >
                     <FlexboxGrid.Item colspan={24}>
-                        <IconButton disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(reverseNumberInputEntry())} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={faAnglesLeft} />}
                             appearance='primary' color='orange' />
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={24}>
                         <IconButton onClick={() => dispatch(prepareScanMultiplier())} className={styles.NumpadButton}
-                            disabled={terminal.paymentMode || trxSlice.priceChangeMode}
+                            disabled={(terminal.paymentMode && terminal.paymentInput !== 'fixed' ) || trxSlice.priceChangeMode}
                             icon={<FontAwesomeIcon icon={faTimes} />}
                             appearance='primary' color='blue' />
                     </FlexboxGrid.Item>
