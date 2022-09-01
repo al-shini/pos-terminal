@@ -49,9 +49,9 @@ function createWindow() {
 
     win.show();
     // Open the DevTools.
-    if (isDev) {
+    // if (isDev) {
         win.webContents.openDevTools({ mode: "detach" });
-    }
+    // }
 
 }
 
