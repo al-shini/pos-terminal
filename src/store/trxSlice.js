@@ -20,7 +20,9 @@ const initialState = {
     scrollToggle: false,
     // qr auth operations
     qrAuthState: 'idle', //idle, pending
-    lastTrxPayment: null
+    lastTrxPayment: null,
+    cashBackCoupons: [],
+    usedCoupons: {}
 
 }
 
@@ -168,8 +170,8 @@ export const submitPayment = createAsyncThunk(
             ...payload
         };
         let multi = thunkAPI.getState().trx.multiplier;
-        if(!multi || multi === 0)
-        multi = 1;
+        if (!multi || multi === 0)
+            multi = 1;
 
         data.amount = data.amount * multi;
 
@@ -691,6 +693,12 @@ export const trxSlice = createSlice({
         },
         clearLastPaymentHistory: (state) => {
             state.lastTrxPayment = null
+        },
+        uploadCashBackCoupons: (state, action) => {
+            state.cashBackCoupons = action.payload
+        },
+        setUsedCoupons: (state, action) => {
+            state.usedCoupons = action.payload
         }
     },
     extraReducers: (builder) => {
@@ -866,6 +874,7 @@ export const trxSlice = createSlice({
 
 
 export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx, enablePriceChange, disablePriceChange, scroll,
-    prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory
+    prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory,
+    uploadCashBackCoupons, setUsedCoupons
 } = trxSlice.actions
 export default trxSlice.reducer

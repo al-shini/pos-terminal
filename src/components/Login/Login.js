@@ -11,7 +11,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import QRCode from "react-qr-code";
 import Snackbar from '@mui/material/Snackbar';
 import Alert from "@mui/material/Alert";
-import PosBG from '../../assets/pos-bg.png';
+import PosBG from '../../assets/slide4.png';
 import DazzleLogo from '../../assets/dazzle-logo.png';
 
 import { login, checkLoginQrAuth } from '../../store/terminalSlice';
@@ -112,7 +112,8 @@ const Login = (props) => {
         setCred(tmpCred);
 
         setKeyboardEntry(entry);
-        keyboard.current.clearInput();
+        console.log(keyboard);
+        // keyboard.current.clearInput();
     }
 
 
@@ -148,7 +149,7 @@ const Login = (props) => {
                         <a href='#' onClick={() => setKeyboardMode(false)} style={{ float: 'right', cursor: 'pointer', zIndex: '1001' }}>
                             <b>X</b>
                         </a>
-                        <Keyboard keyboardRef={r => (keyboard.current = r)}
+                        <Keyboard keyboardRef={r => (keyboard.current = r)}  
                             onChange={onChange} />
                     </div>
                 </Draggable>
@@ -164,14 +165,34 @@ const Login = (props) => {
                     sx={{
                         backgroundImage: `url(${PosBG})`,
                         backgroundRepeat: 'no-repeat',
-                        backgroundColor: (t) =>
-                            t.palette.mode === 'light' ? t.palette.grey[50] : t.palette.grey[900],
-                        backgroundSize: 'cover',
+                        backgroundColor: 'white',
+                        backgroundSize: 'contain',
                         backgroundPosition: 'center',
                     }}
-                />
+                >  
+                 <h3 style={{
+                    textAlign: 'center',
+                    padding: '10px',
+                    fontFamily: 'monospace'
+                }}>Dazzle POS <span style={{fontSize: '50%'}}>v1.3</span>
+                <br/>
+                <br/>
+                <span style={{fontSize: '70%'}}>Today is: {new Date().toDateString()}</span>
+                </h3>
+                <br/>
+                <img  style={{position: 'absolute', left: '11vw', bottom: '0%', margin: 'auto', height: '30vh'}} src='https://www.oliverwyman.com/content/dam/oliver-wyman/v2/tmp/retail-and-consumer-goods-mobile.gif' alt='' />
+                </Grid>
                 <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
-                    <img src={DazzleLogo} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} />
+                    {/* <img src={DazzleLogo} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} /> */}
+                    <h3 style={{
+                        textAlign: 'center',
+                        padding: '10px',
+                        fontFamily: 'monospace'
+                    }}>
+                        
+                    <br/>
+                    <small style={{fontSize: '70%'}}>Scan QR to Login</small>
+                    </h3>
 
                     <div style={{ textAlign: 'center', margin: '15px' }}>
                         <QRCode onClick={reloadQrAuth} value={JSON.stringify(loginQR)} size={180} />

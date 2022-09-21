@@ -7,7 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
 
 import axios from '../../axios';
-import { selectPayment, uploadPayments } from '../../store/trxSlice';
+import { selectPayment, setUsedCoupons, uploadPayments } from '../../store/trxSlice';
 import { notify } from '../../store/uiSlice';
 
 const Invoice = (props) => {
@@ -22,20 +22,30 @@ const Invoice = (props) => {
         return axios({
             method: 'post',
             url: '/trx/loadTrxPayments',
-            headers:{
+            headers: {
                 trxKey: trxSlice.trx ? trxSlice.trx.key : null
             }
         }).then((response) => {
             if (response && response.data) {
-                
+
                 dispatch(uploadPayments(response.data));
+
+                if (response.data.payments) {
+                    let usedCoupons = {};
+                    response.data.payments.map((payment) => {
+                        if (!payment.voided && payment.paymentMethodKey === 'CashBack') {
+                            usedCoupons[payment.sourceKey] = true;
+                        }
+                    })
+                    dispatch(setUsedCoupons(usedCoupons));
+                }
             }
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
                     dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                 } else {
-                    
+
                     dispatch(notify({ msg: error.response.data, sev: 'error' }));
                 }
             } else {
@@ -82,7 +92,7 @@ const Invoice = (props) => {
             <div style={{ background: '#303030', color: 'white', height: '5vh', width: '110%', right: '10px', position: 'relative' }}>
                 <h4 id='paymentsHeader' style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
                     {terminal.trxMode === 'Sale' && <span>Payments</span>}
-                    {terminal.trxMode === 'Refund' && <span style={{color: 'red'}}>Payments (Refund)</span>}
+                    {terminal.trxMode === 'Refund' && <span style={{ color: 'red' }}>Payments (Refund)</span>}
                 </h4>
             </div>
 
@@ -98,19 +108,25 @@ const Invoice = (props) => {
 
                                 </FlexboxGrid.Item>
                                 <FlexboxGrid.Item colspan={5}>
-                                    <b style={{ fontSize: '20px',
-                                     textDecoration: obj.voided ? 'line-through' : '',
-                                     color: obj.voided ? '#db0000' : '' }}> {terminal.paymentMethods[obj.paymentMethodKey].description}</b>
+                                    <b style={{
+                                        fontSize: '20px',
+                                        textDecoration: obj.voided ? 'line-through' : '',
+                                        color: obj.voided ? '#db0000' : ''
+                                    }}> {terminal.paymentMethods[obj.paymentMethodKey].description}</b>
                                 </FlexboxGrid.Item>
                                 <FlexboxGrid.Item colspan={5}>
-                                    <b style={{ fontSize: '20px', 
-                                    textDecoration: obj.voided ? 'line-through' : '',
-                                    color: obj.voided ? '#db0000' : '' }}>{obj.currency}</b>
+                                    <b style={{
+                                        fontSize: '20px',
+                                        textDecoration: obj.voided ? 'line-through' : '',
+                                        color: obj.voided ? '#db0000' : ''
+                                    }}>{obj.currency}</b>
                                 </FlexboxGrid.Item>
                                 <FlexboxGrid.Item colspan={12}>
-                                    <b style={{ fontSize: '20px', 
-                                    textDecoration: obj.voided ? 'line-through' : '',
-                                    color: obj.voided ? '#db0000' : '' }}>{obj.rate === 1 ? obj.amount : (obj.originalAmount + ' x ' + obj.rate + ' = ' + obj.amount)}</b>
+                                    <b style={{
+                                        fontSize: '20px',
+                                        textDecoration: obj.voided ? 'line-through' : '',
+                                        color: obj.voided ? '#db0000' : ''
+                                    }}>{obj.rate === 1 ? obj.amount : (obj.originalAmount + ' x ' + obj.rate + ' = ' + obj.amount)}</b>
                                 </FlexboxGrid.Item>
                             </FlexboxGrid>
                         </List.Item>

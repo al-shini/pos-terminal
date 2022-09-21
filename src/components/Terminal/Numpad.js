@@ -75,7 +75,8 @@ const Numpad = (props) => {
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                         paymentMethodKey: trxSlice.selectedPaymentMethod,
                         currency: trxSlice.selectedCurrency,
-                        amount: trxSlice.numberInputValue
+                        amount: trxSlice.numberInputValue,
+                        sourceKey: ''
                     }))
                 }
 

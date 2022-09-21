@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import axios from '../../axios';
-import { Button, FlexboxGrid, Divider} from 'rsuite';
+import { Button, FlexboxGrid, Divider } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faSackDollar, faMoneyBillTransfer, faRepeat, faUser, 
-     faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes,  faEraser, faBan, faPause,  faRotateLeft, faDollarSign, faLock, faUnlock,  faSearch
+    faSackDollar, faMoneyBillTransfer, faRepeat, faUser,
+    faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -19,9 +19,9 @@ import {
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
-    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine
+    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons
 } from '../../store/trxSlice';
-import { notify} from '../../store/uiSlice';
+import { notify } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import Alert from "@mui/material/Alert";
 import confirm from '../UI/ConfirmDlg';
@@ -308,7 +308,11 @@ const Terminal = (props) => {
             type,
             inputType
         }));
+        console.log(type);
         dispatch(selectPaymentMethod(config[type]));
+        if (type === 'cashBack') {
+            loadCashbackCoupons();
+        }
     }
 
     const handleVoidLine = () => {
@@ -621,40 +625,40 @@ const Terminal = (props) => {
     }
 
     const handleSwitchToRefund = () => {
-            confirm('Switch to Refund Mode?', '',
-                () => {
-                    if (terminal.managerMode) {
-                        dispatch(suspendTrx(trxSlice.trx.key));
-                    } else {
-                        axios({
-                            method: 'post',
-                            url: '/utilities/generateQR',
-                            data: {
-                                hardwareId: config.deviceId,
-                                source: 'Refund',
-                                sourceKey: null,
+        confirm('Switch to Refund Mode?', '',
+            () => {
+                if (terminal.managerMode) {
+                    dispatch(setTrxMode('Refund'));
+                } else {
+                    axios({
+                        method: 'post',
+                        url: '/utilities/generateQR',
+                        data: {
+                            hardwareId: config.deviceId,
+                            source: 'Refund',
+                            sourceKey: null,
+                        }
+                    }).then((response) => {
+                        if (response && response.data) {
+                            setAuthQR({
+                                ...response.data,
+                                source: 'Refund'
+                            });
+                        } else {
+                            dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                        }
+                    }).catch((error) => {
+                        if (error.response) {
+                            if (error.response.status === 401) {
+                                dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                             }
-                        }).then((response) => {
-                            if (response && response.data) {
-                                setAuthQR({
-                                    ...response.data,
-                                    source: 'Refund'
-                                });
-                            } else {
-                                dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-                            }
-                        }).catch((error) => {
-                            if (error.response) {
-                                if (error.response.status === 401) {
-                                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                                }
-                            } else {
-                                dispatch(notify({ msg: error.message, sev: 'error' }));
-                            }
-                        });
-                    }
+                        } else {
+                            dispatch(notify({ msg: error.message, sev: 'error' }));
+                        }
+                    });
                 }
-            )
+            }
+        )
     }
 
     const handleLockTill = () => {
@@ -685,9 +689,34 @@ const Terminal = (props) => {
         }
     }
 
+    const loadCashbackCoupons = () => {
+        console.log('loading cashback coupons');
+        axios({
+            method: 'post',
+            url: '/trx/loadCouponsPayments',
+            headers: {
+                trxKey: trxSlice.trx.key
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                dispatch(uploadCashBackCoupons(response.data));
+            } else {
+                dispatch(notify({ msg: 'Incorrect fetch cash back coupons response', sev: 'error' }))
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                }
+            } else {
+                dispatch(notify({ msg: error.message, sev: 'error' }));
+            }
+        });
+    }
+
     const buildPaymentTypesButtons = () => {
         return <React.Fragment>
-            <Button key='cash' className={classes.MainActionButton} onClick={() => { startPayment('cash', 'fixed') }}>
+            <Button key='cash' disabled={terminal.trxMode === 'Refund' && !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('cash', 'fixed') }}>
                 <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '5px' }} />
                 <label>Cash</label>
             </Button>
@@ -712,10 +741,18 @@ const Terminal = (props) => {
                 <label>Voucher</label>
             </Button>
             <br />
-            {terminal.customer && terminal.store && <Button key='onAccount' disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key)}
+            {terminal.customer && terminal.store && <Button key='onAccount'
+                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || terminal.customer.club}
                 className={classes.MainActionButton} onClick={() => { startPayment('onAccount', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>On Account</label>
+            </Button>}
+            <br />
+            {terminal.customer && terminal.store && <Button key='cashBack'
+                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club}
+                className={classes.MainActionButton} onClick={() => { startPayment('cashBack', 'numpad') }}>
+                <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
+                <label>Cash Back</label>
             </Button>}
         </React.Fragment>;
     }
@@ -732,8 +769,9 @@ const Terminal = (props) => {
                             trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                             paymentMethodKey: obj.paymentMethodKey,
                             currency: obj.currency,
-                            amount: obj.amount
-                        }))
+                            amount: obj.amount,
+                            sourceKey: ''
+                        }));
                     }}
                         style={{ backgroundColor: '#f7f7fa', display: 'block' }}
 
@@ -743,7 +781,7 @@ const Terminal = (props) => {
                 )
                 tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={i + 'space'} > .</div>);
             });
-        } else if (terminal.trxMode === 'Refund') {
+        } else if (terminal.trxMode === 'Refund' && trxSlice.trx) {
             tmp.push(
                 <Button key='fulfilRefundPayment' className={classes.MainActionButton} onClick={() => {
                     dispatch(submitPayment({
@@ -751,7 +789,8 @@ const Terminal = (props) => {
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                         paymentMethodKey: 'Cash',
                         currency: 'NIS',
-                        amount: trxSlice.trx ? trxSlice.trx.totalafterdiscount : 0
+                        amount: trxSlice.trx ? trxSlice.trx.totalafterdiscount : 0,
+                        sourceKey: ''
                     }))
                 }}>
                     <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '5px' }} />
@@ -778,7 +817,8 @@ const Terminal = (props) => {
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                         paymentMethodKey: obj.paymentMethodKey,
                         currency: obj.currency,
-                        amount: obj.amount
+                        amount: obj.amount,
+                        sourceKey: ''
                     }))
                 }} style={{ backgroundColor: '#f7f7fa', display: 'block' }} >
                     <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: '90%', height: '57px' }} />
@@ -813,7 +853,6 @@ const Terminal = (props) => {
         return tmp;
     }
 
-
     const buildOperationsButtons = () => {
         return <React.Fragment>
             <Button key='suspend' className={classes.MainActionButton} onClick={handleSuspendTrx}>
@@ -823,7 +862,7 @@ const Terminal = (props) => {
                 </div>
             </Button>
             <br />
-            <Button key='refund' className={classes.MainActionButton}
+            <Button key='voidTrx' className={classes.MainActionButton}
                 onClick={handleVoidTrx}
                 disabled={terminal.paymentMode} >
                 <div style={{ textAlign: 'center', fontSize: '14px', }}>
@@ -872,6 +911,56 @@ const Terminal = (props) => {
         </React.Fragment >;
     }
 
+    const buildCashBackCouponButtons = () => {
+        let tmp = [];
+
+        trxSlice.cashBackCoupons.map((obj, i) => {
+            tmp.push(
+                <Button key={i} className={classes.ActionButton}
+                    disabled={trxSlice.usedCoupons[obj.key]}
+                    style={{
+                        background: trxSlice.usedCoupons[obj.key] ? '#e1e1e1' : '#cd1515',
+                        color: trxSlice.usedCoupons[obj.key] ? '#cd1515' : 'white',
+                        textDecoration: trxSlice.usedCoupons[obj.key] ? 'line-through' : 'auto',
+                        height: '200px !important'
+                    }}
+
+                    onClick={() => {
+                        dispatch(submitPayment({
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            paymentMethodKey: 'CashBack',
+                            currency: 'NIS',
+                            amount: obj.amount,
+                            sourceKey: obj.key
+                        }))
+
+                        let usedCoupons = {
+                            ...trxSlice.usedCoupons
+                        };
+                        usedCoupons[obj.key] = true;
+                        dispatch(setUsedCoupons(usedCoupons));
+                    }} >
+                    <div key={i + 'cbc'} style={{ textAlign: 'center', fontSize: '14px', }}>
+                        <div>
+                            <b style={{ fontSize: '16px' }}>{obj.amount} NIS</b>
+                        </div>
+                        <div style={{ fontSize: '11px' }}>
+                            Expires: {obj.expiryDateAsString}
+                        </div>
+                    </div>
+                </Button>
+            )
+            tmp.push(<div key={i + 'div'} style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>);
+        });
+
+        // loadCashbackCoupons();
+
+        tmp.push(<div key='fsz' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+
+        return tmp;
+    }
+
     const buildFastItemGroupButtons = () => {
         let tmp = [];
 
@@ -893,6 +982,8 @@ const Terminal = (props) => {
 
         return tmp;
     }
+
+
 
     const buildFastItemsButtonsForGroup = () => {
         let tmp = [];
@@ -1011,16 +1102,17 @@ const Terminal = (props) => {
                             <FontAwesomeIcon icon={faIdCard} style={{ marginLeft: '7px', marginRight: '7px' }} /> {terminal.customer ? terminal.customer.customerName : 'No Customer'}
                         </a>
                     </span>
-                    {terminal.managerMode && <Divider vertical /> &&
-                        <span>
-                            <a style={{ color: 'red', padding: '2px' }} onClick={() => {
-                                confirm('Reset Customer?', 'This clears to default customer',
-                                    () => { resetToStoreCustomer() }
-                                )
-                            }}>
-                                <FontAwesomeIcon icon={faShieldHalved} style={{ marginLeft: '7px', marginRight: '7px' }} /> Manager
-                            </a>
+
+                    {terminal.customer && terminal.customer.club && <Divider vertical /> &&
+                        <span style={{color: '#fa8900'}}>
+                            <FontAwesomeIcon icon={faStar} style={{ marginLeft: '7px', marginRight: '7px' }} /> Club
                         </span>}
+
+                    {terminal.managerMode && <Divider vertical /> &&
+                        <span style={{color: '#db2417'}}>
+                        <FontAwesomeIcon icon={faShieldHalved} style={{ marginLeft: '7px', marginRight: '7px' }} /> Manager
+                        </span>}
+
                     <Divider style={{ margin: '7px' }} />
                     <div style={{ padding: '0px' }}>
                         <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
@@ -1172,6 +1264,10 @@ const Terminal = (props) => {
                                 </Button>
                             }
 
+                            {
+                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'cashBack' &&
+                                buildCashBackCouponButtons()
+                            }
 
                             {
                                 actionsMode === 'fastItems' && !selectedFGroup &&

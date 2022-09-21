@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { FlexboxGrid, List, IconButton, Divider } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faFaceSmileBeam } from '@fortawesome/free-solid-svg-icons'
+import { faChevronDown, faChevronUp, faGift, faFaceSmileBeam } from '@fortawesome/free-solid-svg-icons'
 import Typography from '@mui/material/Typography';
 import BarcodeReader from 'react-barcode-reader';
 import { scanBarcode, scanNewTransaction } from '../../store/trxSlice';
@@ -152,9 +152,29 @@ const Invoice = (props) => {
                                             {(Math.round((obj.finalprice) * 100) / 100).toFixed(2)}
                                         </span>
                                     }
-
                                 </Typography>
                             </FlexboxGrid.Item>
+
+                         <FlexboxGrid.Item colspan={1}>
+                        </FlexboxGrid.Item>
+                        <FlexboxGrid.Item colspan={20}>
+                            {(obj.cashBackAmt > 0) && terminal.customer && terminal.customer.club &&
+                                <span style={{ color: 'rgb(100,200,100)', position: 'relative', fontSize: '16px', top: '5px' }}>
+                                    <FontAwesomeIcon icon={faGift} style={{ marginRight: '7px' }} />
+                                    Cashback
+                                </span>
+                            }
+                        </FlexboxGrid.Item>
+                        <FlexboxGrid.Item colspan={3}>
+                            <Typography variant='subtitle1'>
+                            {(obj.cashBackAmt > 0) && terminal.customer && terminal.customer.club  &&
+                                    <span style={{ color: 'rgb(100,200,100)' }}>
+                                        {(Math.round((obj.cashBackAmt) * 100) / 100).toFixed(2)} ₪
+                                    </span>
+                                }
+                            </Typography>
+                        </FlexboxGrid.Item>
+
                         </FlexboxGrid>
                     </List.Item>
                 }) : null
