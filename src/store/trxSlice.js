@@ -221,19 +221,38 @@ export const closeTrxPayment = createAsyncThunk(
             method: 'post',
             url: '/trx/closeTrxPayment',
             headers: {
-                trxKey: payload
+                trxKey: payload.key
             }
         }).then((response) => {
             if (response && response.data) {
 
                 thunkAPI.dispatch(notify({ msg: 'Transaction paid, print invoice ☺', sev: 'info' }));
-                axios({
-                    method: 'get',
-                    url: 'http://localhost:3001/printSellTrx?trxKey=' + response.data.key,
-                }).catch((error) => {
-                    console.log(error.response, error.message);
-                    thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
-                });
+
+                if (payload.sendToNumber) {
+                    axios({
+                        method: 'post',
+                        url: 'https://api.ultramsg.com/instance18549/messages/chat', 
+                        data: {
+                            token: 'qkyt6m0d1g4it3c8',
+                            to: '+970' + payload.sendToNumber + ',+972' + payload.sendToNumber,
+                            body: 'فاتورتك: ' + 'http://invoice.shini.ps?sptr=' + response.data.key + '_' + response.data.nanoId,
+                            priority: '1',
+                            referenceId: ''
+                        }
+                    }).catch((error) => {
+                        console.log(error.response, error.message);
+                        thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
+                    });
+                } else {
+                    axios({
+                        method: 'get',
+                        url: 'http://localhost:3001/printSellTrx?trxKey=' + response.data.key,
+                    }).catch((error) => {
+                        console.log(error.response, error.message);
+                        thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
+                    });
+                }
+
                 thunkAPI.dispatch(setManagerMode(false));
                 thunkAPI.dispatch(setManagerUser(null));
                 thunkAPI.dispatch(resetCustomer());

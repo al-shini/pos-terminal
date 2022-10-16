@@ -26,7 +26,7 @@ const initialState = {
     exchangeRates: {},
     blockActions: false,
     errorSound: false,
-    managerMode: false,
+    managerMode: true,
     managerUser: null
 }
 
