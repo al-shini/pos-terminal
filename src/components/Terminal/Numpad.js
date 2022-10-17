@@ -46,8 +46,7 @@ const Numpad = (props) => {
                     const change = trxSlice.trx.customerchange;
                     if (change >= 0) {
                         dispatch(closeTrxPayment({
-                            key: trxSlice.trx.key,
-                            sendToNumber: '597267949'
+                            key: trxSlice.trx.key
                         }));
                         window.setTimeout(() => {
                             dispatch(clearLastPaymentHistory());
