@@ -66,7 +66,10 @@ const Terminal = (props) => {
     const [groupedFastItems, setGroupedFastItems] = useState({});
     const [selectedFGroup, setSelectedFGroup] = useState(null);
 
-    const [cashDroState, setCashDroState] = useState({});
+    const [cashDroState, setCashDroState] = useState({
+        timestamp: new Date().getTime(),
+        state: 0 // 0 = idle, 1 = listening
+    });
 
     useEffect(() => {
         play();
@@ -289,36 +292,94 @@ const Terminal = (props) => {
         setGroupedFastItems(tmp);
     }, [terminal.fastItems]);
 
-    /**
-     * re-assign the default store customer to the transaction
-     */
-    const resetToStoreCustomer = () => {
-        if (terminal.store && terminal.store.sapCustomerCode) {
+    useEffect(() => {
+        console.log('TRX changed, check for cashdro');
+        console.log(trxSlice.trx);
+        console.log(terminal.paymentMode);
+        if (config.cashDroEnabled
+            && trxSlice.trx
+            && trxSlice.trx.cashdroId
+            && trxSlice.trx.cashdroState === 'PENDING'
+            && terminal.paymentMode) {
+            // change CashDro state to listening
+            setCashDroState({
+                timestamp: new Date().getTime(),
+                state: 1
+            });
+        }
+    }, [trxSlice.trx]);
+
+    useEffect(() => {
+        if (cashDroState.state === 1) {
+            // start listening for CashDro transaction state
+            if (terminal.paymentMode) {
+                checkCashDroState();
+            } else {
+                setCashDroState({
+                    timestamp: new Date().getTime(),
+                    state: 0
+                });
+            }
+        }
+    }, [cashDroState]);
+
+    const checkCashDroState = () => {
+
+        if (cashDroState.state === 1) {
+            // still listening, check again
             axios({
                 method: 'post',
-                url: '/posAcc/fetchCustomer',
                 headers: {
-                    customerKey: terminal.store.sapCustomerCode
-                }
+                    trxKey: trxSlice.trx ? trxSlice.trx.key : null
+                },
+                url: '/trx/checkTrxCashDroStatus'
             }).then((response) => {
                 if (response && response.data) {
-                    dispatch(setCustomer(response.data));
+                    const cashDroResponse = response.data;
+                    if (cashDroResponse.state === 'F') {
+                        // CashDro state finished, submit payment
+                        console.log('CashDro state finished, submit payment');
+                        let paymentAmt = cashDroResponse.totalIn + cashDroResponse.totalOut;
+                        paymentAmt = paymentAmt / 100.0;
+                        if (paymentAmt > 0) {
+                            dispatch(submitPayment({
+                                tillKey: terminal.till ? terminal.till.key : null,
+                                trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                                paymentMethodKey: 'Cash',
+                                currency: 'NIS',
+                                amount: paymentAmt,
+                                sourceKey: 'CashDro'
+                            }));
+                            console.log('stop listening');
+                            setCashDroState({
+                                timestamp: new Date().getTime(),
+                                state: 0
+                            }); // stop listening
+                        }
+                    } else {
+                        console.log('waiting for payment from CashDro');
+                        setCashDroState({
+                            timestamp: new Date().getTime(),
+                            state: 1
+                        }); // keep listening
+                    }
+                } else {
+                    dispatch(notify({ msg: 'Incorrect /trx/checkTrxCashDroStatus response', sev: 'error' }))
                 }
             }).catch((error) => {
                 if (error.response) {
                     if (error.response.status === 401) {
                         dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
                     } else {
-
                         dispatch(notify({ msg: error.response.data, sev: 'error' }));
                     }
                 } else {
                     dispatch(notify({ msg: error.message, sev: 'error' }));
                 }
-
             });
         }
     }
+
 
     const startPayment = (type, inputType) => {
         dispatch(clearNumberInput());
@@ -342,52 +403,32 @@ const Terminal = (props) => {
         // start
         console.log(terminal.terminal);
         if (terminal.terminal && terminal.terminal.cashDroIp) {
-            // start operation on cashdro
-            let url = cashDroURL('startOperation') + '&posid=' + terminal.terminal.key + '&posuser=' + terminal.loggedInUser.key
-                + '&parameters={"amount":"' + trxSlice.trx.totalafterdiscount + '"}';
-            console.log(url);
+            // start operation on cashdro & link TRX with operation
             axios({
-                method: 'get',
+                method: 'post',
                 headers: {
-                    ['Access-Control-Allow-Origin'] : '*'
+                    trxKey: trxSlice.trx ? trxSlice.trx.key : null
                 },
-                withCredentials: false,
-                url
+                url: '/trx/linkTrxToCashDro'
             }).then((response) => {
-                console.log(response);
-
-                // link TRX with cashdro Operation
-                axios({
-                    method: 'post',
-                    headers: {
-                        trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                        cashDroId: 'asd'
-                    },
-                    url: '/trx/linkTrxToCashDro'
-                }).then((response) => {
-                    if (response && response.data) {
-                        dispatch(setTrx(response.data));
-                    } else {
-                        dispatch(notify({ msg: 'Incorrect /trx/linkTrxToCashDro response', sev: 'error' }))
-                    }
-                }).catch((error) => {
-                    if (error.response) {
-                        if (error.response.status === 401) {
-                            dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                        } else {
-
-                            dispatch(notify({ msg: error.response.data, sev: 'error' }));
-                        }
-                    } else {
-                        dispatch(notify({ msg: error.message, sev: 'error' }));
-                    }
-
-                });
-
+                if (response && response.data) {
+                    dispatch(setTrx(response.data));
+                } else {
+                    dispatch(notify({ msg: 'Incorrect /trx/linkTrxToCashDro response', sev: 'error' }))
+                }
             }).catch((error) => {
-                console.log('ERROR', error);
-            });
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    } else {
 
+                        dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+
+            });
         } else {
             console.log('terminal has no cashdro configured');
         }
