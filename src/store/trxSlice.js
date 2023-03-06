@@ -127,7 +127,7 @@ export const scanBarcode = createAsyncThunk(
 
         return axios({
             method: 'post',
-            url: '/trx/scan',
+            url: '/trx/new-scan',
             data: payload
         }).then((response) => {
             if (response && response.data) {
@@ -139,6 +139,60 @@ export const scanBarcode = createAsyncThunk(
                 }
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            console.log(error);
+            if (error.response) {
+                if (error.response.status === 401) {
+
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                } else {
+                    thunkAPI.dispatch(triggerErrorSound());
+
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+            }
+
+        });
+    }
+)
+
+export const rescanTrx = createAsyncThunk(
+    'rescanTrx',
+    async (payload, thunkAPI) => {
+        // 
+
+        if (!payload.trxKey) {
+            thunkAPI.dispatch(notify({ msg: 'No valid transaction ', sev: 'error' }));
+            return thunkAPI.rejectWithValue('No valid transaction ');
+        }
+
+        thunkAPI.dispatch(showLoading());
+
+        return axios({
+            method: 'post',
+            url: '/trx/rescanTrx',
+            headers: {
+                trxKey: payload.trxKey
+            }
+        }).then((response) => {
+            if (response && response.data) {
+
+                console.log('response.data', response.data)
+                thunkAPI.dispatch(scroll());
+                if (response.data.customer) {
+                    thunkAPI.dispatch(setCustomer(response.data.customer));
+                }
+                thunkAPI.dispatch(hideLoading());
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                thunkAPI.dispatch(hideLoading());
                 return thunkAPI.rejectWithValue('Incorrect server response');
             }
         }).catch((error) => {
@@ -231,7 +285,7 @@ export const closeTrxPayment = createAsyncThunk(
                 if (payload.sendToNumber) {
                     axios({
                         method: 'post',
-                        url: 'https://api.ultramsg.com/instance18549/messages/chat', 
+                        url: 'https://api.ultramsg.com/instance18549/messages/chat',
                         data: {
                             token: 'qkyt6m0d1g4it3c8',
                             to: '+970' + payload.sendToNumber + ',+972' + payload.sendToNumber,
@@ -758,6 +812,22 @@ export const trxSlice = createSlice({
         })
 
         builder.addCase(scanBarcode.rejected, (state, action) => {
+
+        })
+
+
+        /* rescanTrx thunk */
+        builder.addCase(rescanTrx.fulfilled, (state, action) => {
+            if (action.payload.line) {
+                state.trx = action.payload.trx;
+                state.scannedItems = action.payload.trxLines;
+                state.selectedLine = action.payload.line;
+                state.numberInputValue = '';
+                state.multiplier = '1'
+            }
+        })
+
+        builder.addCase(rescanTrx.rejected, (state, action) => {
 
         })
 

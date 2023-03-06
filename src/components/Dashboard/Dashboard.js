@@ -17,8 +17,9 @@ const Dashboard = (props) => {
     const terminal = useSelector((state) => state.terminal);
 
     useEffect(() => {
+        console.log('validating token...');
         if (!terminal.authenticated) {
-            console.log('validating token...');
+            console.log('no authentication');
             axios({
                 method: 'post',
                 url: '/auth/validate-token',
@@ -42,13 +43,15 @@ const Dashboard = (props) => {
                 }
             });
         } else {
-            if(!terminal.storeCustomer){
-                updateCustomer({...terminal});
+        console.log('authentication valid');
+            if (!terminal.storeCustomer) {
+                updateCustomer({ ...terminal });
             }
         }
     }, []);
 
     const updateCustomer = (loginResponse) => {
+        console.log('updaing customer');
         axios({
             method: 'post',
             url: '/posAcc/fetchCustomer',

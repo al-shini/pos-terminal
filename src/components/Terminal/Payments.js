@@ -92,7 +92,7 @@ const Invoice = (props) => {
             <div style={{ background: '#303030', color: 'white', height: '5vh', width: '110%', right: '10px', position: 'relative' }}>
                 <h4 id='paymentsHeader' style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
                     {terminal.trxMode === 'Sale' && <span>Payments</span>}
-                    {terminal.trxMode === 'Refund' && <span style={{ color: 'red' }}>Payments (Refund)</span>}
+                    {terminal.trxMode === 'Refund' && <span style={{ color: 'rgb(255 60 80)' }}>Payments (Refund)</span>}
                 </h4>
             </div>
 

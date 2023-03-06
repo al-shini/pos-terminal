@@ -7,6 +7,7 @@ const initialState = {
     authenticated: false,
     loggedInUser: null,
     store: null,
+    terminal: null,
     storeCustomer: null,
     customer: null,
     token: null,
@@ -26,8 +27,9 @@ const initialState = {
     exchangeRates: {},
     blockActions: false,
     errorSound: false,
-    managerMode: false,
-    managerUser: null
+    managerMode: true,
+    managerUser: null,
+    actionState: 'free'
 }
 
 /**
@@ -291,6 +293,7 @@ export const terminalSlice = createSlice({
             state.token = action.payload.token;
             state.till = action.payload.till;
             state.store = action.payload.store;
+            state.terminal = action.payload.terminal;
             if (!action.payload.till.isInitialized) {
                 state.display = 'balance-setup';
             } else {
@@ -357,7 +360,6 @@ export const terminalSlice = createSlice({
             state.display = 'ready';
             state.paymentType = 'none';
             state.trxMode = 'Sale';
-            document.querySelectorAll("body")[0].style.setProperty("background-color", "#4b4b4b", "important")
             if (document.querySelectorAll("#trxModeHeader")[0]) {
                 document.querySelectorAll("#trxModeHeader")[0].style.setProperty("color", "#ffffff", "important")
             }
@@ -368,11 +370,6 @@ export const terminalSlice = createSlice({
         ,
         setTrxMode: (state, action) => {
             state.trxMode = action.payload;
-            if (action.payload === 'Sale') {
-                document.querySelectorAll("body")[0].style.setProperty("background-color", "#4b4b4b", "important")
-            } else if (action.payload === 'Refund') {
-                document.querySelectorAll("body")[0].style.setProperty("background-color", "#b11717", "important")
-            }
         },
         blockActions: (state) => {
             state.blockActions = true
@@ -382,12 +379,18 @@ export const terminalSlice = createSlice({
         },
         setManagerMode: (state, action) => {
             state.managerMode = action.payload
-            if(!action.payload){
+            if (!action.payload) {
                 state.managerUser = null;
             }
         },
         setManagerUser: (state, action) => {
             state.managerUser = action.payload
+        },
+        lockState: (state) => {
+            state.actionState = 'busy'
+        },
+        freeState: (state) => {
+            state.actionState = 'free'
         }
     },
     extraReducers: (builder) => {
@@ -399,6 +402,7 @@ export const terminalSlice = createSlice({
             state.token = action.payload.token;
             state.till = action.payload.till;
             state.store = action.payload.store;
+            state.terminal = action.payload.terminal;
             if (!action.payload.till.isInitialized) {
                 state.display = 'balance-setup';
             } else {
@@ -475,5 +479,5 @@ export const terminalSlice = createSlice({
 
 export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode, blockActions, unblockActions, setCustomer, setStoreCustomer, resetCustomer,
     uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems,
-    uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound, setManagerMode, setManagerUser } = terminalSlice.actions
+    uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound, setManagerMode, setManagerUser, lockState, freeState } = terminalSlice.actions
 export default terminalSlice.reducer

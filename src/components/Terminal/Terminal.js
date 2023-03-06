@@ -19,7 +19,7 @@ import {
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
-    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons
+    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx
 } from '../../store/trxSlice';
 import { notify } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -49,6 +49,7 @@ import USD_1 from '../../assets/money-notes/1.0USD.png';
 import USD_20 from '../../assets/money-notes/20.0USD.png';
 import USD_50 from '../../assets/money-notes/50.0USD.png';
 import USD_100 from '../../assets/money-notes/100.0USD.png';
+import Logo from '../../assets/full-logo.png';
 
 
 
@@ -65,6 +66,8 @@ const Terminal = (props) => {
     const [groupedFastItems, setGroupedFastItems] = useState({});
     const [selectedFGroup, setSelectedFGroup] = useState(null);
 
+    const [cashDroState, setCashDroState] = useState({});
+
     useEffect(() => {
         play();
     }, [terminal.errorSound])
@@ -72,7 +75,12 @@ const Terminal = (props) => {
 
     const dispatch = useDispatch();
 
+    /**  
+     * basic/setup data initialization
+     * */
     useEffect(() => {
+
+        // initialize currency images
         let arr = [];
         arr['0.5NIS'] = NIS_05;
         arr['1NIS'] = NIS_1;
@@ -94,10 +102,8 @@ const Terminal = (props) => {
         arr['100USD'] = USD_100;
         arr['1EUR'] = EUR_1;
         setNotesImages(arr);
-    }, [])
 
-    useEffect(() => {
-
+        // initialize fast items
         axios({
             method: 'get',
             url: '/item/fastItems'
@@ -121,6 +127,8 @@ const Terminal = (props) => {
 
         });
 
+
+        //initialize cash notes
         axios({
             method: 'get',
             url: '/payment-method/getCashNotes'
@@ -144,6 +152,7 @@ const Terminal = (props) => {
 
         });
 
+        // initialize cash foreign notes
         axios({
             method: 'get',
             url: '/payment-method/getForeignNotes'
@@ -167,6 +176,7 @@ const Terminal = (props) => {
 
         });
 
+        // initialize currency list
         axios({
             method: 'get',
             url: '/currency/list',
@@ -198,6 +208,8 @@ const Terminal = (props) => {
 
         });
 
+
+        // initialie payment method list
         axios({
             method: 'get',
             url: '/payment-method/list',
@@ -228,6 +240,7 @@ const Terminal = (props) => {
 
         });
 
+        // initialize currency exchange rates
         axios({
             method: 'get',
             url: '/exchange-rate/listOfDay',
@@ -261,6 +274,9 @@ const Terminal = (props) => {
         });
     }, [])
 
+    /**
+     * re-arrange fast items into groups
+     */
     useEffect(() => {
         let tmp = {};
 
@@ -273,6 +289,9 @@ const Terminal = (props) => {
         setGroupedFastItems(tmp);
     }, [terminal.fastItems]);
 
+    /**
+     * re-assign the default store customer to the transaction
+     */
     const resetToStoreCustomer = () => {
         if (terminal.store && terminal.store.sapCustomerCode) {
             axios({
@@ -308,11 +327,71 @@ const Terminal = (props) => {
             type,
             inputType
         }));
-        console.log(type);
         dispatch(selectPaymentMethod(config[type]));
         if (type === 'cashBack') {
             loadCashbackCoupons();
         }
+
+        if (config.cashDroEnabled) {
+            // initiate cashdro listener
+            cashdrowFlow();
+        }
+    }
+
+    const cashdrowFlow = () => {
+        // start
+        console.log(terminal.terminal);
+        if (terminal.terminal && terminal.terminal.cashDroIp) {
+            // start operation on cashdro
+            let url = cashDroURL('startOperation') + '&posid=' + terminal.terminal.key + '&posuser=' + terminal.loggedInUser.key
+                + '&parameters={"amount":"' + trxSlice.trx.totalafterdiscount + '"}';
+            console.log(url);
+            axios({
+                method: 'get',
+                headers: {
+                    ['Access-Control-Allow-Origin'] : '*'
+                },
+                withCredentials: false,
+                url
+            }).then((response) => {
+                console.log(response);
+
+                // link TRX with cashdro Operation
+                axios({
+                    method: 'post',
+                    headers: {
+                        trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                        cashDroId: 'asd'
+                    },
+                    url: '/trx/linkTrxToCashDro'
+                }).then((response) => {
+                    if (response && response.data) {
+                        dispatch(setTrx(response.data));
+                    } else {
+                        dispatch(notify({ msg: 'Incorrect /trx/linkTrxToCashDro response', sev: 'error' }))
+                    }
+                }).catch((error) => {
+                    if (error.response) {
+                        if (error.response.status === 401) {
+                            dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                        } else {
+
+                            dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                        }
+                    } else {
+                        dispatch(notify({ msg: error.message, sev: 'error' }));
+                    }
+
+                });
+
+            }).catch((error) => {
+                console.log('ERROR', error);
+            });
+
+        } else {
+            console.log('terminal has no cashdro configured');
+        }
+
     }
 
     const handleVoidLine = () => {
@@ -518,6 +597,17 @@ const Terminal = (props) => {
         } else {
             dispatch(setManagerMode(false))
         }
+    }
+
+    const cashDroURL = (operation) => {
+        if (terminal.terminal && terminal.terminal.cashDroIp) {
+            return 'https://' + terminal.terminal.cashDroIp + '/Cashdro3WS/index.php?name='
+                + terminal.terminal.cashDroUser
+                + '&password=' + terminal.terminal.cashDroPassword
+                + '&operation=' + operation;
+        }
+
+        return '';
     }
 
     useEffect(() => {
@@ -793,8 +883,10 @@ const Terminal = (props) => {
                         sourceKey: ''
                     }))
                 }}>
-                    <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '5px' }} />
-                    <label>Refund ({trxSlice.trx.totalafterdiscount} ₪)</label>
+                    <label style={{ marginRight: '5px' }}>Refund</label>
+                    <label style={{ fontFamily: 'DSDIGI', fontSize: '20px' }}>
+                        {trxSlice.trx.totalafterdiscount} ₪
+                    </label>
                 </Button>
             );
         }
@@ -983,8 +1075,6 @@ const Terminal = (props) => {
         return tmp;
     }
 
-
-
     const buildFastItemsButtonsForGroup = () => {
         let tmp = [];
         groupedFastItems[selectedFGroup].map((obj, i) => {
@@ -1086,36 +1176,45 @@ const Terminal = (props) => {
             <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '87.5vh' }}>
                 <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
                     <h6 style={{ lineHeight: '5vh', textAlign: 'left' }}>
-                        <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '7px', marginRight: '7px' }} /> {terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</span>
+                        <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '20px', marginRight: '7px' }} /> {terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</span>
                         <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
                         <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
                     </h6>
+                    <img src={Logo} style={{ position: 'fixed', right: '1vw', top: '0', zIndex: 1000, height: 'inherit' }} />
                 </div>
 
-                <div style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', height: '33vh' }}>
+                <div id='rightPosPanel' style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', height: '33vh' }}>
                     <span>
-                        <a style={{ color: '#2196f3', padding: '2px' }} onClick={() => {
+                        {/* <a style={{ color: '#2196f3', padding: '2px' }} onClick={() => {
                             confirm('Reset Customer?', 'This clears to default customer',
                                 () => { resetToStoreCustomer() }
                             )
+                        }}> */}
+                        <FontAwesomeIcon icon={faIdCard} style={{
+                            marginLeft: '7px', marginRight: '7px', fontSize: '18px'
+                        }} />
+                        <span style={{
+                            marginRight: '7px', fontFamily: 'Janna',
+                            fontSize: '18px'
                         }}>
-                            <FontAwesomeIcon icon={faIdCard} style={{ marginLeft: '7px', marginRight: '7px' }} /> {terminal.customer ? terminal.customer.customerName : 'No Customer'}
-                        </a>
+                            {terminal.customer ? terminal.customer.customerName : 'No Customer'}
+                        </span>
+                        {/* </a> */}
                     </span>
 
                     {terminal.customer && terminal.customer.club && <Divider vertical /> &&
-                        <span style={{color: '#fa8900'}}>
+                        <span style={{ color: '#fa8900' }}>
                             <FontAwesomeIcon icon={faStar} style={{ marginLeft: '7px', marginRight: '7px' }} /> Club
                         </span>}
 
                     {terminal.managerMode && <Divider vertical /> &&
-                        <span style={{color: '#db2417'}}>
-                        <FontAwesomeIcon icon={faShieldHalved} style={{ marginLeft: '7px', marginRight: '7px' }} /> Manager
+                        <span style={{ color: '#db2417' }}>
+                            <FontAwesomeIcon icon={faShieldHalved} style={{ marginLeft: '7px', marginRight: '7px' }} /> Manager
                         </span>}
 
                     <Divider style={{ margin: '7px' }} />
                     <div style={{ padding: '0px' }}>
-                        <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
+                        <Alert severity={uiSlice.toastType} sx={{ width: '100%', fontSize: '15px', fontFamily: 'Janna' }}>
                             {uiSlice.toastMsg.toString()}
                         </Alert>
                     </div>
@@ -1342,12 +1441,9 @@ const Terminal = (props) => {
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton}
-                            onClick={handleVoidLine}
-                            disabled
+                        <Button className={classes.POSButton} disabled
                             appearance='primary' color='blue'>
-                            <FontAwesomeIcon icon={faSearch} style={{ marginRight: '5px' }} />
-                            <div>Search Line</div>
+                            <div> - </div>
                         </Button>
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>

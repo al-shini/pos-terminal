@@ -11,9 +11,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import QRCode from "react-qr-code";
 import Snackbar from '@mui/material/Snackbar';
 import Alert from "@mui/material/Alert";
-import PosBG from '../../assets/slide4.png';
-import DazzleLogo from '../../assets/dazzle-logo.png';
-
+import PosBG from '../../assets/slide4.png'; 
 import { login, checkLoginQrAuth } from '../../store/terminalSlice';
 import { notify } from '../../store/uiSlice';
 import config from '../../config';
@@ -174,7 +172,7 @@ const Login = (props) => {
                     textAlign: 'center',
                     padding: '10px',
                     fontFamily: 'monospace'
-                }}>Dazzle POS <span style={{fontSize: '50%'}}>v1.4</span>
+                }}>Dazzle POS <span style={{fontSize: '50%'}}>v2.0</span>
                 <br/>
                 <br/>
                 <span style={{fontSize: '70%'}}>Today is: {new Date().toDateString()}</span>

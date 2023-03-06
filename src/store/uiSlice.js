@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, createReducer } from '@reduxjs/toolkit'
 
 const initialState = {
     loading: false,
-    toastMsg: 'smile to the customer ☺',
+    toastMsg: 'إبتسم للزبون ☺',
     toastType: 'info',
     toastOpen: false
 }
@@ -14,7 +14,7 @@ export const notify = createAsyncThunk(
     'notify',
     async (payload, thunkAPI) => {
         thunkAPI.dispatch(uiSlice.actions.showToast(payload));
-       
+
         window.setTimeout(() => {
             thunkAPI.dispatch(uiSlice.actions.hideToast());
         }, 6500);
@@ -42,7 +42,7 @@ export const uiSlice = createSlice({
         },
         hideToast: (state) => {
             state.toastOpen = false;
-            state.toastMsg = 'smile to the customer ☺';
+            state.toastMsg = 'إبتسم للزبون ☺';
             state.toastType = 'info';
         }
     }
