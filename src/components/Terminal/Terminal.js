@@ -19,7 +19,7 @@ import {
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
-    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx
+    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx, closeTrxPayment, clearLastPaymentHistory
 } from '../../store/trxSlice';
 import { notify } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -299,13 +299,26 @@ const Terminal = (props) => {
         if (config.cashDroEnabled
             && trxSlice.trx
             && trxSlice.trx.cashdroId
-            && trxSlice.trx.cashdroState === 'PENDING'
             && terminal.paymentMode) {
-            // change CashDro state to listening
-            setCashDroState({
-                timestamp: new Date().getTime(),
-                state: 1
-            });
+            if (trxSlice.trx.cashdroState === 'PENDING') {
+                // change CashDro state to listening
+                setCashDroState({
+                    timestamp: new Date().getTime(),
+                    state: 1
+                });
+            } else if (trxSlice.trx.cashdroState === 'COMPLETED') {
+                const change = trxSlice.trx.customerchange;
+                if (change >= 0) {
+                    dispatch(closeTrxPayment({
+                        key: trxSlice.trx.key
+                    }));
+                    window.setTimeout(() => {
+                        dispatch(clearLastPaymentHistory());
+                    }, 6000)
+
+                    return;
+                }
+            }
         }
     }, [trxSlice.trx]);
 
