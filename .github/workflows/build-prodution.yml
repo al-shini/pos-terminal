@@ -35,4 +35,4 @@ jobs:
         automatic_release_tag: "latest"
         prerelease: true
         title: "Production Build"
-        files: build.zip
+        files: ./out/plus-pos-win32-x64
