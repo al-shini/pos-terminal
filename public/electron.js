@@ -274,5 +274,5 @@ expressApp.listen(3001, () => {
 
 require('update-electron-app')({
     repo: 'al-shini/pos-terminal',
-    updateInterval: '2 minutes'
+    updateInterval: '5 minutes'
 })
