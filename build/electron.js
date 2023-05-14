@@ -19,7 +19,7 @@ const config = {
 }
 const axiosImport = require('axios');
 const axios = axiosImport.create({
-    baseURL: 'http://'+localConfig.serverIp+':8080/'
+    baseURL: 'http://' + localConfig.serverIp + ':8080/'
 });
 
 
@@ -270,4 +270,9 @@ expressApp.get('/printTrx', async (req, res) => {
 
 expressApp.listen(3001, () => {
     console.log(`Terminal app listening on port 3001`)
-})  
+})
+
+require('update-electron-app')({
+    repo: 'al-shini/pos-terminal',
+    updateInterval: '5 minutes'
+})
