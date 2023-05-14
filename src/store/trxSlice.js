@@ -300,7 +300,7 @@ export const closeTrxPayment = createAsyncThunk(
                 } else {
                     axios({
                         method: 'get',
-                        url: 'http://localhost:3001/printSellTrx?trxKey=' + response.data.key,
+                        url: 'http://localhost:3001/printTrx?trxKey=' + response.data.key,
                     }).catch((error) => {
                         console.log(error.response, error.message);
                         thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
@@ -407,7 +407,7 @@ export const suspendTrx = createAsyncThunk(
                 thunkAPI.dispatch(setManagerUser(null));
                 axios({
                     method: 'get',
-                    url: 'http://localhost:3001/printSuspendTrx?trxKey=' + response.data.key,
+                    url: 'http://127.0.0.1:3001/printTrx?trxKey=' + response.data.key,
                 }).catch((error) => {
                     console.log(error.response, error.message);
                     thunkAPI.dispatch(notify({ msg: 'could not print suspend receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
@@ -708,7 +708,12 @@ export const trxSlice = createSlice({
             console.log(action.payload.paymentMode);
 
             if (action.payload.paymentMode) {
-                if (state.numberInputValue.length < 7) { state.numberInputValue = state.numberInputValue + input; }
+                if (state.selectedPaymentMethod === 'Voucher') {
+                    // allow up to 14 digits
+                    if (state.numberInputValue.length < 14) { state.numberInputValue = state.numberInputValue + input; }
+                } else {
+                    if (state.numberInputValue.length < 7) { state.numberInputValue = state.numberInputValue + input; }
+                }
             }
             else
                 state.numberInputValue = state.numberInputValue + input;
@@ -724,8 +729,14 @@ export const trxSlice = createSlice({
             }
 
 
-            if (action.payload.paymentMode)
-                state.numberInputValue = (input + '').slice(0, 7);
+            if (action.payload.paymentMode) {
+                if (state.selectedPaymentMethod === 'Voucher') {
+                    // allow up to 14 digits
+                    state.numberInputValue = (input + '').slice(0, 14);
+                } else {
+                    state.numberInputValue = (input + '').slice(0, 7);
+                }
+            }
             else
                 state.numberInputValue = input;
 

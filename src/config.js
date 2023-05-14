@@ -14,29 +14,16 @@ if (query.get("serverIp")) {
 }
 
 const config = {
-    deviceId: 'test',
-    serverIp: 'localhost',
+    deviceId: deviceId ? deviceId : 'test',
+    serverIp: serverIp ? serverIp : '127.0.0.1',
     visa: '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639',
     jawwalPay: 'JawwalPay',
     voucher: 'Voucher',
     onAccount: 'OnAccount',
     cashBack: 'CashBack',
-    cashDroEnabled: true,
-
-};
-
-// const config = {
-//     deviceId: deviceId ? deviceId : 'test',
-//     serverIp: serverIp ? serverIp : '192.168.9.66',
-//     visa: '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639',
-//     jawwalPay: 'JawwalPay',
-//     voucher: 'Voucher',
-//     onAccount: 'OnAccount',
-//     cashBack: 'CashBack',
-//     cashDroEnabled: true,
-
-
-// };
+    cashDroEnabled: false,
+    autoVisaEnabled: false
+}; 
 
 console.log(config);
 

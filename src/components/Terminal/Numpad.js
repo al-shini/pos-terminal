@@ -155,7 +155,7 @@ const Numpad = (props) => {
                             <Input onChange={onInputChange} value={trxSlice.numberInputValue}
                                 disabled={terminal.paymentMode && terminal.paymentInput === 'fixed'}
                                 placeholder={terminal.paymentMode && terminal.paymentInput === 'numpad'
-                                    ? 'Insert Payment Amount (' + trxSlice.selectedCurrency + ' x ' + terminal.exchangeRates[trxSlice.selectedCurrency] + ')' :
+                                    ? trxSlice.selectedPaymentMethod === 'Voucher' ? 'Insert Voucher/Coupon Key' : 'Insert Payment Amount (' + trxSlice.selectedCurrency + ' x ' + terminal.exchangeRates[trxSlice.selectedCurrency] + ')' :
                                     terminal.paymentMode && terminal.paymentInput === 'fixed' ? '-' : trxSlice.priceChangeMode ? 'Insert New Price (Per Item)' : 'Search'}
                                 style={{ borderRadius: 0, boxShadow: 'none', borderColor: 'rgb(123,123,123)' }} />
                         </FlexboxGridItem>

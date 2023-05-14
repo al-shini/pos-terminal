@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faMoneyBillTransfer, faRepeat, faUser,
-    faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar
+    faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -21,7 +21,7 @@ import {
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
     checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx, closeTrxPayment, clearLastPaymentHistory
 } from '../../store/trxSlice';
-import { notify } from '../../store/uiSlice';
+import { hideLoading, notify, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import Alert from "@mui/material/Alert";
 import confirm from '../UI/ConfirmDlg';
@@ -406,7 +406,7 @@ const Terminal = (props) => {
             loadCashbackCoupons();
         }
 
-        if (config.cashDroEnabled) {
+        if (type === 'cash' && config.cashDroEnabled) {
             // initiate cashdro listener
             cashdrowFlow();
         }
@@ -446,6 +446,55 @@ const Terminal = (props) => {
             console.log('terminal has no cashdro configured');
         }
 
+    }
+
+    const autoVisaFlow = () => {
+
+        if (!config.autoVisaEnabled) {
+            return;
+        }
+
+        if (trxSlice.selectedCurrency === 'EUR') {
+            return;
+        }
+
+        let amt = Math.abs(trxSlice.trxChange);
+
+        if (trxSlice.trx && amt > 0) {
+
+            let curr = 376;
+
+            switch (trxSlice.selectedCurrency) {
+                case 'NIS': {
+                    curr = 376;
+                    break;
+                }
+                case 'JOD': {
+                    curr = 400;
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2);
+                    break;
+                }
+                case 'USD': {
+                    curr = 840;
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2);
+                    break;
+                }
+            }
+
+            let integerPart = Math.floor(amt);
+            let decimalPart = amt - integerPart;
+            decimalPart = decimalPart.toFixed(2);
+
+            amt = integerPart * 100;
+            amt += parseFloat(decimalPart) * 100;
+
+            let id = trxSlice.trx.nanoId.replace('-', '');
+
+            dispatch(showLoading());
+
+            // implement BOP auto visa flow
+            
+        } // end IF
     }
 
     const handleVoidLine = () => {
@@ -653,17 +702,6 @@ const Terminal = (props) => {
         }
     }
 
-    const cashDroURL = (operation) => {
-        if (terminal.terminal && terminal.terminal.cashDroIp) {
-            return 'https://' + terminal.terminal.cashDroIp + '/Cashdro3WS/index.php?name='
-                + terminal.terminal.cashDroUser
-                + '&password=' + terminal.terminal.cashDroPassword
-                + '&operation=' + operation;
-        }
-
-        return '';
-    }
-
     useEffect(() => {
         if (authQR.qrAuthKey) {
             dispatch(startQrAuthCheck());
@@ -675,7 +713,6 @@ const Terminal = (props) => {
             dispatch(checkOperationQrAuth(authQR));
         }
     }, [trxSlice.qrAuthState]);
-
 
 
     const handleVoidTrx = () => {
@@ -985,7 +1022,9 @@ const Terminal = (props) => {
             tmp.push(
                 <Button key={i} className={classes.ActionButton}
                     appearance={obj.key === trxSlice.selectedCurrency ? 'primary' : 'default'}
-                    onClick={() => dispatch(selectCurrency(obj.key))} >
+                    onClick={() => {
+                        dispatch(selectCurrency(obj.key));
+                    }} >
                     <div style={{ textAlign: 'center' }}>
                         {obj.key}
                     </div>
@@ -995,6 +1034,20 @@ const Terminal = (props) => {
         });
 
         tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+        tmp.push(
+            <Button key='autovisa' className={classes.ActionButton}
+            disabled={!config.autoVisaEnabled}
+                style={{ background: '#b5ff00', color: 'black' }}
+                onClick={() => {
+                    autoVisaFlow();
+                }} >
+                <div style={{ textAlign: 'center' }}>
+                    <FontAwesomeIcon icon={faChain} />
+                    <label style={{ marginLeft: '2px' }}>Auto VISA</label>
+                </div>
+            </Button>
+        )
+        tmp.push(<div key='fs2' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
 
         return tmp;
     }

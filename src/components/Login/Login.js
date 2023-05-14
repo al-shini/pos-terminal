@@ -11,11 +11,11 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import QRCode from "react-qr-code";
 import Snackbar from '@mui/material/Snackbar';
 import Alert from "@mui/material/Alert";
-import PosBG from '../../assets/slide4.png'; 
+import PosBG from '../../assets/slide4.png';
 import { login, checkLoginQrAuth } from '../../store/terminalSlice';
 import { notify } from '../../store/uiSlice';
 import config from '../../config';
-import axios from '../../axios'
+import axios from '../../axios' 
 import Keyboard from 'react-simple-keyboard';
 import 'react-simple-keyboard/build/css/index.css';
 import Draggable from 'react-draggable';
@@ -147,7 +147,7 @@ const Login = (props) => {
                         <a href='#' onClick={() => setKeyboardMode(false)} style={{ float: 'right', cursor: 'pointer', zIndex: '1001' }}>
                             <b>X</b>
                         </a>
-                        <Keyboard keyboardRef={r => (keyboard.current = r)}  
+                        <Keyboard keyboardRef={r => (keyboard.current = r)}
                             onChange={onChange} />
                     </div>
                 </Draggable>
@@ -167,18 +167,18 @@ const Login = (props) => {
                         backgroundSize: 'contain',
                         backgroundPosition: 'center',
                     }}
-                >  
-                 <h3 style={{
-                    textAlign: 'center',
-                    padding: '10px',
-                    fontFamily: 'monospace'
-                }}>Dazzle POS <span style={{fontSize: '50%'}}>v2.0</span>
-                <br/>
-                <br/>
-                <span style={{fontSize: '70%'}}>Today is: {new Date().toDateString()}</span>
-                </h3>
-                <br/>
-                <img  style={{position: 'absolute', left: '11vw', bottom: '0%', margin: 'auto', height: '30vh'}} src='https://www.oliverwyman.com/content/dam/oliver-wyman/v2/tmp/retail-and-consumer-goods-mobile.gif' alt='' />
+                >
+                    <h3 style={{
+                        textAlign: 'center',
+                        padding: '10px',
+                        fontFamily: 'monospace'
+                    }}>Dazzle POS <span style={{ fontSize: '50%' }}>v2.0</span>
+                        <br />
+                        <br />
+                        <span style={{ fontSize: '70%' }}>Today is: {new Date().toDateString()}</span>
+                    </h3>
+                    <br />
+                    <img style={{ position: 'absolute', left: '11vw', bottom: '0%', margin: 'auto', height: '30vh' }} src='https://www.oliverwyman.com/content/dam/oliver-wyman/v2/tmp/retail-and-consumer-goods-mobile.gif' alt='' />
                 </Grid>
                 <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
                     {/* <img src={DazzleLogo} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} /> */}
@@ -187,9 +187,9 @@ const Login = (props) => {
                         padding: '10px',
                         fontFamily: 'monospace'
                     }}>
-                        
-                    <br/>
-                    <small style={{fontSize: '70%'}}>Scan QR to Login</small>
+
+                        <br />
+                        <small style={{ fontSize: '70%' }}>Scan QR to Login</small>
                     </h3>
 
                     <div style={{ textAlign: 'center', margin: '15px' }}>
@@ -241,7 +241,7 @@ const Login = (props) => {
                                 variant="contained"
                                 sx={{ mt: 3, mb: 2 }} >
                                 Sign In
-                            </Button>
+                            </Button> 
                         </Box>
                     </Box>
                 </Grid>
