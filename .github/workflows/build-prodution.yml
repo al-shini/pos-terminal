@@ -27,7 +27,6 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: $env:CI=$false; npm run package
-    - run: tar -a -c -f build.zip ./out/plus-pos-win32-x64
 
 
     - uses: "marvinpinto/action-automatic-releases@latest"
