@@ -1,5 +1,5 @@
 {
-  "name": "pos-terminal",
+  "name": "pos",
   "version": "0.1.0",
   "main": "public/electron.js",
   "author": "Al Shini Supermarket",
@@ -99,7 +99,7 @@
     "forge": {
       "packagerConfig": {
         "icon": "src/icons/win/icon.ico",
-        "name": "plus-pos",
+        "name": "pos",
         "asar": true
       },
       "makers": [

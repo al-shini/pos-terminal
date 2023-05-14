@@ -26,7 +26,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     - run: npm ci
-    - run: $env:CI=$false; npm run package
+    - run: $env:CI=$false; npm run installer
 
 
     - uses: "marvinpinto/action-automatic-releases@latest"
@@ -34,4 +34,4 @@ jobs:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "latest"
         title: "Production Build"
-        files: ./out/plus-pos-win32-x64
+        files: ./out/dazzle64
