@@ -3,10 +3,10 @@ const electronInstaller = require('electron-winstaller');
 const build = async () => {
     try {
         await electronInstaller.createWindowsInstaller({
-            appDirectory: './out/plus-pos-win32-x64',
+            appDirectory: './out/pos-win32-x64',
             outputDirectory: './out/dazzle64',
             authors: 'Legion',
-            exe: 'plus-pos.exe'
+            exe: 'pos.exe'
         });
         console.log('It worked!');
     } catch (e) {

@@ -121,7 +121,7 @@ const printWithQR = (object) => {
 
         doc.pipe(writeStream);
 
-        doc.font('arial.ttf')
+        doc.font('C:/arial.ttf')
         doc.fontSize(40);
         doc.text(object.header, 45, 10, { width: 590, features: ['rtla'] });
         doc.text('---------------------------------------', 20, 50, { width: 590 });
@@ -175,7 +175,7 @@ const printWithBarcode = (object) => {
 
                 doc.pipe(writeStream);
 
-                doc.font('arial.ttf')
+                doc.font('C:/arial.ttf')
                 doc.fontSize(40);
                 doc.text(object.header, 45, 10, { width: 590, features: ['rtla'] });
                 doc.text('---------------------------------------', 20, 50, { width: 590 });
