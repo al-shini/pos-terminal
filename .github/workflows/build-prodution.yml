@@ -46,4 +46,4 @@ jobs:
         prerelease: false
         automatic_release_tag: "v${{ steps.get_version.outputs.version }}"
         title: "v${{ steps.get_version.outputs.version }}"
-        files: ./out/dazzle64
+        files: ./installer
