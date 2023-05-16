@@ -19,19 +19,30 @@ jobs:
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
+    # checkout the repo code from [production] branch
     - uses: actions/checkout@v3
+    
+    # install nodejs environment
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+    # run npm install and package the application installer
     - run: npm ci
     - run: $env:CI=$false; npm run installer
+    
+    # fetch the version of the release from the pushed package.json file
+    - name: get version
+      id: get_version
+      uses: beaconbrigade/package-json-version@v0.3
+      with:
+        path: .
 
-
+    # create a release tag and copy the archive
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
-        title: "Production Build"
+        automatic_release_tag: "v${{ steps.get_version.outputs.version }}"
+        title: "v${{ steps.get_version.outputs.version }}"
         files: ./out/dazzle64
