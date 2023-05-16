@@ -6,11 +6,12 @@ const fs = require('fs');
 const https = require('https');
 const print = require('pdf-to-printer');
 const PDFDocument = require('pdfkit');
+const { exec } = require("child_process");
 const stream = require('./stream');
 const qr = require('qrcode');
 const bwipjs = require('bwip-js');
 const unzipper = require('unzipper');
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, dialog } = require("electron");
 const isDev = require("electron-is-dev");
 let localConfigFile = fs.readFileSync('C:/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
@@ -95,7 +96,7 @@ app.on("activate", () => {
             installExtension(REACT_DEVELOPER_TOOLS)
                 .then(name => console.log(`Added Extension:  ${name}`))
                 .catch(error => console.log(`An error occurred: , ${error}`));
-        }
+        } 
     }
 });
 
@@ -109,8 +110,8 @@ expressApp.use(bodyParser.urlencoded({ extended: false }))
 
 const printWithQR = (object) => {
     let writeStream = new stream.WritableBufferStream();
-    const qrFileName = 'qr.png'
-    const invoiceFileName = 'invoice.pdf'
+    const qrFileName = 'C:\\pos\\qr.png'
+    const invoiceFileName = 'C:\\pos\\invoice.pdf'
 
     const doc = new PDFDocument({ size: 'A4' });
 
@@ -121,7 +122,7 @@ const printWithQR = (object) => {
 
         doc.pipe(writeStream);
 
-        doc.font('C:/arial.ttf')
+        doc.font('C:\\pos\\arial.ttf')
         doc.fontSize(40);
         doc.text(object.header, 45, 10, { width: 590, features: ['rtla'] });
         doc.text('---------------------------------------', 20, 50, { width: 590 });
@@ -147,7 +148,17 @@ const printWithQR = (object) => {
                 if (err) {
                     console.log('ERROR', err);
                 }
-                print.print(invoiceFileName);
+                // print.print(invoiceFileName);
+                console.log('printing...............................');
+                exec(
+                    'ptp.exe invoice.pdf', {
+                    cwd: 'C:\\pos\\',
+                    windowsHide: true
+                }, (e) => {
+                    if (e) {
+                        throw e;
+                    }
+                });
             });
         });
 
@@ -156,8 +167,8 @@ const printWithQR = (object) => {
 
 const printWithBarcode = (object) => {
     let writeStream = new stream.WritableBufferStream();
-    const barcodeFileName = 'barcode.png'
-    const invoiceFileName = 'invoice.pdf'
+    const barcodeFileName = 'C:\\pos\\barcode.png'
+    const invoiceFileName = 'C:\\pos\\invoice.pdf'
     const doc = new PDFDocument({ size: 'A4' });
 
 
@@ -171,11 +182,14 @@ const printWithBarcode = (object) => {
     })
         .then(png => {
             fs.writeFile(barcodeFileName, png, function (err) {
-                if (err) return console.log(err);
+                if (err) {
+                    dialog.showErrorBox('Error', err)
+                    return console.log(err);
+                }
 
                 doc.pipe(writeStream);
 
-                doc.font('C:/arial.ttf')
+                doc.font('C:\\pos\\arial.ttf')
                 doc.fontSize(40);
                 doc.text(object.header, 45, 10, { width: 590, features: ['rtla'] });
                 doc.text('---------------------------------------', 20, 50, { width: 590 });
@@ -201,7 +215,16 @@ const printWithBarcode = (object) => {
                         if (err) {
                             console.log('ERROR', err);
                         }
-                        print.print(invoiceFileName);
+                        // print.print(invoiceFileName);
+                        exec(
+                            'ptp.exe invoice.pdf', {
+                            cwd: 'C:\\pos\\',
+                            windowsHide: true
+                        }, (e) => {
+                            if (e) {
+                                throw e;
+                            }
+                        });
                     });
                 });
 
@@ -215,7 +238,6 @@ const printWithBarcode = (object) => {
 
 expressApp.get('/printTrx', async (req, res) => {
     try {
-        console.log(req.query.trxKey);
         axios({
             method: 'post',
             url: '/trx/fetchTrx',
@@ -254,9 +276,9 @@ expressApp.get('/printTrx', async (req, res) => {
             }
         }).catch((error) => {
             if (error.response) {
-                alert('Un-Authorized')
+                dialog.showErrorBox('Error', 'Un-Authorized')
             } else {
-                alert(error.message)
+                dialog.showErrorBox('Error', error.message)
             }
             res.send('error');
         });
@@ -264,6 +286,7 @@ expressApp.get('/printTrx', async (req, res) => {
 
     } catch (e) {
         console.log(e);
+        dialog.showErrorBox('Error', e)
         res.send(e);
     }
 })
@@ -273,6 +296,6 @@ expressApp.listen(3001, () => {
 })
 
 require('update-electron-app')({
-    repo: 'al-shini/pos-terminal',
+    notifyUser: true,
     updateInterval: '5 minutes'
 })
