@@ -3,16 +3,16 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser')
 const fs = require('fs');
-const https = require('https');
-const print = require('pdf-to-printer');
 const PDFDocument = require('pdfkit');
 const { exec } = require("child_process");
 const stream = require('./stream');
 const qr = require('qrcode');
 const bwipjs = require('bwip-js');
-const unzipper = require('unzipper');
 const { app, BrowserWindow, dialog } = require("electron");
 const isDev = require("electron-is-dev");
+const { downloadRelease } = require('@terascope/fetch-github-release');
+
+
 let localConfigFile = fs.readFileSync('C:/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
 const config = {
@@ -96,7 +96,7 @@ app.on("activate", () => {
             installExtension(REACT_DEVELOPER_TOOLS)
                 .then(name => console.log(`Added Extension:  ${name}`))
                 .catch(error => console.log(`An error occurred: , ${error}`));
-        } 
+        }
     }
 });
 
@@ -291,11 +291,39 @@ expressApp.get('/printTrx', async (req, res) => {
     }
 })
 
-expressApp.listen(3001, () => {
-    console.log(`Terminal app listening on port 3001`)
+
+expressApp.get('/checkForUpdates', async (req, res) => {
+    try {
+        downloadRelease('al-shini', 'pos-terminal', 'C:\\pos\\release\\', (release) => true, (asset) => true, false, false)
+            .then(function (downloaded) {
+                console.log(downloaded);
+                dialog.showMessageBox({title: 'Check Complete', message: 'Required files downloaded successfully'}).then(() => {
+
+                });
+                exec(
+                    'setup.exe', {
+                    cwd: 'C:\\pos\\release\\',
+                    windowsHide: true
+                }, (e) => {
+                    if (e) {
+                        throw e;
+                    }
+                });
+                app.quit();
+                res.send('OK');
+            })
+            .catch(function (err) {
+                console.error(err.message);
+                dialog.showErrorBox('Update Failed', err.message);
+                res.status(500).send('FAIL');
+            });
+    } catch (e) {
+        console.log(e);
+        dialog.showErrorBox('Error', e)
+        res.send(e);
+    }
 })
 
-require('update-electron-app')({
-    notifyUser: true,
-    updateInterval: '5 minutes'
-})
+expressApp.listen(3001, () => {
+    console.log(`Terminal app listening on port 3001`)
+}) 
