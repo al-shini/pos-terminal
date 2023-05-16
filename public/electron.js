@@ -294,23 +294,26 @@ expressApp.get('/printTrx', async (req, res) => {
 
 expressApp.get('/checkForUpdates', async (req, res) => {
     try {
-        downloadRelease('al-shini', 'pos-terminal', 'C:\\pos\\release\\', (release) => true, (asset) => true, false, false)
+        downloadRelease('al-shini', 'pos-terminal', 'C:\\pos\\release\\', (release) => {
+            return release.prerelease === false;
+        }, (asset) => true, false, false)
             .then(function (downloaded) {
-                console.log(downloaded);
-                dialog.showMessageBox({title: 'Check Complete', message: 'Required files downloaded successfully'}).then(() => {
-
-                });
-                exec(
-                    'setup.exe', {
-                    cwd: 'C:\\pos\\release\\',
-                    windowsHide: true
-                }, (e) => {
-                    if (e) {
-                        throw e;
-                    }
-                });
-                app.quit();
-                res.send('OK');
+                try {
+                    exec(
+                        'setup.exe', {
+                        cwd: 'C:\\pos\\release\\',
+                        windowsHide: true
+                    }, (e) => {
+                        if (e) {
+                            throw e;
+                        }
+                    });
+                    res.send('OK');
+                    app.quit();
+                } catch (ex) {
+                    dialog.showErrorBox('Update Failed', ex);
+                    res.status(500).send(ex);
+                }
             })
             .catch(function (err) {
                 console.error(err.message);
