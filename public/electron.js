@@ -292,7 +292,7 @@ expressApp.get('/printTrx', async (req, res) => {
 })
 
 
-expressApp.get('/checkForUpdates', async (req, res) => {
+expressApp.get('/downloadUpdate', async (req, res) => {
     try {
         downloadRelease('al-shini', 'pos-terminal', 'C:\\pos\\release\\', (release) => {
             return release.prerelease === false;
