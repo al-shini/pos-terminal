@@ -172,7 +172,7 @@ const Login = (props) => {
                         textAlign: 'center',
                         padding: '10px',
                         fontFamily: 'monospace'
-                    }}>Dazzle POS <span style={{ fontSize: '50%' }}>v2.1</span>
+                    }}>Dazzle POS <span style={{ fontSize: '50%' }}>{process.env.REACT_APP_VERSION}</span>
                         <br />
                         <br />
                         <span style={{ fontSize: '70%' }}>Today is: {new Date().toDateString()}</span>

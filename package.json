@@ -1,11 +1,14 @@
 {
   "name": "pos",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "main": "public/electron.js",
   "author": "Al Shini Supermarket",
   "description": "Shini Plus POS Application for Terminals (Cashier)",
   "homepage": "./",
-  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/al-shini/pos-terminal.git"
+  },
   "dependencies": {
     "@emotion/react": "^11.8.1",
     "@emotion/styled": "^11.8.1",
@@ -23,6 +26,7 @@
     "axios": "^0.26.1",
     "body-parser": "^1.20.2",
     "bwip-js": "^3.4.0",
+    "child_process": "^1.0.2",
     "cors": "^2.8.5",
     "electron-is-dev": "^2.0.0",
     "electron-squirrel-startup": "^1.0.0",
