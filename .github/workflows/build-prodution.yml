@@ -39,11 +39,20 @@ jobs:
       with:
         path: .
 
-    # create a release tag and copy the archive
+    # create a release tag for current version and copy the archive
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: true
+        automatic_release_tag: "v${{ steps.get_version.outputs.version }}"
+        title: "v${{ steps.get_version.outputs.version }}"
+        files: ./installer
+        
+    # create a release tag for current version and copy the archive
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         prerelease: false
-        automatic_release_tag: "v${{ steps.get_version.outputs.version }}"
-        title: "v${{ steps.get_version.outputs.version }}"
+        automatic_release_tag: "latest"
+        title: "latest"
         files: ./installer
