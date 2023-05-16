@@ -4,7 +4,7 @@ const build = async () => {
     try {
         await electronInstaller.createWindowsInstaller({
             appDirectory: './out/pos-win32-x64',
-            outputDirectory: './out/dazzle64',
+            outputDirectory: './installer',
             authors: 'Legion',
             exe: 'pos.exe'
         });
