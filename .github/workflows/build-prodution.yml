@@ -43,6 +43,7 @@ jobs:
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
         automatic_release_tag: "v${{ steps.get_version.outputs.version }}"
         title: "v${{ steps.get_version.outputs.version }}"
         files: ./out/dazzle64
