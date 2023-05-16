@@ -21,7 +21,7 @@ import 'react-simple-keyboard/build/css/index.css';
 import Draggable from 'react-draggable';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faRefresh
+    faDownload
 } from '@fortawesome/free-solid-svg-icons'
 
 const Login = (props) => {
@@ -41,6 +41,8 @@ const Login = (props) => {
         password: ''
     });
 
+    const [updateAvailable, setUpdateAvailable] = useState(false);
+
     const [loginQR, setLoginQR] = useState({});
 
     const theme = createTheme();
@@ -52,6 +54,19 @@ const Login = (props) => {
 
     useEffect(() => {
         reloadQrAuth();
+        axios({
+            method: 'get',
+            url: '/test/getLatestVersion',
+        }).then((response) => {
+            if ('v'.concat(process.env.REACT_APP_VERSION) !== response.data) {
+                setUpdateAvailable(true);
+            }
+            else {
+                setUpdateAvailable(false);
+            }
+        }).catch((error) => {
+            console.log(error.response, error.message);
+        });
     }, []);
 
     useEffect(() => {
@@ -66,11 +81,11 @@ const Login = (props) => {
         }
     }, [loginQR]);
 
-    const checkForUpdates = () => {
+    const downloadUpdate = () => {
         dispatch(showLoading());
         axios({
             method: 'get',
-            url: 'http://127.0.0.1:3001/checkForUpdates',
+            url: 'http://127.0.0.1:3001/downloadUpdate',
         }).then((response) => {
             dispatch(notify({ msg: response ? response.data : 'no response' }))
             dispatch(hideLoading());
@@ -194,11 +209,12 @@ const Login = (props) => {
                     }}>Dazzle POS <span style={{ fontSize: '50%' }}>v{process.env.REACT_APP_VERSION}</span>
                         <br />
                         <Button
-                            onClick={checkForUpdates}
+                            disabled={!updateAvailable}
+                            onClick={downloadUpdate}
                             variant="contained"
                             sx={{ mt: 3, mb: 2 }} >
-                            <FontAwesomeIcon icon={faRefresh} style={{ marginLeft: '7px', marginRight: '7px' }} />
-                            Check for Updates
+                            <FontAwesomeIcon icon={faDownload} style={{ marginLeft: '7px', marginRight: '7px' }} />
+                            Install Update
                         </Button>
                         <br />
                         <span style={{ fontSize: '70%' }}>Today is: {new Date().toDateString()}</span>
