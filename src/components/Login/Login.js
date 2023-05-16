@@ -13,12 +13,16 @@ import Snackbar from '@mui/material/Snackbar';
 import Alert from "@mui/material/Alert";
 import PosBG from '../../assets/slide4.png';
 import { login, checkLoginQrAuth } from '../../store/terminalSlice';
-import { notify } from '../../store/uiSlice';
+import { hideLoading, notify, showLoading } from '../../store/uiSlice';
 import config from '../../config';
-import axios from '../../axios' 
+import axios from '../../axios'
 import Keyboard from 'react-simple-keyboard';
 import 'react-simple-keyboard/build/css/index.css';
 import Draggable from 'react-draggable';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faRefresh
+} from '@fortawesome/free-solid-svg-icons'
 
 const Login = (props) => {
     const dispatch = useDispatch();
@@ -61,6 +65,21 @@ const Login = (props) => {
             dispatch(checkLoginQrAuth(loginQR.qrAuthKey));
         }
     }, [loginQR]);
+
+    const checkForUpdates = () => {
+        dispatch(showLoading());
+        axios({
+            method: 'get',
+            url: 'http://127.0.0.1:3001/checkForUpdates',
+        }).then((response) => {
+            dispatch(notify({ msg: response ? response.data : 'no response' }))
+            dispatch(hideLoading());
+        }).catch((error) => {
+            console.log(error.response, error.message);
+            dispatch(notify({ msg: 'could not update - ' + (error.response ? error.response : error.message), sev: 'error' }));
+            dispatch(hideLoading());
+        });
+    }
 
     const reloadQrAuth = () => {
 
@@ -172,8 +191,15 @@ const Login = (props) => {
                         textAlign: 'center',
                         padding: '10px',
                         fontFamily: 'monospace'
-                    }}>Dazzle POS <span style={{ fontSize: '50%' }}>{process.env.REACT_APP_VERSION}</span>
+                    }}>Dazzle POS <span style={{ fontSize: '50%' }}>v{process.env.REACT_APP_VERSION}</span>
                         <br />
+                        <Button
+                            onClick={checkForUpdates}
+                            variant="contained"
+                            sx={{ mt: 3, mb: 2 }} >
+                            <FontAwesomeIcon icon={faRefresh} style={{ marginLeft: '7px', marginRight: '7px' }} />
+                            Check for Updates
+                        </Button>
                         <br />
                         <span style={{ fontSize: '70%' }}>Today is: {new Date().toDateString()}</span>
                     </h3>
@@ -241,7 +267,7 @@ const Login = (props) => {
                                 variant="contained"
                                 sx={{ mt: 3, mb: 2 }} >
                                 Sign In
-                            </Button> 
+                            </Button>
                         </Box>
                     </Box>
                 </Grid>
