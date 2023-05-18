@@ -301,21 +301,19 @@ expressApp.get('/downloadUpdate', async (req, res) => {
                 try {
                     res.send('Downlaod complete, installing update...');
 
-                    window.setTimeout(() => {
-                        exec(
-                            'setup.exe', {
-                            cwd: 'C:\\pos\\release\\',
-                            windowsHide: true
-                        }, (e) => {
-                            if (e) {
-                                throw e;
-                            }
-                        });
-                    }, 3000)
+                    exec(
+                        'setup.exe', {
+                        cwd: 'C:\\pos\\release\\',
+                        windowsHide: true
+                    }, (e) => {
+                        if (e) {
+                            throw e;
+                        }
+                    });
 
                     window.setTimeout(() => {
                         app.quit();
-                    }, 5000)
+                    }, 30000)
                 } catch (ex) {
                     dialog.showErrorBox('Update Failed', ex);
                     res.status(500).send(ex);
