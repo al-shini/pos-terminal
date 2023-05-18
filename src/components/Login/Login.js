@@ -41,7 +41,10 @@ const Login = (props) => {
         password: ''
     });
 
-    const [updateAvailable, setUpdateAvailable] = useState(false);
+    const [patchInfo, setPatchInfo] = useState({
+        serverVersion: '',
+        updateAvailable: false
+    });
 
     const [loginQR, setLoginQR] = useState({});
 
@@ -64,10 +67,16 @@ const Login = (props) => {
                 dispatch(notify({ msg: 'could not fetch POS version from server', sev: 'error' }));
             } else {
                 if ('v'.concat(process.env.REACT_APP_VERSION) !== 'v'.concat(response.data)) {
-                    setUpdateAvailable(true);
+                    setPatchInfo({
+                        serverVersion: response.data,
+                        updateAvailable: true
+                    });
                 }
                 else {
-                    setUpdateAvailable(false);
+                    setPatchInfo({
+                        serverVersion: response.data,
+                        updateAvailable: false
+                    });
                 }
             }
 
@@ -89,6 +98,11 @@ const Login = (props) => {
     }, [loginQR]);
 
     const downloadUpdate = () => {
+        if (!patchInfo.updateAvailable) {
+            dispatch(notify({ msg: 'No update available to download', sev: 'warning' }));
+            return;
+        }
+
         dispatch(showLoading());
         axios({
             method: 'get',
@@ -215,14 +229,13 @@ const Login = (props) => {
                         fontFamily: 'monospace'
                     }}>Dazzle POS <span style={{ fontSize: '50%' }}>v{process.env.REACT_APP_VERSION}</span>
                         <br />
-                        <Button
-                            disabled={!updateAvailable}
+                        {patchInfo.updateAvailable && <Button
                             onClick={downloadUpdate}
                             variant="contained"
                             sx={{ mt: 3, mb: 2 }} >
                             <FontAwesomeIcon icon={faDownload} style={{ marginLeft: '7px', marginRight: '7px' }} />
-                            Install Update
-                        </Button>
+                            Update to v{patchInfo.serverVersion} Available, Click to Download
+                        </Button>}
                         <br />
                         <span style={{ fontSize: '70%' }}>Today is: {new Date().toDateString()}</span>
                     </h3>

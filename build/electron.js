@@ -13,7 +13,7 @@ const isDev = require("electron-is-dev");
 const { downloadRelease } = require('@terascope/fetch-github-release');
 
 
-let localConfigFile = fs.readFileSync('C:/posconfig.json');
+let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
 const config = {
     qrBaseUrl: 'http://46.43.70.210:81/process-customer-entry.xhtml'
@@ -299,6 +299,8 @@ expressApp.get('/downloadUpdate', async (req, res) => {
         }, (asset) => true, false, false)
             .then(function (downloaded) {
                 try {
+                    res.send('Downlaod complete, installing update...');
+
                     exec(
                         'setup.exe', {
                         cwd: 'C:\\pos\\release\\',
@@ -308,8 +310,10 @@ expressApp.get('/downloadUpdate', async (req, res) => {
                             throw e;
                         }
                     });
-                    res.send('OK');
-                    app.quit();
+
+                    window.setTimeout(() => {
+                        app.quit();
+                    }, 30000)
                 } catch (ex) {
                     dialog.showErrorBox('Update Failed', ex);
                     res.status(500).send(ex);
