@@ -102,7 +102,12 @@
       "packagerConfig": {
         "icon": "src/icons/win/icon.ico",
         "name": "pos",
-        "asar": true
+        "asar": true,
+        "ignore": [
+          ".nupkg",
+          ".exe",
+          ".msi"
+        ]
       },
       "makers": [
         {
