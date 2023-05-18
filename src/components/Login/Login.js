@@ -56,14 +56,21 @@ const Login = (props) => {
         reloadQrAuth();
         axios({
             method: 'get',
-            url: '/test/getLatestVersion',
+            url: '/test/getServerPosVersion',
         }).then((response) => {
-            if ('v'.concat(process.env.REACT_APP_VERSION) !== response.data) {
-                setUpdateAvailable(true);
+            if (!process.env.REACT_APP_VERSION) {
+                dispatch(notify({ msg: 'could not read version from environment', sev: 'error' }));
+            } else if (!response || !response.data) {
+                dispatch(notify({ msg: 'could not fetch POS version from server', sev: 'error' }));
+            } else {
+                if ('v'.concat(process.env.REACT_APP_VERSION) !== 'v'.concat(response.data)) {
+                    setUpdateAvailable(true);
+                }
+                else {
+                    setUpdateAvailable(false);
+                }
             }
-            else {
-                setUpdateAvailable(false);
-            }
+
         }).catch((error) => {
             console.log(error.response, error.message);
         });
