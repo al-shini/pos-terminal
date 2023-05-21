@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser')
 const fs = require('fs');
+const fsPromises = require('fs/promises');
 const PDFDocument = require('pdfkit');
 const { exec } = require("child_process");
 const stream = require('./stream');
@@ -11,7 +12,6 @@ const bwipjs = require('bwip-js');
 const { app, BrowserWindow, dialog } = require("electron");
 const isDev = require("electron-is-dev");
 const { downloadRelease } = require('@terascope/fetch-github-release');
-
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
@@ -294,6 +294,17 @@ expressApp.get('/printTrx', async (req, res) => {
 
 expressApp.get('/downloadUpdate', async (req, res) => {
     try {
+
+        // clear previous downloaded files
+        for (const file of await fsPromises.readdir('C:\\pos\\release\\')) {
+            await fsPromises.unlink(path.join(directory, file));
+        }
+
+        // create the info.txt file
+        const writeStream = fs.createWriteStream("C:\\pos\\release\\info.txt");
+        writeStream.write("Downloaded @ " + new Date());
+        writeStream.end();
+
         downloadRelease('al-shini', 'pos-terminal', 'C:\\pos\\release\\', (release) => {
             return release.prerelease === false;
         }, (asset) => true, false, false)
