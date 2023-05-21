@@ -1,9 +1,10 @@
 const path = require("path");
+const fs = require('fs');
+const fsPromises = require('fs/promises');
+const { downloadRelease } = require('@terascope/fetch-github-release');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser')
-const fs = require('fs');
-const fsPromises = require('fs/promises');
 const PDFDocument = require('pdfkit');
 const { exec } = require("child_process");
 const stream = require('./stream');
@@ -11,7 +12,7 @@ const qr = require('qrcode');
 const bwipjs = require('bwip-js');
 const { app, BrowserWindow, dialog } = require("electron");
 const isDev = require("electron-is-dev");
-const { downloadRelease } = require('@terascope/fetch-github-release');
+
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
@@ -46,7 +47,7 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: true,
+        fullscreen: false,
         webPreferences: {
             nodeIntegration: true
         }
@@ -297,7 +298,7 @@ expressApp.get('/downloadUpdate', async (req, res) => {
 
         // clear previous downloaded files
         for (const file of await fsPromises.readdir('C:\\pos\\release\\')) {
-            await fsPromises.unlink(path.join(directory, file));
+            await fsPromises.unlink(path.join('C:\\pos\\release\\', file));
         }
 
         // create the info.txt file
