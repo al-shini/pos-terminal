@@ -12,8 +12,6 @@ const bwipjs = require('bwip-js');
 const { app, BrowserWindow, dialog } = require("electron");
 const isDev = require("electron-is-dev");
 const { downloadRelease } = require('@terascope/fetch-github-release');
-const path = require("path");
-
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
