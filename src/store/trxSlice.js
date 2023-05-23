@@ -235,9 +235,16 @@ export const submitPayment = createAsyncThunk(
             data
         }).then((response) => {
             if (response && response.data) {
-
                 console.log('response.data', response.data)
                 thunkAPI.dispatch(clearNumberInput());
+                if (response.data.closeTrx) {
+                    thunkAPI.dispatch(closeTrxPayment({
+                        key: response.data.trx.key
+                    }));
+                    window.setTimeout(() => {
+                        thunkAPI.dispatch(clearLastPaymentHistory());
+                    }, 6000)
+                }
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
