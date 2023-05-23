@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import axios from '../../axios';
-import { Button, FlexboxGrid, Divider } from 'rsuite';
+import { Button, FlexboxGrid, Divider, Input } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -12,9 +12,9 @@ import Numpad from './Numpad';
 import Invoice from './Invoice';
 import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
-import {
+import terminalSlice, {
     beginPayment, uploadCurrencies, abort, exitNumpadEntry, reset,
-    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer, setManagerMode
+    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer, setManagerMode, setTerminal
 } from '../../store/terminalSlice';
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
@@ -61,6 +61,7 @@ const Terminal = (props) => {
     const [actionsMode, setActionsMode] = useState('payment');
     const [notesImages, setNotesImages] = useState([]);
     const [authQR, setAuthQR] = useState({});
+    const [bopVisaIp, setBopVisaIp] = useState('');
     const [play] = useSound(errorBeep);
 
     const [groupedFastItems, setGroupedFastItems] = useState({});
@@ -361,7 +362,8 @@ const Terminal = (props) => {
                                 paymentMethodKey: 'Cash',
                                 currency: 'NIS',
                                 amount: paymentAmt,
-                                sourceKey: 'CashDro'
+                                sourceKey: 'CashDro',
+                                visaPayment: null
                             }));
                             console.log('stop listening');
                             setCashDroState({
@@ -450,11 +452,13 @@ const Terminal = (props) => {
 
     const autoVisaFlow = () => {
 
-        if (!config.autoVisaEnabled) {
+        if (trxSlice.selectedCurrency === 'EUR') {
+            dispatch(notify({ msg: 'Auto Visa does not support Euro', sev: 'warning' }));
             return;
         }
 
-        if (trxSlice.selectedCurrency === 'EUR') {
+        if (trxSlice.selectedCurrency !== 'NIS' && !terminal.exchangeRates[trxSlice.selectedCurrency]) {
+            dispatch(notify({ msg: 'Selected currency has no exchange rate defined', sev: 'error' }));
             return;
         }
 
@@ -462,20 +466,20 @@ const Terminal = (props) => {
 
         if (trxSlice.trx && amt > 0) {
 
-            let curr = 376;
+            let cur = 376;
 
             switch (trxSlice.selectedCurrency) {
                 case 'NIS': {
-                    curr = 376;
+                    cur = 376;
                     break;
                 }
                 case 'JOD': {
-                    curr = 400;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2);
+                    cur = 400;
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 1000) / 100).toFixed(3);
                     break;
                 }
                 case 'USD': {
-                    curr = 840;
+                    cur = 840;
                     amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2);
                     break;
                 }
@@ -488,12 +492,54 @@ const Terminal = (props) => {
             amt = integerPart * 100;
             amt += parseFloat(decimalPart) * 100;
 
-            let id = trxSlice.trx.nanoId.replace('-', '');
-
+            let trxId = trxSlice.trx.nanoId.replace('-', '');
             dispatch(showLoading());
 
             // implement BOP auto visa flow
-            
+            axios({
+                method: 'post',
+                url: 'http://127.0.0.1:3001/bopVisaSale',
+                data: {
+                    trxId,
+                    amt,
+                    cur,
+                    terminal: terminal.terminal
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    const visaResponse = response.data;
+                    console.log(visaResponse);
+                    if (visaResponse.resp_code === 0) {
+                        // success, make payment
+                        const transactionAmount = amt / 100;
+
+                        dispatch(submitPayment({
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            paymentMethodKey: trxSlice.selectedPaymentMethod,
+                            currency: trxSlice.selectedCurrency,
+                            amount: transactionAmount,
+                            sourceKey: 'AUTO VISA',
+                            visaPayment: {
+                                amt: visaResponse.sale.amt,
+                                curr: visaResponse.sale.cur,
+                                pan: visaResponse.card.pan,
+                                respCode: visaResponse.resp_code,
+                                authCode: visaResponse.auth_code,
+                                fullResponseJson: JSON.stringify(visaResponse)
+                            }
+                        }))
+                    } else {
+                        dispatch(notify({ msg: '[ERROR] ' + visaResponse.error_msg, sev: 'error' }));
+                    }
+                }
+                dispatch(hideLoading());
+            }).catch((error) => {
+                console.log(error, error.response, error.message);
+                dispatch(notify({ msg: 'could not make payment to visa - ' + (error.response ? error.response : error.message), sev: 'error' }));
+                dispatch(hideLoading());
+            });
+
         } // end IF
     }
 
@@ -951,7 +997,8 @@ const Terminal = (props) => {
                             paymentMethodKey: obj.paymentMethodKey,
                             currency: obj.currency,
                             amount: obj.amount,
-                            sourceKey: ''
+                            sourceKey: '',
+                            visaPayment: null
                         }));
                     }}
                         style={{ backgroundColor: '#f7f7fa', display: 'block' }}
@@ -971,7 +1018,8 @@ const Terminal = (props) => {
                         paymentMethodKey: 'Cash',
                         currency: 'NIS',
                         amount: trxSlice.trx ? trxSlice.trx.totalafterdiscount : 0,
-                        sourceKey: ''
+                        sourceKey: '',
+                        visaPayment: null
                     }))
                 }}>
                     <label style={{ marginRight: '5px' }}>Refund</label>
@@ -1001,7 +1049,8 @@ const Terminal = (props) => {
                         paymentMethodKey: obj.paymentMethodKey,
                         currency: obj.currency,
                         amount: obj.amount,
-                        sourceKey: ''
+                        sourceKey: '',
+                        visaPayment: null
                     }))
                 }} style={{ backgroundColor: '#f7f7fa', display: 'block' }} >
                     <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: '90%', height: '57px' }} />
@@ -1033,20 +1082,40 @@ const Terminal = (props) => {
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.key + 'space'} > .</div>);
         });
 
-        tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
-        tmp.push(
-            <Button key='autovisa' className={classes.ActionButton}
-            disabled={!config.autoVisaEnabled}
-                style={{ background: '#b5ff00', color: 'black' }}
-                onClick={() => {
-                    autoVisaFlow();
-                }} >
-                <div style={{ textAlign: 'center' }}>
-                    <FontAwesomeIcon icon={faChain} />
-                    <label style={{ marginLeft: '2px' }}>Auto VISA</label>
-                </div>
-            </Button>
-        )
+        if (!terminal.terminal.bopVisaIp) {
+            tmp.push(<div key='fsbopvisasetup' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+            tmp.push(
+                <Input key='bopvisasetupIp' placeholder='BOP Visa IP'
+                    value={bopVisaIp} disabled={!terminal.managerMode}
+                    onChange={(e) => { setBopVisaIp(e) }} >
+                </Input>
+            )
+            tmp.push(
+                <Button key='bopvisasetup' className={classes.ActionButton}
+                    style={{ background: '#ffbf00', color: 'black', marginTop: '5px' }}
+                    disabled
+                    onClick={initTerminalWithBopVisa} > 
+                    <div style={{ textAlign: 'center' }}>
+                        <FontAwesomeIcon icon={faChain} />
+                        LINK VISA
+                    </div>
+                </Button>
+            )
+        } else {
+            tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+            tmp.push(
+                <Button key='autovisa' className={classes.ActionButton}
+                    style={{ background: '#b5ff00', color: 'black' }} 
+                    onClick={() => {
+                        autoVisaFlow();
+                    }} >
+                    <div style={{ textAlign: 'center' }}>
+                        <FontAwesomeIcon icon={faChain} />
+                        <label style={{ marginLeft: '2px' }}>AUTO VISA</label>
+                    </div>
+                </Button>
+            )
+        }
         tmp.push(<div key='fs2' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
 
         return tmp;
@@ -1131,7 +1200,8 @@ const Terminal = (props) => {
                             paymentMethodKey: 'CashBack',
                             currency: 'NIS',
                             amount: obj.amount,
-                            sourceKey: obj.key
+                            sourceKey: obj.key,
+                            visaPayment: null
                         }))
 
                         let usedCoupons = {
@@ -1231,6 +1301,30 @@ const Terminal = (props) => {
         return tmp;
     }
 
+    const initTerminalWithBopVisa = () => {
+        if (!bopVisaIp) {
+            dispatch(notify({ msg: 'No BOP Visa IP specified', sev: 'error' }));
+            return;
+        }
+        axios({
+            method: 'post',
+            url: 'http://127.0.0.1:3001/linkTerminalWithBopVisa',
+            data: {
+                terminalKey: terminal.terminal.key,
+                bopVisaIp: bopVisaIp
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                dispatch(setTerminal(response.data));
+                dispatch(notify({ msg: 'BOP Visa Linked' }))
+            }
+            dispatch(hideLoading());
+        }).catch((error) => {
+            console.log(error.response, error.message);
+            dispatch(notify({ msg: 'could not update - ' + (error.response ? error.response : error.message), sev: 'error' }));
+            dispatch(hideLoading());
+        });
+    }
 
 
     return (

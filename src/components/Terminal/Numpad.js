@@ -78,7 +78,8 @@ const Numpad = (props) => {
                         paymentMethodKey: trxSlice.selectedPaymentMethod,
                         currency: trxSlice.selectedCurrency,
                         amount: trxSlice.numberInputValue,
-                        sourceKey: ''
+                        sourceKey: '',
+                        visaPayment: null
                     }))
                 }
 
@@ -131,7 +132,7 @@ const Numpad = (props) => {
                     <FlexboxGrid>
                         {
                             // (!terminal.paymentMode) &&
-                            <FlexboxGridItem colspan={5}>
+                            <FlexboxGridItem colspan={4}>
                                 {
                                     !trxSlice.priceChangeMode &&
                                     <Input value={trxSlice.multiplier ? ('' + trxSlice.multiplier).concat(' X') : '-'}
@@ -149,13 +150,14 @@ const Numpad = (props) => {
                             </FlexboxGridItem>
                         }
                         <FlexboxGridItem colspan={terminal.paymentMode ?
-                            (terminal.exchangeRates[trxSlice.selectedCurrency] && terminal.exchangeRates[trxSlice.selectedCurrency] > 1 && terminal.paymentInput === 'numpad') ? 19 : 19
+                            (terminal.exchangeRates[trxSlice.selectedCurrency] && terminal.exchangeRates[trxSlice.selectedCurrency] > 1 && terminal.paymentInput === 'numpad') ? 16 : 20
 
                             : 19}>
                             <Input onChange={onInputChange} value={trxSlice.numberInputValue}
                                 disabled={terminal.paymentMode && terminal.paymentInput === 'fixed'}
                                 placeholder={terminal.paymentMode && terminal.paymentInput === 'numpad'
-                                    ? trxSlice.selectedPaymentMethod === 'Voucher' ? 'Insert Voucher/Coupon Key' : 'Insert Payment Amount (' + trxSlice.selectedCurrency + ' x ' + terminal.exchangeRates[trxSlice.selectedCurrency] + ')' :
+                                    ? trxSlice.selectedPaymentMethod === 'Voucher' ? 'Insert Voucher/Coupon Key' :
+                                        'Rate (' + trxSlice.selectedCurrency + ' x ' + (trxSlice.selectedCurrency === 'NIS' ? '1' : terminal.exchangeRates[trxSlice.selectedCurrency]) + ')' :
                                     terminal.paymentMode && terminal.paymentInput === 'fixed' ? '-' : trxSlice.priceChangeMode ? 'Insert New Price (Per Item)' : 'Search'}
                                 style={{ borderRadius: 0, boxShadow: 'none', borderColor: 'rgb(123,123,123)' }} />
                         </FlexboxGridItem>
@@ -191,7 +193,7 @@ const Numpad = (props) => {
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={8}>
-                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/   
+                        <IconButton /*disabled={terminal.paymentMode && terminal.paymentInput !== 'numpad'}*/
                             onClick={() => dispatch(handleNumberInputEntry({ value: '4', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} icon={<FontAwesomeIcon icon={fa4} />} />
                     </FlexboxGrid.Item>
 
@@ -251,7 +253,7 @@ const Numpad = (props) => {
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={24}>
                         <IconButton onClick={() => dispatch(prepareScanMultiplier())} className={styles.NumpadButton}
-                            disabled={(terminal.paymentMode && terminal.paymentInput !== 'fixed' ) || trxSlice.priceChangeMode}
+                            disabled={(terminal.paymentMode && terminal.paymentInput !== 'fixed') || trxSlice.priceChangeMode}
                             icon={<FontAwesomeIcon icon={faTimes} />}
                             appearance='primary' color='blue' />
                     </FlexboxGrid.Item>

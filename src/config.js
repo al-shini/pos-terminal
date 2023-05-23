@@ -21,8 +21,7 @@ const config = {
     voucher: 'Voucher',
     onAccount: 'OnAccount',
     cashBack: 'CashBack',
-    cashDroEnabled: false,
-    autoVisaEnabled: false
+    cashDroEnabled: false
 }; 
 
 console.log(config);

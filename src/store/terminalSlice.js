@@ -371,6 +371,9 @@ export const terminalSlice = createSlice({
         setTrxMode: (state, action) => {
             state.trxMode = action.payload;
         },
+        setTerminal: (state, action) => {
+            state.terminal = action.payload;
+        },
         blockActions: (state) => {
             state.blockActions = true
         },
@@ -479,5 +482,5 @@ export const terminalSlice = createSlice({
 
 export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode, blockActions, unblockActions, setCustomer, setStoreCustomer, resetCustomer,
     uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems,
-    uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound, setManagerMode, setManagerUser, lockState, freeState } = terminalSlice.actions
+    uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound, setManagerMode, setManagerUser, lockState, freeState, setTerminal } = terminalSlice.actions
 export default terminalSlice.reducer
