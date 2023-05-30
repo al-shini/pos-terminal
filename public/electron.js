@@ -49,7 +49,7 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: false,
+        fullscreen: true,
         webPreferences: {
             nodeIntegration: true
         }
@@ -103,6 +103,7 @@ app.on("activate", () => {
     }
 });
 
+
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
 
@@ -114,9 +115,18 @@ expressApp.use(bodyParser.urlencoded({ extended: false }))
 const printWithQR = (object) => {
     let writeStream = new stream.WritableBufferStream();
     const qrFileName = 'C:\\pos\\qr.png'
+    const logo = 'C:\\pos\\logo.png'
     const invoiceFileName = 'C:\\pos\\invoice.pdf'
 
-    const doc = new PDFDocument({ size: 'A4' });
+    const doc = new PDFDocument({
+        size: [203, 400],
+        margins: { // by default, all are 72
+            top: 5,
+            bottom: 5,
+            left: 5,
+            right: 5
+        }
+    });
 
     qr.toFile(qrFileName, object.qr, (ex, url) => {
         if (ex) {
@@ -124,24 +134,23 @@ const printWithQR = (object) => {
         }
 
         doc.pipe(writeStream);
+        doc.fontSize(15);
+        let g = 50;
 
         doc.font('C:\\pos\\arial.ttf')
-        doc.fontSize(40);
-        doc.text(object.header, 45, 10, { width: 590, features: ['rtla'] });
-        doc.text('---------------------------------------', 20, 50, { width: 590 });
-        doc.image(qrFileName, 135, 100, { width: 300, height: 300 });
+        doc.image(logo, 55, 15 + g, { width: 100, height: 25 });
+        doc.image(qrFileName, 110, 40 + g, { width: 100, height: 100 });
+        doc.font('C:\\pos\\VT323.ttf');
+        doc.text('Total: ' + object.total + ' ILS', 15, 50 + g);
+        doc.text('Discount: ' + object.discount + ' ILS', 15, 65 + g);
+        doc.text('Paid: ' + object.paid + ' ILS', 15, 80 + g);
+        doc.text('Change: ' + object.change + ' ILS', 15, 95 + g);
+        doc.text('Paid By: CASH', 15, 110 + g);
 
-        doc.fontSize(30);
-        doc.text('( ' + object.amount + ' )', 45, 400, { width: 590, features: ['rtla'] });
-        doc.text(object.date, 380, 400, { width: 590, features: ['rtla'] });
-
-        doc.text('___________________________________', 20, 425, { width: 590 });
-
-        for (let i = 0; i < object.lines.length; i++) {
-            const line = object.lines[i];
-            doc.fontSize(30);
-            doc.text(line, 50, 480 + (i * 50), { width: 590, features: ['rtla'] });
-        }
+        doc.fontSize(13)
+        doc.text('Store: ' + object.store, 15, 140 + g);
+        doc.text('Cashier: ' + object.cashier, 15, 160 + g);
+        doc.text(object.date, 15, 182 + g);
 
         doc.end()
 
@@ -172,7 +181,17 @@ const printWithBarcode = (object) => {
     let writeStream = new stream.WritableBufferStream();
     const barcodeFileName = 'C:\\pos\\barcode.png'
     const invoiceFileName = 'C:\\pos\\invoice.pdf'
-    const doc = new PDFDocument({ size: 'A4' });
+    const logo = 'C:\\pos\\logo.png'
+
+    const doc = new PDFDocument({
+        size: [203, 400],
+        margins: { // by default, all are 72
+            top: 5,
+            bottom: 5,
+            left: 5,
+            right: 5
+        }
+    });
 
 
     bwipjs.toBuffer({
@@ -191,24 +210,18 @@ const printWithBarcode = (object) => {
                 }
 
                 doc.pipe(writeStream);
+                doc.fontSize(13);
+                let g = 80;
 
-                doc.font('C:\\pos\\arial.ttf')
-                doc.fontSize(40);
-                doc.text(object.header, 45, 10, { width: 590, features: ['rtla'] });
-                doc.text('---------------------------------------', 20, 50, { width: 590 });
-                doc.image(barcodeFileName, 45, 100, { width: 500, height: 100 });
+                doc.font('C:\\pos\\VT323.ttf');
+                doc.image(logo, 55, 15 + g, { width: 100, height: 25 });
+                doc.text('SUSPENDED TRANSACTION', 55, 40 + g);
 
-                doc.fontSize(30);
-                doc.text('( ' + object.amount + ' )', 45, 220, { width: 590, features: ['rtla'] });
-                doc.text(object.date, 400, 220, { width: 590, features: ['rtla'] });
-
-                doc.text('___________________________________', 20, 240, { width: 590 });
-
-                for (let i = 0; i < object.lines.length; i++) {
-                    const line = object.lines[i];
-                    doc.fontSize(30);
-                    doc.text(line, 50, 280 + (i * 50), { width: 590, features: ['rtla'] });
-                }
+                doc.image(barcodeFileName, 15, 65 + g, { width: 193, height: 50 });
+                doc.text('Total: ' + object.total + ' ILS', 15, 130 + g);
+                doc.text('Store: ' + object.store, 15, 155 + g);
+                doc.text('Cashier: ' + object.cashier, 15, 175 + g);
+                doc.text(object.date, 15, 190 + g);
 
                 doc.end()
 
@@ -319,25 +332,28 @@ expressApp.get('/printTrx', async (req, res) => {
 
                 const qrUrl = config.qrBaseUrl + '?sptr=' + trx.key + '_' + trx.nanoId;
                 let date = trx.dateAsString;
-
-                const amount = trx.totalafterdiscount + ' ₪';
-
                 if (trx.status === 'SUSPENDED') {
                     // print suspended slip
                     printWithBarcode({
-                        header: 'تم تعليق هذه الفاتورة - سوبرماركت الشني',
                         nanoId: trx.nanoId,
-                        amount,
+                        total: trx.totalafterdiscount,
+                        discount: trx.totaldiscount,
+                        paid: trx.paidamt,
+                        change: trx.customerchange,
                         date,
-                        lines: ['الرجاء الإحتفاظ بهذه القسيمة لاستكمال الفاتورة']
+                        store: trx.branch,
+                        cashier: trx.username
                     });
                 } else {
                     printWithQR({
-                        header: 'شكرا لتسوقكم لدى سوبرماركت الشني',
                         qr: qrUrl,
-                        amount,
+                        total: trx.totalafterdiscount,
+                        discount: trx.totaldiscount,
+                        paid: trx.paidamt,
+                        change: trx.customerchange,
                         date,
-                        lines: trx.type === 'Sale' ? ['لمعرفة تفاصيل فاتورتك قم بمسح رمز الـ )RQ( '] : ['لمعرفة تفاصيل فاتورتك قم بمسح رمز الـ )RQ( ', ' ************* وصل حركة إرجاع ************* ']
+                        store: trx.branch,
+                        cashier: trx.username
                     });
                 }
                 res.send(trx);
