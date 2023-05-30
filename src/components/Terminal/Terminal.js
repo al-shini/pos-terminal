@@ -1093,7 +1093,7 @@ const Terminal = (props) => {
             tmp.push(
                 <Button key='bopvisasetup' className={classes.ActionButton}
                     style={{ background: '#ffbf00', color: 'black', marginTop: '5px' }}
-                    disabled
+                    disabled={terminal.terminal.bopVisaIp}
                     onClick={initTerminalWithBopVisa} > 
                     <div style={{ textAlign: 'center' }}>
                         <FontAwesomeIcon icon={faChain} />
