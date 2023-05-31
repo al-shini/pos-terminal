@@ -238,9 +238,9 @@ export const submitPayment = createAsyncThunk(
                 console.log('response.data', response.data)
                 thunkAPI.dispatch(clearNumberInput());
                 if (response.data.closeTrx) {
-                    thunkAPI.dispatch(closeTrxPayment({
-                        key: response.data.trx.key
-                    }));
+                    //thunkAPI.dispatch(closeTrxPayment({
+                    //    key: response.data.trx.key
+                    //}));
                     window.setTimeout(() => {
                         thunkAPI.dispatch(clearLastPaymentHistory());
                     }, 6000)
