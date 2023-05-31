@@ -1,6 +1,6 @@
 {
   "name": "pos",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "main": "public/electron.js",
   "author": "Al Shini Supermarket",
   "description": "Shini Plus POS Application for Terminals (Cashier)",
@@ -113,7 +113,7 @@
         {
           "name": "@electron-forge/maker-squirrel",
           "config": {
-            "name": "pos_back_office"
+            "name": "pos"
           }
         },
         {

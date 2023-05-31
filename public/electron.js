@@ -51,7 +51,8 @@ function createWindow() {
         show: true,
         fullscreen: true,
         webPreferences: {
-            nodeIntegration: true
+            nodeIntegration: true,
+            webSecurity: false
         }
     });
 
@@ -61,11 +62,20 @@ function createWindow() {
 
     // and load the index.html of the app.
 
-    win.loadURL(
-        isDev
-            ? `http://127.0.0.1:3000?${params}`
-            : `file://${path.join(__dirname, "../build/index.html?" + params)}`
-    );
+    if (localConfig.manualPath) {
+        win.loadURL(
+            isDev
+                ? `http://127.0.0.1:3000?${params}`
+                : `file://${localConfig.manualPath + "?" + params}`
+        );
+    } else {
+        win.loadURL(
+            isDev
+                ? `http://127.0.0.1:3000?${params}`
+                : `file://${path.join(node.__dirname, "../build/index.html?" + params)}`
+        );
+    }
+
 
     win.show();
     // Open the DevTools.
