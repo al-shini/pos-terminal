@@ -18,11 +18,7 @@ import config from '../../config';
 import axios from '../../axios'
 import Keyboard from 'react-simple-keyboard';
 import 'react-simple-keyboard/build/css/index.css';
-import Draggable from 'react-draggable';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faDownload
-} from '@fortawesome/free-solid-svg-icons'
+import Draggable from 'react-draggable'; 
 
 const Login = (props) => {
     const dispatch = useDispatch();
@@ -179,10 +175,7 @@ const Login = (props) => {
                     }}>Dazzle POS <span style={{ fontSize: '50%' }}>v{process.env.REACT_APP_VERSION}</span>
                         <br />
                         <span style={{ fontSize: '70%' }}>Today is: {new Date().toDateString()}</span>
-                    </h3>
-                    <br />
-                    <img style={{ position: 'absolute', left: '11vw', bottom: '0%', margin: 'auto', height: '30vh' }} src='https://www.oliverwyman.com/content/dam/oliver-wyman/v2/tmp/retail-and-consumer-goods-mobile.gif' alt='' />
-                </Grid>
+                    </h3> </Grid>
                 <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
                     {/* <img src={DazzleLogo} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} /> */}
                     <h3 style={{
