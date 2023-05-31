@@ -1,6 +1,6 @@
 {
   "name": "pos",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "main": "public/electron.js",
   "author": "Al Shini Supermarket",
   "description": "Shini Plus POS Application for Terminals (Cashier)",
@@ -30,8 +30,8 @@
     "child_process": "^1.0.2",
     "cors": "^2.8.5",
     "electron-is-dev": "^2.0.0",
-    "electron-squirrel-startup": "^1.0.0",
-    "electron-winstaller": "^5.1.0",
+    "electron-updater": "^5.3.0",
+    "electron-webpack": "^2.8.2",
     "express": "^4.18.2",
     "node-fetch": "^3.3.1",
     "pdfkit": "^0.13.0",
@@ -58,15 +58,28 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "dev": "concurrently -k \"npm start\" \"npm run electron\"",
-    "electron": "electron-forge start",
+    "dev": "concurrently -k \"npm start\" \"electron ./public/electron.js\"",
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "package": "react-scripts build && electron-forge package",
-    "installer": "react-scripts build && electron-forge package && node ./createWindowsInstaller.js",
-    "make": "react-scripts build && electron-forge make"
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "make": "react-scripts build && electron-builder",
+    "publish": "react-scripts build && electron-builder -p always"
+  },
+  "build": {
+    "appId": "shini.pos",
+    "productName": "Dazzle POS",
+    "win": {
+      "target": "NSIS",
+      "icon": "build/icon.ico"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "al-shini",
+        "repo": "pos-terminal"
+      }
+    ]
   },
   "eslintConfig": {
     "extends": [
@@ -87,50 +100,10 @@
     ]
   },
   "devDependencies": {
-    "@electron-forge/cli": "^6.0.0-beta.63",
-    "@electron-forge/maker-deb": "^6.0.0-beta.63",
-    "@electron-forge/maker-rpm": "^6.0.0-beta.63",
-    "@electron-forge/maker-squirrel": "^6.0.0-beta.63",
-    "@electron-forge/maker-zip": "^6.0.0-beta.63",
     "concurrently": "^7.0.0",
     "electron": "^17.1.0",
+    "electron-builder": "^23.6.0",
     "electron-devtools-installer": "^3.2.0",
     "wait-on": "^6.0.1"
-  },
-  "config": {
-    "forge": {
-      "packagerConfig": {
-        "icon": "src/icons/win/icon.ico",
-        "name": "pos",
-        "asar": true,
-        "ignore": [
-          ".nupkg",
-          ".exe",
-          ".msi"
-        ]
-      },
-      "makers": [
-        {
-          "name": "@electron-forge/maker-squirrel",
-          "config": {
-            "name": "pos"
-          }
-        },
-        {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin"
-          ]
-        },
-        {
-          "name": "@electron-forge/maker-deb",
-          "config": {}
-        },
-        {
-          "name": "@electron-forge/maker-rpm",
-          "config": {}
-        }
-      ]
-    }
   }
 }

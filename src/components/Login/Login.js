@@ -41,11 +41,6 @@ const Login = (props) => {
         password: ''
     });
 
-    const [patchInfo, setPatchInfo] = useState({
-        serverVersion: '',
-        updateAvailable: false
-    });
-
     const [loginQR, setLoginQR] = useState({});
 
     const theme = createTheme();
@@ -57,32 +52,6 @@ const Login = (props) => {
 
     useEffect(() => {
         reloadQrAuth();
-        axios({
-            method: 'get',
-            url: '/test/getServerPosVersion',
-        }).then((response) => {
-            if (!process.env.REACT_APP_VERSION) {
-                dispatch(notify({ msg: 'could not read version from environment', sev: 'error' }));
-            } else if (!response || !response.data) {
-                dispatch(notify({ msg: 'could not fetch POS version from server', sev: 'error' }));
-            } else {
-                if ('v'.concat(process.env.REACT_APP_VERSION) !== 'v'.concat(response.data)) {
-                    setPatchInfo({
-                        serverVersion: response.data,
-                        updateAvailable: true
-                    });
-                }
-                else {
-                    setPatchInfo({
-                        serverVersion: response.data,
-                        updateAvailable: false
-                    });
-                }
-            }
-
-        }).catch((error) => {
-            console.log(error.response, error.message);
-        });
     }, []);
 
     useEffect(() => {
@@ -96,26 +65,6 @@ const Login = (props) => {
             dispatch(checkLoginQrAuth(loginQR.qrAuthKey));
         }
     }, [loginQR]);
-
-    const downloadUpdate = () => {
-        if (!patchInfo.updateAvailable) {
-            dispatch(notify({ msg: 'No update available to download', sev: 'warning' }));
-            return;
-        }
-
-        dispatch(showLoading());
-        axios({
-            method: 'get',
-            url: 'http://127.0.0.1:3001/downloadUpdate',
-        }).then((response) => {
-            dispatch(notify({ msg: response ? response.data : 'no response' }))
-            dispatch(hideLoading());
-        }).catch((error) => {
-            console.log(error.response, error.message);
-            dispatch(notify({ msg: 'could not update - ' + (error.response ? error.response : error.message), sev: 'error' }));
-            dispatch(hideLoading());
-        });
-    }
 
     const reloadQrAuth = () => {
 
@@ -228,14 +177,6 @@ const Login = (props) => {
                         padding: '10px',
                         fontFamily: 'monospace'
                     }}>Dazzle POS <span style={{ fontSize: '50%' }}>v{process.env.REACT_APP_VERSION}</span>
-                        <br />
-                        {patchInfo.updateAvailable && <Button
-                            onClick={downloadUpdate}
-                            variant="contained"
-                            sx={{ mt: 3, mb: 2 }} >
-                            <FontAwesomeIcon icon={faDownload} style={{ marginLeft: '7px', marginRight: '7px' }} />
-                            Update to v{patchInfo.serverVersion} Available, Click to Download
-                        </Button>}
                         <br />
                         <span style={{ fontSize: '70%' }}>Today is: {new Date().toDateString()}</span>
                     </h3>

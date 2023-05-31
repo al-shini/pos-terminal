@@ -14,6 +14,7 @@ const { app, BrowserWindow, dialog } = require("electron");
 const isDev = require("electron-is-dev");
 const crypto = require('crypto');
 const net = require('net');
+const { autoUpdater } = require("electron-updater")
 
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
@@ -37,11 +38,6 @@ if (isDev) {
 } // NEW!
 
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling
-if (require("electron-squirrel-startup")) {
-    app.quit();
-} // NEW!
-
 function createWindow() {
     // Create the browser window.
     const win = new BrowserWindow({
@@ -61,21 +57,7 @@ function createWindow() {
     const params = `serverIp=${localConfig.serverIp}&deviceId=${localConfig.deviceId}`;
 
     // and load the index.html of the app.
-
-    if (localConfig.manualPath) {
-        win.loadURL(
-            isDev
-                ? `http://127.0.0.1:3000?${params}`
-                : `file://${localConfig.manualPath + "?" + params}`
-        );
-    } else {
-        win.loadURL(
-            isDev
-                ? `http://127.0.0.1:3000?${params}`
-                : `file://${path.join(node.__dirname, "../build/index.html?" + params)}`
-        );
-    }
-
+    win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
 
     win.show();
     // Open the DevTools.
@@ -385,58 +367,6 @@ expressApp.get('/printTrx', async (req, res) => {
     }
 })
 
-
-expressApp.get('/downloadUpdate', async (req, res) => {
-    try {
-
-        // clear previous downloaded files
-        for (const file of await fsPromises.readdir('C:\\pos\\release\\')) {
-            await fsPromises.unlink(path.join('C:\\pos\\release\\', file));
-        }
-
-        // create the info.txt file
-        const writeStream = fs.createWriteStream("C:\\pos\\release\\info.txt");
-        writeStream.write("Downloaded @ " + new Date());
-        writeStream.end();
-
-        downloadRelease('al-shini', 'pos-terminal', 'C:\\pos\\release\\', (release) => {
-            return release.prerelease === false;
-        }, (asset) => true, false, false)
-            .then(function (downloaded) {
-                try {
-                    res.send('Downlaod complete, installing update...');
-
-                    exec(
-                        'setup.exe', {
-                        cwd: 'C:\\pos\\release\\',
-                        windowsHide: true
-                    }, (e) => {
-                        if (e) {
-                            throw e;
-                        }
-                    });
-
-                    window.setTimeout(() => {
-                        app.quit();
-                    }, 30000)
-                } catch (ex) {
-                    dialog.showErrorBox('Update Failed', ex);
-                    res.status(500).send(ex);
-                }
-            })
-            .catch(function (err) {
-                console.error(err.message);
-                dialog.showErrorBox('Update Failed', err.message);
-                res.status(500).send('FAIL');
-            });
-    } catch (e) {
-        console.log(e);
-        dialog.showErrorBox('Error', e)
-        res.send(e);
-    }
-})
-
-
 expressApp.post('/linkTerminalWithBopVisa', async (req, res) => {
     try {
 
@@ -613,4 +543,6 @@ expressApp.post('/bopVisaSale', async (req, res) => {
 
 expressApp.listen(3001, () => {
     console.log(`Terminal app listening on port 3001`)
-}) 
+})
+
+autoUpdater.checkForUpdatesAndNotify();
