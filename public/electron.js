@@ -42,24 +42,6 @@ autoUpdater.on('error', (error) => {
     dialog.showErrorBox('Error: ', error == null ? "unknown" : (error.stack || error).toString())
 })
 
-autoUpdater.on('update-not-available', () => {
-    dialog.showMessageBox({
-        title: 'No Updates',
-        message: 'Current version is up-to-date.'
-    })
-})
-
-autoUpdater.on('update-downloaded', () => {
-    dialog.showMessageBox({
-        title: 'Install Updates',
-        message: 'Updates downloaded, application will be quit for update...'
-    }).then(() => {
-        setImmediate(() => autoUpdater.quitAndInstall())
-    })
-})
-
-
-
 function createWindow() {
     // Create the browser window.
     const win = new BrowserWindow({
