@@ -100,6 +100,7 @@ const Invoice = (props) => {
                         key={obj.key} style={{ minHeight: '50px' }}>
                         <FlexboxGrid style={{ paddingLeft: '10px' }}>
 
+                            {/* First row */}
                             <FlexboxGrid.Item colspan={3}>
                                 <Typography variant='subtitle1'>
                                     <span
@@ -114,7 +115,7 @@ const Invoice = (props) => {
                                     </span>
                                 </Typography>
                             </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={17}>
+                            <FlexboxGrid.Item colspan={16}>
                                 <span
                                     style={{
                                         textDecoration: obj.voided ? 'line-through' : '',
@@ -126,7 +127,7 @@ const Invoice = (props) => {
                                     {obj.description}
                                 </span>
                             </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={4}>
+                            <FlexboxGrid.Item colspan={5}>
                                 <Typography variant='subtitle1'>
                                     <span
                                         style={{
@@ -140,8 +141,10 @@ const Invoice = (props) => {
                                 </Typography>
                             </FlexboxGrid.Item>
 
+                            {/* Promotion row */}
+
                             <FlexboxGrid.Item colspan={3} />
-                            <FlexboxGrid.Item colspan={17}>
+                            <FlexboxGrid.Item colspan={16}>
                                 {(obj.finalprice !== obj.totalprice) &&
                                     <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '18px', top: '5px' }}>
                                         <FontAwesomeIcon icon={faTag} style={{ marginRight: '7px' }} />
@@ -149,7 +152,7 @@ const Invoice = (props) => {
                                     </span>
                                 }
                             </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={4}>
+                            <FlexboxGrid.Item colspan={5}>
                                 <Typography variant='subtitle1'>
                                     {(obj.finalprice !== obj.totalprice) &&
                                         <span
@@ -165,16 +168,17 @@ const Invoice = (props) => {
                                 </Typography>
                             </FlexboxGrid.Item>
 
+                            {/* Cashback row */}
                             <FlexboxGrid.Item colspan={3} />
-                            <FlexboxGrid.Item colspan={17}>
-                            {(obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club) &&
+                            <FlexboxGrid.Item colspan={16}>
+                                {(obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club) &&
                                     <span style={{ color: 'rgb(96 44 181)', position: 'relative', fontSize: '18px', top: '5px' }}>
                                         <FontAwesomeIcon icon={faGift} style={{ marginRight: '7px' }} />
                                         <b>كاش باك</b>
                                     </span>
                                 }
                             </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={4}>
+                            <FlexboxGrid.Item colspan={5}>
                                 <Typography variant='subtitle1'>
                                     {(obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club) &&
                                         <span

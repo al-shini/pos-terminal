@@ -49,7 +49,7 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: true,
+        fullscreen: localConfig.fullscreen ,
         webPreferences: {
             nodeIntegration: true,
             webSecurity: false
@@ -173,81 +173,6 @@ const printWithQR = (object) => {
     })
 }
 
-const printWithBarcode = (object) => {
-    let writeStream = new stream.WritableBufferStream();
-    const barcodeFileName = 'C:\\pos\\barcode.png'
-    const invoiceFileName = 'C:\\pos\\invoice.pdf'
-    const logo = 'C:\\pos\\logo.png'
-
-    const doc = new PDFDocument({
-        size: [203, 400],
-        margins: { // by default, all are 72
-            top: 5,
-            bottom: 5,
-            left: 5,
-            right: 5
-        }
-    });
-
-
-    bwipjs.toBuffer({
-        bcid: 'code128',       // Barcode type
-        text: 'SUS-' + object.nanoId,    // Text to encode
-        scale: 2,               // 3x scaling factor
-        height: 6,              // Bar height, in millimeters
-        includetext: true,            // Show human-readable text
-        textxalign: 'center',        // Always good to set this
-    })
-        .then(png => {
-            fs.writeFile(barcodeFileName, png, function (err) {
-                if (err) {
-                    dialog.showErrorBox('Error', err)
-                    return console.log(err);
-                }
-
-                doc.pipe(writeStream);
-                doc.fontSize(13);
-                let g = 80;
-
-                doc.font('C:\\pos\\VT323.ttf');
-                doc.image(logo, 55, 15 + g, { width: 100, height: 25 });
-                doc.text('SUSPENDED TRANSACTION', 55, 40 + g);
-
-                doc.image(barcodeFileName, 15, 65 + g, { width: 193, height: 50 });
-                doc.text('Total: ' + object.total + ' ILS', 15, 130 + g);
-                doc.text('Store: ' + object.store, 15, 155 + g);
-                doc.text('Cashier: ' + object.cashier, 15, 175 + g);
-                doc.text(object.date, 15, 190 + g);
-
-                doc.end()
-
-                writeStream.on('finish', () => {
-                    const base64 = writeStream.toBuffer().toString('base64')
-                    fs.writeFile(invoiceFileName, base64, 'base64', (err) => {
-                        if (err) {
-                            console.log('ERROR', err);
-                        }
-                        // print.print(invoiceFileName);
-                        exec(
-                            'ptp.exe invoice.pdf', {
-                            cwd: 'C:\\pos\\',
-                            windowsHide: true
-                        }, (e) => {
-                            if (e) {
-                                throw e;
-                            }
-                        });
-                    });
-                });
-
-            });
-            // `png` is a Buffer as in the example above
-        })
-        .catch(err => {
-            // `err` may be a string or Error object
-        });
-}
-
 const fixRsaFormat = (data) => {
     data = data.replace('-----BEGIN PUBLIC KEY-----', '');
     data = data.replace('-----END PUBLIC KEY-----', '');
@@ -328,30 +253,16 @@ expressApp.get('/printTrx', async (req, res) => {
 
                 const qrUrl = config.qrBaseUrl + '?sptr=' + trx.key + '_' + trx.nanoId;
                 let date = trx.dateAsString;
-                if (trx.status === 'SUSPENDED') {
-                    // print suspended slip
-                    printWithBarcode({
-                        nanoId: trx.nanoId,
-                        total: trx.totalafterdiscount,
-                        discount: trx.totaldiscount,
-                        paid: trx.paidamt,
-                        change: trx.customerchange,
-                        date,
-                        store: trx.branch,
-                        cashier: trx.username
-                    });
-                } else {
-                    printWithQR({
-                        qr: qrUrl,
-                        total: trx.totalafterdiscount,
-                        discount: trx.totaldiscount,
-                        paid: trx.paidamt,
-                        change: trx.customerchange,
-                        date,
-                        store: trx.branch,
-                        cashier: trx.username
-                    });
-                }
+                printWithQR({
+                    qr: qrUrl,
+                    total: trx.totalafterdiscount,
+                    discount: trx.totaldiscount,
+                    paid: trx.paidamt,
+                    change: trx.customerchange,
+                    date,
+                    store: trx.branch,
+                    cashier: trx.username
+                });
                 res.send(trx);
             }
         }).catch((error) => {
@@ -545,8 +456,18 @@ expressApp.post('/bopVisaSale', async (req, res) => {
     }
 })
 
-expressApp.listen(3001, () => {
-    console.log(`Terminal app listening on port 3001`)
+expressApp.listen(localConfig.expressPort ? localConfig.expressPort : 3001, () => {
+    console.log(`Terminal app listening on port ${localConfig.expressPort ? localConfig.expressPort : '3001'}`)
 })
 
-autoUpdater.checkForUpdatesAndNotify();
+
+const checkForUpdates = () => {
+    autoUpdater.checkForUpdatesAndNotify();
+
+    setTimeout(() => {
+        checkForUpdates();
+    }, 1000 * 60 * 60 * 60) // check for updates every 60 minutes
+}
+
+checkForUpdates();
+

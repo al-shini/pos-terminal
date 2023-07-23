@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faMoneyBillTransfer, faRepeat, faUser,
-    faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain
+    faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -14,7 +14,7 @@ import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import terminalSlice, {
     beginPayment, uploadCurrencies, abort, exitNumpadEntry, reset,
-    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer, setManagerMode, setTerminal
+    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer, setManagerMode, setTerminal, fetchSuspendedForTill
 } from '../../store/terminalSlice';
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
@@ -276,6 +276,9 @@ const Terminal = (props) => {
             }
 
         });
+
+        // load any suspended TRX for this till
+        dispatch(fetchSuspendedForTill());
     }, [])
 
     /**
@@ -498,7 +501,7 @@ const Terminal = (props) => {
             // implement BOP auto visa flow
             axios({
                 method: 'post',
-                url: 'http://127.0.0.1:3001/bopVisaSale',
+                url: `http://127.0.0.1:${config.expressPort ? config.expressPort : '3001'}/bopVisaSale`,
                 data: {
                     trxId,
                     amt,
@@ -1094,7 +1097,7 @@ const Terminal = (props) => {
                 <Button key='bopvisasetup' className={classes.ActionButton}
                     style={{ background: '#ffbf00', color: 'black', marginTop: '5px' }}
                     disabled={terminal.terminal.bopVisaIp}
-                    onClick={initTerminalWithBopVisa} > 
+                    onClick={initTerminalWithBopVisa} >
                     <div style={{ textAlign: 'center' }}>
                         <FontAwesomeIcon icon={faChain} />
                         LINK VISA
@@ -1105,7 +1108,7 @@ const Terminal = (props) => {
             tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
             tmp.push(
                 <Button key='autovisa' className={classes.ActionButton}
-                    style={{ background: '#b5ff00', color: 'black' }} 
+                    style={{ background: '#b5ff00', color: 'black' }}
                     onClick={() => {
                         autoVisaFlow();
                     }} >
@@ -1177,6 +1180,40 @@ const Terminal = (props) => {
                 </Button>
             }
         </React.Fragment >;
+    }
+
+    const buildSuspendedButtons = () => {
+        let tmp = [];
+
+        tmp.push(<h6 key={'title'} style={{ textAlign: 'center', color: 'white', marginBottom: '5px' }} >Suspended List <br /><small>Click to Resume</small></h6>);
+
+        terminal.suspendedForTill.map((obj, i) => {
+            console.log('sus', obj);
+            tmp.push(
+                <Button key={i} className={classes.ActionButton} disabled={trxSlice.trx}
+                    style={{ height: '100px !important' }}
+                    onClick={() => {
+                        dispatch(scanNewTransaction({
+                            customerKey: terminal.customer ? terminal.customer.key : null,
+                            barcode: 'SUS-' + obj.nanoId,
+                            trxKey: null,
+                            trxMode: terminal.trxMode,
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                        }))
+                        dispatch(setActionsMode('payment')) 
+                    }} >
+
+                    <div key={i + 'cbc'} style={{ textAlign: 'center', fontSize: '16px', }}>
+                        ( ₪{obj.totalafterdiscount} ) <small>Restore <FontAwesomeIcon icon={faPlay} /></small>
+                    </div>
+
+                </Button>
+            )
+            tmp.push(<div key={i + 'div'} style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>);
+        });
+        tmp.push(<div key='fsz' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+        return tmp;
     }
 
     const buildCashBackCouponButtons = () => {
@@ -1308,7 +1345,7 @@ const Terminal = (props) => {
         }
         axios({
             method: 'post',
-            url: 'http://127.0.0.1:3001/linkTerminalWithBopVisa',
+            url: `http://127.0.0.1:${config.expressPort ? config.expressPort : '3001'}/linkTerminalWithBopVisa`,
             data: {
                 terminalKey: terminal.terminal.key,
                 bopVisaIp: bopVisaIp
@@ -1581,7 +1618,10 @@ const Terminal = (props) => {
                                 actionsMode === 'operations' &&
                                 buildOperationsButtons()
                             }
-
+                            {
+                                actionsMode === 'suspended' &&
+                                buildSuspendedButtons()
+                            }
 
 
                         </FlexboxGrid.Item>
@@ -1642,9 +1682,12 @@ const Terminal = (props) => {
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton} disabled
-                            appearance='primary' color='blue'>
-                            <div> - </div>
+                        <Button className={classes.POSButton}
+                            appearance={actionsMode === 'suspended' ? 'primary' : 'default'}
+                            color='green'
+                            onClick={() => setActionsMode('suspended')} >
+                            <FontAwesomeIcon icon={faHistory} style={{ marginRight: '5px' }} />
+                            <div>Suspend History</div>
                         </Button>
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>

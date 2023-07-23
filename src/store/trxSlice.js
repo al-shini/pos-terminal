@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { showLoading, hideLoading, notify } from './uiSlice'
-import { resetCustomer, setCustomer, setManagerMode, setManagerUser, setTrxMode, triggerErrorSound } from './terminalSlice';
+import { fetchSuspendedForTill, resetCustomer, setCustomer, setManagerMode, setManagerUser, setTrxMode, triggerErrorSound } from './terminalSlice';
 import { reset } from './terminalSlice'
+import config from '../config';
 import axios from '../axios';
 
 const initialState = {
@@ -237,14 +238,14 @@ export const submitPayment = createAsyncThunk(
             if (response && response.data) {
                 console.log('response.data', response.data)
                 thunkAPI.dispatch(clearNumberInput());
-                if (response.data.closeTrx) {
+                // if (response.data.closeTrx) {
                     //thunkAPI.dispatch(closeTrxPayment({
                     //    key: response.data.trx.key
                     //}));
-                    window.setTimeout(() => {
-                        thunkAPI.dispatch(clearLastPaymentHistory());
-                    }, 6000)
-                }
+                    // window.setTimeout(() => {
+                        // thunkAPI.dispatch(clearLastPaymentHistory());
+                    // }, 6000)
+                // }
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -307,7 +308,7 @@ export const closeTrxPayment = createAsyncThunk(
                 } else {
                     axios({
                         method: 'get',
-                        url: 'http://localhost:3001/printTrx?trxKey=' + response.data.key,
+                        url: `http://localhost:${config.printServicePort ? config.printServicePort : config.expressPort ? config.expressPort : '3001'}/printTrx?trxKey=` + response.data.key,
                     }).catch((error) => {
                         console.log(error.response, error.message);
                         thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
@@ -412,13 +413,10 @@ export const suspendTrx = createAsyncThunk(
                 thunkAPI.dispatch(reset());
                 thunkAPI.dispatch(setManagerMode(false));
                 thunkAPI.dispatch(setManagerUser(null));
-                axios({
-                    method: 'get',
-                    url: 'http://127.0.0.1:3001/printTrx?trxKey=' + response.data.key,
-                }).catch((error) => {
-                    console.log(error.response, error.message);
-                    thunkAPI.dispatch(notify({ msg: 'could not print suspend receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
-                });
+
+                thunkAPI.dispatch(setManagerUser(null));
+                thunkAPI.dispatch(fetchSuspendedForTill());
+
 
                 return thunkAPI.fulfillWithValue(response.data);
             } else {

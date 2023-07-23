@@ -9,7 +9,7 @@
             amt,
             curr
         },
-        url: 'http://127.0.0.1:3001/visaPurchaseCommand'
+        url: `http://127.0.0.1:${config.expressPort ? config.expressPort : '3001'}/visaPurchaseCommand`
     }).then((response) => {
         try {
             let makePayment = false;

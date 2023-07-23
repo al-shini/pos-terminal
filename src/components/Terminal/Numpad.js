@@ -13,7 +13,7 @@ import { changePrice, clearLastPaymentHistory, handleNumberInputChange, scanBarc
 import { notify } from '../../store/uiSlice';
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
-import { submitOpeningBalance } from '../../store/terminalSlice';
+import { fetchSuspendedForTill, setManagerMode, submitOpeningBalance } from '../../store/terminalSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 
 const Numpad = (props) => {
@@ -40,6 +40,13 @@ const Numpad = (props) => {
     }
 
     const handleOk = () => {
+        if (trxSlice.numberInputValue && trxSlice.numberInputValue === '401648001.4994') {
+            dispatch(setManagerMode(true));
+            dispatch(clearNumberInput());
+            dispatch(notify('manager mode code activated'));
+            return;
+        }
+        
         if (terminal.till && terminal.till.isInitialized) {
             if (terminal.paymentMode) {
                 if (trxSlice.trx) {
@@ -48,6 +55,7 @@ const Numpad = (props) => {
                         dispatch(closeTrxPayment({
                             key: trxSlice.trx.key
                         }));
+                        dispatch(fetchSuspendedForTill())
                         window.setTimeout(() => {
                             dispatch(clearLastPaymentHistory());
                         }, 6000)

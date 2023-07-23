@@ -12,6 +12,7 @@ const initialState = {
     customer: null,
     token: null,
     till: {},
+    suspendedForTill: [],
     fastItemGroups: [],
     selectedFastItemGroup: [],
     fastItems: [],
@@ -136,6 +137,42 @@ export const login = createAsyncThunk(
         });
     }
 )
+
+export const fetchSuspendedForTill = createAsyncThunk(
+    'fetchSuspendedForTill',
+    async (payload, thunkAPI) => {
+
+        return axios({
+            method: 'post',
+            url: '/trx/fetchSuspendedForTill',
+            headers: {
+                tillKey: thunkAPI.getState().terminal.till.key
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                }
+                else {
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
+            }
+        });
+    }
+)
+
+
 
 export const lockTill = createAsyncThunk(
     'lockTill',
@@ -426,6 +463,15 @@ export const terminalSlice = createSlice({
             state.display = 'none';
             localStorage.removeItem('jwt');
             localStorage.removeItem('refresh');
+        })
+
+        /* fetchSuspendedForTill thunk */
+        builder.addCase(fetchSuspendedForTill.fulfilled, (state, action) => {
+            state.suspendedForTill = action.payload 
+        })
+
+        builder.addCase(fetchSuspendedForTill.rejected, (state, action) => {
+
         })
 
         /* submitOpeningBalance thunk */
