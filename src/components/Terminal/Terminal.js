@@ -497,6 +497,9 @@ const Terminal = (props) => {
 
             let trxId = trxSlice.trx.nanoId.replace('-', '');
             dispatch(showLoading());
+            window.setTimeout(() => {
+                dispatch(hideLoading()); // this will automatically hide loading if no response came from VISA after 17 seconds
+            }, 17000)
 
             // implement BOP auto visa flow
             axios({
@@ -1201,7 +1204,7 @@ const Terminal = (props) => {
                             tillKey: terminal.till ? terminal.till.key : null,
                             multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
                         }))
-                        dispatch(setActionsMode('payment')) 
+                        dispatch(setActionsMode('payment'))
                     }} >
 
                     <div key={i + 'cbc'} style={{ textAlign: 'center', fontSize: '16px', }}>

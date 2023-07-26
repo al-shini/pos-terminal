@@ -10,12 +10,12 @@ const { exec } = require("child_process");
 const stream = require('./stream');
 const qr = require('qrcode');
 const bwipjs = require('bwip-js');
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, screen } = require("electron");
 const isDev = require("electron-is-dev");
 const crypto = require('crypto');
 const net = require('net');
 const { autoUpdater } = require("electron-updater")
-
+const { print } = require("pdf-to-printer");
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
@@ -38,9 +38,7 @@ if (isDev) {
 } // NEW!
 
 
-autoUpdater.on('error', (error) => {
-    dialog.showErrorBox('Error: ', error == null ? "unknown" : (error.stack || error).toString())
-})
+let updateInterval = null;
 
 function createWindow() {
     // Create the browser window.
@@ -49,10 +47,9 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: localConfig.fullscreen ,
+        fullscreen: true,
         webPreferences: {
-            nodeIntegration: true,
-            webSecurity: false
+            nodeIntegration: true
         }
     });
 
@@ -69,12 +66,76 @@ function createWindow() {
         win.webContents.openDevTools({ mode: "detach" });
     }
 
+
+    // customer screen options 
+
+    if (localConfig.showCustomerScreen) {
+        const displays = screen.getAllDisplays()
+        const externalDisplay = displays.find((display) => {
+            return display.bounds.x !== 0 || display.bounds.y !== 0
+        })
+
+        let x = 0;
+        let y = 0;
+        if (externalDisplay) {
+            x = externalDisplay.bounds.x + 50;
+            y = externalDisplay.bounds.y + 50;
+        }
+
+        const customerScreen = new BrowserWindow({
+            width: 1024,
+            height: 768,
+            x,
+            y,
+            title: 'Customer Display',
+            resizable: true,
+            show: true,
+            fullscreen: true,
+            webPreferences: {
+                nodeIntegration: true
+            }
+        });
+
+        customerScreen.setMenu(null);
+
+        // and load the index.html of the app.
+        customerScreen.loadURL(isDev ? `http://localhost:3000/#/customer?${params}` : `file://${__dirname}/../build/index.html#/customer?${params}`);
+
+        customerScreen.show();
+    }
+
 }
+
+autoUpdater.on('error', (error) => {
+    dialog.showErrorBox('Error while checking for updates: ', error == null ? "unknown" : (error.stack || error).toString())
+})
+
+autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
+    const dialogOpts = {
+        type: 'info',
+        buttons: ['Restart', 'Later'],
+        title: 'Application Update',
+        message: process.platform === 'win32' ? releaseNotes : releaseName,
+        detail: 'A new version has been downloaded. Restart the application to apply the updates.'
+    };
+    dialog.showMessageBox(dialogOpts).then((returnValue) => {
+        if (returnValue.response === 0) autoUpdater.quitAndInstall()
+    });
+});
+
+
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(createWindow);
+
+app.whenReady().then(() => {
+    createWindow();
+
+    updateInterval = setInterval(() => autoUpdater.checkForUpdates(), 600000); // every 10 minute
+});
+
+
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -141,7 +202,7 @@ const printWithQR = (object) => {
         doc.text('Discount: ' + object.discount + ' ILS', 15, 65 + g);
         doc.text('Paid: ' + object.paid + ' ILS', 15, 80 + g);
         doc.text('Change: ' + object.change + ' ILS', 15, 95 + g);
-        doc.text('Paid By: CASH', 15, 110 + g);
+        doc.text('Type: ' + object.type, 15, 110 + g);
 
         doc.fontSize(13)
         doc.text('Store: ' + object.store, 15, 140 + g);
@@ -156,17 +217,20 @@ const printWithQR = (object) => {
                 if (err) {
                     console.log('ERROR', err);
                 }
-                // print.print(invoiceFileName);
                 console.log('printing...............................');
-                exec(
-                    'ptp.exe invoice.pdf', {
-                    cwd: 'C:\\pos\\',
-                    windowsHide: true
-                }, (e) => {
-                    if (e) {
-                        throw e;
-                    }
-                });
+                if (localConfig.printMethod && localConfig.printMethod === 'default') {
+                    print('C:\\pos\\invoice.pdf', {});
+                } else if (!localConfig.printMethod || localConfig.printMethod === 'ptp') {
+                    exec(
+                        'ptp.exe invoice.pdf', {
+                        cwd: 'C:\\pos\\',
+                        windowsHide: true
+                    }, (e) => {
+                        if (e) {
+                            throw e;
+                        }
+                    });
+                }
             });
         });
 
@@ -261,8 +325,21 @@ expressApp.get('/printTrx', async (req, res) => {
                     change: trx.customerchange,
                     date,
                     store: trx.branch,
-                    cashier: trx.username
+                    cashier: trx.username,
+                    type: trx.type
                 });
+
+                if (trx.campaignList) {
+                    // custom campaign, remove when over
+                    if (trx.totalafterdiscount >= 200) {
+                        let howManyTimes = Math.floor(trx.totalafterdiscount / 200);
+                        for (let i = 0; i < howManyTimes; i++) {
+                            print('C:\\slip.pdf', {});
+                        }
+                    }
+                }
+
+
                 res.send(trx);
             }
         }).catch((error) => {
@@ -302,11 +379,11 @@ expressApp.post('/linkTerminalWithBopVisa', async (req, res) => {
             }
         });
         // create the private.key file
-        const privateKeyStream = fs.createWriteStream("C:\\pos\\release\\private.key");
+        const privateKeyStream = fs.createWriteStream("C:\\pos\\private.key");
         privateKeyStream.write(privateKey);
         privateKeyStream.end();
         // create the public.key file
-        const publicKeyStream = fs.createWriteStream("C:\\pos\\release\\public.key");
+        const publicKeyStream = fs.createWriteStream("C:\\pos\\public.key");
         publicKeyStream.write(publicKey);
         publicKeyStream.end();
 
@@ -456,18 +533,8 @@ expressApp.post('/bopVisaSale', async (req, res) => {
     }
 })
 
+
+// RUN express app
 expressApp.listen(localConfig.expressPort ? localConfig.expressPort : 3001, () => {
     console.log(`Terminal app listening on port ${localConfig.expressPort ? localConfig.expressPort : '3001'}`)
 })
-
-
-const checkForUpdates = () => {
-    autoUpdater.checkForUpdatesAndNotify();
-
-    setTimeout(() => {
-        checkForUpdates();
-    }, 1000 * 60 * 60 * 60) // check for updates every 60 minutes
-}
-
-checkForUpdates();
-

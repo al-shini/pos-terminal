@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux'
 
 import Login from './components/Login/Login';
 import Terminal from './components/Terminal/Terminal';
+import CustomerDisplay from './components/Terminal/CustomerDisplay';
 import Dashboard from "./components/Dashboard/Dashboard";
 
 
@@ -30,6 +31,7 @@ const App = () => {
         <Route path="app" element={<Dashboard />} >
           <Route path="" element={<Terminal />} />
         </Route>
+        <Route path="customer" element={<CustomerDisplay />} />
       </Routes>
     </HashRouter>
   );
