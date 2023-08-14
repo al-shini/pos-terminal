@@ -497,10 +497,6 @@ const Terminal = (props) => {
 
             let trxId = trxSlice.trx.nanoId.replace('-', '');
             dispatch(showLoading());
-            window.setTimeout(() => {
-                dispatch(hideLoading()); // this will automatically hide loading if no response came from VISA after 17 seconds
-            }, 17000)
-
             // implement BOP auto visa flow
             axios({
                 method: 'post',
@@ -527,22 +523,22 @@ const Terminal = (props) => {
                             amount: transactionAmount,
                             sourceKey: 'AUTO VISA',
                             visaPayment: {
-                                amt: visaResponse.sale.amt,
-                                curr: visaResponse.sale.cur,
-                                pan: visaResponse.card.pan,
+                                amt: visaResponse.sale ? visaResponse.sale.amt : visaResponse.amt,
+                                curr: visaResponse.sale ? visaResponse.sale.cur : visaResponse.cur,
+                                pan: visaResponse.card ? visaResponse.card.pan : null,
                                 respCode: visaResponse.resp_code,
                                 authCode: visaResponse.auth_code,
                                 fullResponseJson: JSON.stringify(visaResponse)
                             }
                         }))
                     } else {
-                        dispatch(notify({ msg: '[ERROR] ' + visaResponse.error_msg, sev: 'error' }));
+                        dispatch(notify({ msg: visaResponse.error_msg, sev: 'error' }));
                     }
                 }
                 dispatch(hideLoading());
             }).catch((error) => {
                 console.log(error, error.response, error.message);
-                dispatch(notify({ msg: 'could not make payment to visa - ' + (error.response ? error.response : error.message), sev: 'error' }));
+                dispatch(notify({ msg: error.response ? error.response : error.message, sev: 'error' }));
                 dispatch(hideLoading());
             });
 
@@ -1346,6 +1342,8 @@ const Terminal = (props) => {
             dispatch(notify({ msg: 'No BOP Visa IP specified', sev: 'error' }));
             return;
         }
+
+        dispatch(showLoading());
         axios({
             method: 'post',
             url: `http://127.0.0.1:${config.expressPort ? config.expressPort : '3001'}/linkTerminalWithBopVisa`,
@@ -1354,14 +1352,15 @@ const Terminal = (props) => {
                 bopVisaIp: bopVisaIp
             }
         }).then((response) => {
-            if (response && response.data) {
+            console.log(response);
+            if (response && response.data && response.status !== 500) {
                 dispatch(setTerminal(response.data));
                 dispatch(notify({ msg: 'BOP Visa Linked' }))
             }
             dispatch(hideLoading());
         }).catch((error) => {
             console.log(error.response, error.message);
-            dispatch(notify({ msg: 'could not update - ' + (error.response ? error.response : error.message), sev: 'error' }));
+            dispatch(notify({ msg: 'could not link visa ', sev: 'error' }));
             dispatch(hideLoading());
         });
     }

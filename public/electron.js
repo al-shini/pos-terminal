@@ -434,12 +434,13 @@ expressApp.post('/linkTerminalWithBopVisa', async (req, res) => {
                     } else {
                         dialog.showErrorBox('Error', error.message)
                     }
-                    res.send('error');
+                    res.status(500).send({ error: error.message })
                 });
 
 
             } else {
-                throw new Error('invalid init response structure')
+                dialog.showErrorBox('Invalid Response', JSON.stringify(initResponse))
+                res.status(500).send({ error: 'Invalid Response from VISA' })
             }
         });
         /* end call back events for visa socket */
@@ -500,9 +501,15 @@ expressApp.post('/bopVisaSale', async (req, res) => {
         });
 
         client.on('close', function (response) {
-            const saleResponse = JSON.parse(decryptObject(received.substring(ReqRespPrefixLen), terminal.localPrivateRsa));
-            // console.log(saleResponse);
-            res.send(saleResponse);
+            try {
+                const saleResponse = JSON.parse(decryptObject(received.substring(ReqRespPrefixLen), terminal.localPrivateRsa));
+                console.log(saleResponse);
+                res.send(saleResponse);
+            } catch (ex) {
+                dialog.showErrorBox('Error Decrypting Response', JSON.stringify(received))
+                res.status(500).send({ error: 'Invalid Response from VISA' })
+            }
+
         });
         /* end call back events for visa socket */
 
