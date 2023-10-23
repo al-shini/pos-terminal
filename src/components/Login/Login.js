@@ -75,6 +75,11 @@ const Login = (props) => {
         }
     }, [loginQR]);
 
+    const handleQRClick = async () => {
+        const response = await reloadQrAuth();
+        setLoginQR(response);
+    }
+
     const reloadQrAuth = async () => {
         try {
             const response = await axios({
@@ -108,7 +113,7 @@ const Login = (props) => {
             ...cred
         };
         tmpCred[entry] = '';
-        setCred(tmpCred); 
+        setCred(tmpCred);
     }
 
 
@@ -158,7 +163,7 @@ const Login = (props) => {
                     </h3>
 
                     <div style={{ textAlign: 'center', margin: '15px' }}>
-                        <QRCode onClick={reloadQrAuth} value={JSON.stringify(loginQR)} size={180} />
+                        <QRCode onClick={handleQRClick} value={JSON.stringify(loginQR)} size={180} />
                         <br />
                         <small style={{ color: 'grey', fontSize: '60%' }}>Device ID: {config.deviceId} @ {config.serverIp}</small>
                     </div>

@@ -11,6 +11,7 @@ import { Slide } from 'react-slideshow-image';
 import 'react-slideshow-image/dist/styles.css'
 
 import Logo from '../../assets/full-logo.png';
+import Lock from '../../assets/lock.png';
 
 
 
