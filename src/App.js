@@ -23,7 +23,8 @@ const App = () => {
         sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
         open={uiSlice.loading}
       >
-        <CircularProgress color="inherit" />
+        {uiSlice.loadingMessage && <h5>{uiSlice.loadingMessage} </h5>}
+        <CircularProgress style={{position: 'relative', left:'10px'}} color="inherit" />
       </Backdrop>
 
       <Routes>

@@ -29,7 +29,8 @@ const initialState = {
     blockActions: false,
     errorSound: false,
     managerMode: false,
-    managerUser: null,
+    managerUser: '',
+    _managerUser: '',
     actionState: 'free'
 }
 
@@ -419,9 +420,6 @@ export const terminalSlice = createSlice({
         },
         setManagerMode: (state, action) => {
             state.managerMode = action.payload
-            if (!action.payload) {
-                state.managerUser = null;
-            }
         },
         setManagerUser: (state, action) => {
             state.managerUser = action.payload
@@ -431,6 +429,29 @@ export const terminalSlice = createSlice({
         },
         freeState: (state) => {
             state.actionState = 'free'
+        },
+        verifyManagerMode: (state, action) => {
+            if (state.managerUser) {
+                if (state.managerUser === 'LC-2615789638091900') {
+                    // abu al sadeq
+                    state.managerMode = true;
+                } else if (state.managerUser === 'LC-2055567876404300') {
+                    // abu al dali
+                    state.managerMode = true;
+                }
+                else if (state.managerUser === 'LC-2512523084781551') {
+                    // baraa
+                    state.managerMode = true;
+                } else if (state.managerUser === 'LC-599798731255400') {
+                    // al-atrash
+                    state.managerMode = true;
+                } else if (state.managerUser === 'Noteasy1@all') {
+                    // manual admin
+                    state.managerMode = true;
+                }
+                state._managerUser = '' + state.managerUser;
+                state.managerUser = '';
+            }
         }
     },
     extraReducers: (builder) => {
@@ -467,7 +488,7 @@ export const terminalSlice = createSlice({
 
         /* fetchSuspendedForTill thunk */
         builder.addCase(fetchSuspendedForTill.fulfilled, (state, action) => {
-            state.suspendedForTill = action.payload 
+            state.suspendedForTill = action.payload
         })
 
         builder.addCase(fetchSuspendedForTill.rejected, (state, action) => {
@@ -527,6 +548,6 @@ export const terminalSlice = createSlice({
 
 
 export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode, blockActions, unblockActions, setCustomer, setStoreCustomer, resetCustomer,
-    uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems,
+    uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems, verifyManagerMode,
     uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound, setManagerMode, setManagerUser, lockState, freeState, setTerminal } = terminalSlice.actions
 export default terminalSlice.reducer

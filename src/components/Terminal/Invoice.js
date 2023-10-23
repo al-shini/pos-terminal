@@ -3,13 +3,14 @@ import { useDispatch, useSelector } from 'react-redux'
 import { FlexboxGrid, List, IconButton, Divider } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faGift, faFaceSmileBeam, faTag } from '@fortawesome/free-solid-svg-icons'
+import { faChevronDown, faChevronUp, faGift, faFaceSmileBeam, faTag, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons'
 import Typography from '@mui/material/Typography';
 import BarcodeReader from 'react-barcode-reader';
 import { scanBarcode, scanNewTransaction } from '../../store/trxSlice';
 
 import { selectLine } from '../../store/trxSlice';
 import terminalSlice from '../../store/terminalSlice';
+import BARCODE_SCAN from '../../assets/barcode-scan.gif';
 
 const Invoice = (props) => {
 
@@ -83,6 +84,12 @@ const Invoice = (props) => {
                 onScan={handleScan}
             />}
 
+            {!trxSlice.trx && terminal.till.status !== 'L' &&
+                <div style={{ position: 'absolute', top: '15%', left: '15%',  height: '50%', }}>
+                    <img src={BARCODE_SCAN}  width='80%'/>
+                </div>
+            }
+
             <div style={{ background: '#303030', color: 'white', height: '5vh', width: '110%', right: '10px', position: 'relative' }}>
                 <h4 id='trxModeHeader' style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
                     {terminal.trxMode === 'Sale' && <span>{terminal.trxMode}</span>}
@@ -146,9 +153,15 @@ const Invoice = (props) => {
                             <FlexboxGrid.Item colspan={3} />
                             <FlexboxGrid.Item colspan={16}>
                                 {(obj.finalprice !== obj.totalprice) &&
-                                    <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '18px', top: '5px' }}>
+                                    <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '18px', top: '5px', display: 'inline-block' }}>
                                         <FontAwesomeIcon icon={faTag} style={{ marginRight: '7px' }} />
                                         <b>عرض</b>
+                                    </span>
+                                }
+                                {(obj.finalprice !== obj.totalprice) && obj.priceOverride &&
+                                    <span style={{ color: '#fa8900', position: 'relative', fontSize: '18px', top: '5px', display: 'inline-block' }}>
+                                        <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginLeft: '12px', marginRight: '7px' }} />
+                                        <b>خصم يدوي</b>
                                     </span>
                                 }
                             </FlexboxGrid.Item>

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import { Outlet, useNavigate } from "react-router-dom";
-import { notify } from '../../store/uiSlice';
+import { hideLoading, notify, showLoading } from '../../store/uiSlice';
 import { seemlessLogin, unblockActions, blockActions, setStoreCustomer, setCustomer, setTrxMode } from '../../store/terminalSlice';
 import axios from '../../axios';
 import config from '../../config';
@@ -43,7 +43,7 @@ const Dashboard = (props) => {
                 }
             });
         } else {
-        console.log('authentication valid');
+            console.log('authentication valid');
             if (!terminal.storeCustomer) {
                 updateCustomer({ ...terminal });
             }
@@ -70,6 +70,7 @@ const Dashboard = (props) => {
 
     const checkOpenTrx = (till, storeCustomer) => {
         console.log('checkOpenTrx...');
+        dispatch(showLoading('Checking for open transactions'));
         return axios({
             method: 'post',
             url: '/trx/checkOpenTrx',
@@ -88,6 +89,7 @@ const Dashboard = (props) => {
                     dispatch(setCustomer(storeCustomer))
                 }
             }
+            dispatch(hideLoading());
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
@@ -96,7 +98,7 @@ const Dashboard = (props) => {
             } else {
                 dispatch(notify({ msg: error.message, sev: 'error' }));
             }
-
+            dispatch(hideLoading());
         });
     }
 

@@ -23,7 +23,8 @@ const initialState = {
     qrAuthState: 'idle', //idle, pending
     lastTrxPayment: null,
     cashBackCoupons: [],
-    usedCoupons: {}
+    usedCoupons: {},
+    priceChangeReason: '' 
 
 }
 
@@ -361,7 +362,7 @@ export const voidTrx = createAsyncThunk(
         }).then((response) => {
             if (response && response.data) {
 
-                thunkAPI.dispatch(notify({ msg: 'Transaction ' + response.data.key + ' voided', sev: 'info' }));
+                thunkAPI.dispatch(notify({ msg: 'TRX ' + response.data.nanoId + ' voided', sev: 'info' }));
                 thunkAPI.dispatch(resetCustomer());
                 thunkAPI.dispatch(reset());
                 thunkAPI.dispatch(setManagerMode(false));
@@ -408,7 +409,7 @@ export const suspendTrx = createAsyncThunk(
         }).then((response) => {
             if (response && response.data) {
 
-                thunkAPI.dispatch(notify({ msg: 'Transaction ' + response.data.key + ' suspended', sev: 'info' }));
+                thunkAPI.dispatch(notify({ msg: 'TRX ' + response.data.nanoId + ' suspended', sev: 'info' }));
                 thunkAPI.dispatch(resetCustomer());
                 thunkAPI.dispatch(reset());
                 thunkAPI.dispatch(setManagerMode(false));
@@ -543,13 +544,15 @@ export const changePrice = createAsyncThunk(
             url: '/trx/linePriceChange',
             headers: {
                 lineKey: thunkAPI.getState().trx.selectedLine ? thunkAPI.getState().trx.selectedLine.key : null,
-                newPrice: thunkAPI.getState().trx.numberInputValue ? parseFloat(thunkAPI.getState().trx.numberInputValue) : 0.0
+                newPrice: thunkAPI.getState().trx.numberInputValue ? parseFloat(thunkAPI.getState().trx.numberInputValue) : 0.0,
+                reason: thunkAPI.getState().trx.priceChangeReason ? thunkAPI.getState().trx.priceChangeReason : '',
             }
         }).then((response) => {
             if (response && response.data) {
                 thunkAPI.dispatch(notify({ msg: 'Line Price Changed', sev: 'info' }));
                 // thunkAPI.dispatch(reset());
                 thunkAPI.dispatch(clearNumberInput());
+                thunkAPI.dispatch(clearPriceChangeReason());
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -690,7 +693,10 @@ export const trxSlice = createSlice({
         },
         clearNumberInput: (state) => {
             state.numberInputValue = '';
-            state.multiplier = '1'
+            state.multiplier = '1';
+        },
+        clearPriceChangeReason: (state) => {
+            state.priceChangeReason= ''
         },
         prepareScanMultiplier: (state) => {
             if (!state.numberInputValue || state.numberInputValue === '')
@@ -788,7 +794,10 @@ export const trxSlice = createSlice({
         },
         setUsedCoupons: (state, action) => {
             state.usedCoupons = action.payload
-        }
+        },
+        setPriceChangeReason: (state, action) => {
+            state.priceChangeReason = action.payload
+        },
     },
     extraReducers: (builder) => {
 
@@ -980,6 +989,6 @@ export const trxSlice = createSlice({
 
 export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx, enablePriceChange, disablePriceChange, scroll,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory,
-    uploadCashBackCoupons, setUsedCoupons
+    uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason
 } = trxSlice.actions
 export default trxSlice.reducer

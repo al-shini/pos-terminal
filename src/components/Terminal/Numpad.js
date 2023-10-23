@@ -9,7 +9,7 @@ import {
 import styles from './Numpad.module.css';
 import classes from './Terminal.module.css';
 
-import { changePrice, clearLastPaymentHistory, handleNumberInputChange, scanBarcode, scanNewTransaction, submitPayment } from '../../store/trxSlice';
+import { changePrice, clearLastPaymentHistory, handleNumberInputChange, scanBarcode, scanNewTransaction, selectCurrency, submitPayment } from '../../store/trxSlice';
 import { notify } from '../../store/uiSlice';
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
@@ -40,13 +40,6 @@ const Numpad = (props) => {
     }
 
     const handleOk = () => {
-        if (trxSlice.numberInputValue && trxSlice.numberInputValue === '401648001.4994') {
-            dispatch(setManagerMode(true));
-            dispatch(clearNumberInput());
-            dispatch(notify('manager mode code activated'));
-            return;
-        }
-        
         if (terminal.till && terminal.till.isInitialized) {
             if (terminal.paymentMode) {
                 if (trxSlice.trx) {
@@ -66,12 +59,9 @@ const Numpad = (props) => {
 
                 if (terminal.paymentInput === 'numpad') {
                     if (!trxSlice.selectedCurrency) {
-                        dispatch(notify({
-                            msg: 'Please select currency',
-                            sev: 'error'
-                        }))
-                        return;
+                        dispatch(selectCurrency('NIS'))
                     }
+                    
                     if (!trxSlice.numberInputValue) {
                         dispatch(notify({
                             msg: 'Please specify valid amount',
@@ -84,7 +74,7 @@ const Numpad = (props) => {
                         tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                         paymentMethodKey: trxSlice.selectedPaymentMethod,
-                        currency: trxSlice.selectedCurrency,
+                        currency: trxSlice.selectedCurrency ? trxSlice.selectedCurrency : 'NIS',
                         amount: trxSlice.numberInputValue,
                         sourceKey: '',
                         visaPayment: null

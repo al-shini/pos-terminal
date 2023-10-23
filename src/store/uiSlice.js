@@ -1,10 +1,11 @@
 import { createSlice, createAsyncThunk, createReducer } from '@reduxjs/toolkit'
-
+ 
 const initialState = {
     loading: false,
-    toastMsg: 'إبتسم للزبون ☺',
+    toastMsg: 'Smile to the customer ☺',
     toastType: 'info',
-    toastOpen: false
+    toastOpen: false,
+    loadingMessage: 'Loading, please wait'
 }
 
 /**
@@ -29,11 +30,15 @@ export const uiSlice = createSlice({
     name: 'ui',
     initialState,
     reducers: {
-        showLoading: (state) => {
+        showLoading: (state, action) => {
             state.loading = true;
+            if (action.payload)
+                state.loadingMessage = action.payload;
+
         },
         hideLoading: (state) => {
             state.loading = false;
+            state.loadingMessage = 'Loading, please wait';
         },
         showToast: (state, action) => {
             state.toastMsg = action.payload.msg ? action.payload.msg : action.payload;
@@ -42,7 +47,7 @@ export const uiSlice = createSlice({
         },
         hideToast: (state) => {
             state.toastOpen = false;
-            state.toastMsg = 'إبتسم للزبون ☺';
+            state.toastMsg = 'Smile to the customer ☺';
             state.toastType = 'info';
         }
     }

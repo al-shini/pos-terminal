@@ -16,18 +16,11 @@ import { login, checkLoginQrAuth } from '../../store/terminalSlice';
 import { hideLoading, notify, showLoading } from '../../store/uiSlice';
 import config from '../../config';
 import axios from '../../axios'
-import Keyboard from 'react-simple-keyboard';
-import 'react-simple-keyboard/build/css/index.css';
-import Draggable from 'react-draggable'; 
+
 
 const Login = (props) => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
-
-    const [keyboardMode, setKeyboardMode] = useState(false);
-    const [keyboardEntry, setKeyboardEntry] = useState('username');
-    const keyboard = useRef();
-
 
     const terminalSlice = useSelector((state) => state.terminal);
     const uiSlice = useSelector((state) => state.ui);
@@ -47,8 +40,28 @@ const Login = (props) => {
     };
 
     useEffect(() => {
-        reloadQrAuth();
+        let isMounted = true;
+
+        const fetchData = async () => {
+            try {
+                const response = await reloadQrAuth();
+                if (isMounted) {
+                    // Only update state if the component is still mounted.
+                    setLoginQR(response);
+                }
+            } catch (error) {
+                // Handle errors if necessary
+            }
+        };
+
+        fetchData();
+
+        return () => {
+            // This cleanup function will run when the component unmounts.
+            isMounted = false;
+        };
     }, []);
+
 
     useEffect(() => {
         if (terminalSlice.authenticated) {
@@ -62,56 +75,40 @@ const Login = (props) => {
         }
     }, [loginQR]);
 
-    const reloadQrAuth = () => {
+    const reloadQrAuth = async () => {
+        try {
+            const response = await axios({
+                method: 'post',
+                url: '/utilities/generateQR',
+                data: {
+                    hardwareId: config.deviceId,
+                    source: 'Login'
+                }
+            });
 
-        axios({
-            method: 'post',
-            url: '/utilities/generateQR',
-            data: {
-                hardwareId: config.deviceId,
-                source: 'Login'
-            }
-        }).then((response) => {
             if (response && response.data) {
-                setLoginQR(response.data)
+                return response.data;
             } else {
-                dispatch(notify({ msg: 'Incorrect Login QR response', sev: 'error' }))
+                dispatch(notify({ msg: 'Incorrect Login QR response', sev: 'error' }));
             }
-
-        }).catch((error) => {
+        } catch (error) {
             if (error.response) {
                 if (error.response.status === 401) {
-                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }));
                 }
             } else {
                 dispatch(notify({ msg: error.message, sev: 'error' }));
             }
+        }
+    };
 
-        });
-    }
-
-    const onChange = (input) => {
-        let tmpCred = {
-            ...cred
-        };
-        tmpCred[keyboardEntry] = input;
-        setCred(tmpCred);
-    }
 
     const handleFocus = (entry) => {
-        if (!keyboardMode) {
-            setKeyboardMode(true)
-        }
-
         let tmpCred = {
             ...cred
         };
         tmpCred[entry] = '';
-        setCred(tmpCred);
-
-        setKeyboardEntry(entry);
-        console.log(keyboard);
-        // keyboard.current.clearInput();
+        setCred(tmpCred); 
     }
 
 
@@ -124,34 +121,6 @@ const Login = (props) => {
                     {uiSlice.toastMsg}
                 </Alert>
             </Snackbar>
-
-            {keyboardMode &&
-                <Draggable
-                    handle=".handle"
-                    defaultPosition={{ x: 0, y: 0 }}
-                    position={null}
-                    grid={[25, 25]}
-                    scale={1} >
-                    <div style={{
-                        position: 'fixed',
-                        width: '60vw',
-                        zIndex: '1000',
-                        padding: '10px',
-                        background: 'white',
-                        border: '1px solid black',
-                        boxShadow: '#3a3a3a 0px 0px 10px 10px;'
-                    }}>
-                        <h3 className='handle' style={{ float: 'left' }} >
-                            <span>On Screen Keyboard</span>
-                        </h3>
-                        <a href='#' onClick={() => setKeyboardMode(false)} style={{ float: 'right', cursor: 'pointer', zIndex: '1001' }}>
-                            <b>X</b>
-                        </a>
-                        <Keyboard keyboardRef={r => (keyboard.current = r)}
-                            onChange={onChange} />
-                    </div>
-                </Draggable>
-            }
 
             <Grid container component="main" sx={{ height: '100vh' }}>
                 <CssBaseline />
@@ -216,6 +185,7 @@ const Login = (props) => {
                                 id="username"
                                 label="Username"
                                 value={cred.username}
+                                autoComplete="username"
                                 onChange={(e) => setCred({ ...cred, username: e.target.value })}
                             />
                             <TextField
@@ -228,6 +198,7 @@ const Login = (props) => {
                                 onChange={(e) => setCred({ ...cred, password: e.target.value })}
                                 label="Password"
                                 type="password"
+                                autoComplete="current-password"
                                 id="password"
                             />
 

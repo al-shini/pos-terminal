@@ -315,7 +315,9 @@ expressApp.get('/printTrx', async (req, res) => {
 
                 const trx = response.data;
 
-                const qrUrl = config.qrBaseUrl + '?sptr=' + trx.key + '_' + trx.nanoId;
+                // const qrUrl = config.qrBaseUrl + '?sptr=' + trx.key + '_' + trx.nanoId;
+                const qrUrl = 'https://plus.shini.ps/invoice?sptr=' + trx.key + '_' + trx.nanoId;
+
                 let date = trx.dateAsString;
                 printWithQR({
                     qr: qrUrl,
@@ -395,7 +397,7 @@ expressApp.post('/linkTerminalWithBopVisa', async (req, res) => {
 
         client.connect(7800, bopVisaIp);
         client.setEncoding('utf8');
-        client.setTimeout(180 * 1000); // timeout must be greater than terminal timeout
+        client.setTimeout(80 * 1000); // timeout must be greater than terminal timeout
 
         /* begin call back events for visa socket */
         client.on('data', function (response) {
