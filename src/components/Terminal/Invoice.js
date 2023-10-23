@@ -84,12 +84,6 @@ const Invoice = (props) => {
                 onScan={handleScan}
             />}
 
-            {!trxSlice.trx && terminal.till.status !== 'L' &&
-                <div style={{ position: 'absolute', top: '15%', left: '15%',  height: '50%', }}>
-                    <img src={BARCODE_SCAN}  width='80%'/>
-                </div>
-            }
-
             <div style={{ background: '#303030', color: 'white', height: '5vh', width: '110%', right: '10px', position: 'relative' }}>
                 <h4 id='trxModeHeader' style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
                     {terminal.trxMode === 'Sale' && <span>{terminal.trxMode}</span>}

@@ -54,10 +54,7 @@ const Terminal = (props) => {
                         zIndex: '999',
                         backgroundColor: 'rgba(0,0,0,0.6)', height: '100%', width: '100%', top: '0%', left: '0%'
                     }}>
-                        <h1 style={{ textAlign: 'center', color: 'white', margin: '15%' }}>
-                            <FontAwesomeIcon icon={faLock} style={{ marginRight: '8px' }} />
-                            TERMINAL LOCKED
-                        </h1>
+                        <img src={Lock} style={{margin: 'auto', display: 'block', top: '10%', position: 'relative'}} width='50%' />
                     </div>
                 }
             </FlexboxGrid.Item>
