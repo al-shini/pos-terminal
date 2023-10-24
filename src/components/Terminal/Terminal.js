@@ -1490,7 +1490,7 @@ const Terminal = (props) => {
                         zIndex: '999',
                         backgroundColor: 'rgba(0,0,0,0.6)', height: '100%', width: '100%', top: '0%', left: '0%'
                     }}>
-                        <img src={Lock} style={{margin: 'auto', display: 'block', top: '10%', position: 'relative'}} width='50%' />
+                        <img src={Lock} style={{ margin: 'auto', display: 'block', top: '10%', position: 'relative' }} width='50%' />
                     </div>
                 }
 
@@ -1498,23 +1498,22 @@ const Terminal = (props) => {
                     (trxSlice.qrAuthState === 'pending') && authQR && <div style={{
                         position: 'fixed',
                         zIndex: '999',
-                        backgroundColor: 'rgba(0,0,0,0.85)', height: '100%', width: '100%', top: '0%', left: '0%'
+                        backgroundColor: 'rgba(0,0,0,0.50)', height: '100%', width: '100%', top: '0%', left: '0%'
                     }}>
-                        <h1 style={{ textAlign: 'center', color: 'white', margin: '5%' }}>
+                        <h1 style={{ textAlign: 'center', color: 'white', margin: '5% 0%' }}>
                             <div style={{
                                 color: '#a30b00',
                                 background: 'white',
-                                padding: '20px',
-                                borderRadius: '50px',
+                                padding: '20px ',
                                 marginBottom: '20px'
                             }}>
                                 <FontAwesomeIcon icon={faLock} style={{ marginRight: '8px' }} />
                                 Manager Access Required
                             </div>
 
-                            <div style={{ padding: '10px', border: '1px solid white', width: '200px', margin: 'auto', borderRadius: '10px' }}>
+                            <div style={{ margin: 'auto', borderRadius: '10px' }}>
                                 {authQR.source !== 'ManagerMode' && ((authQR.source !== 'PriceChange') || (authQR.source === 'PriceChange' && trxSlice.priceChangeReason)) &&
-                                    <QRCode value={JSON.stringify(authQR)} size={180}
+                                    <QRCode value={JSON.stringify(authQR)} size={200} style={{margin: '20px'}}
                                     />}
                                 {authQR.source === 'ManagerMode' &&
                                     <Input autoFocus={true} value={terminal.managerUser} onChange={(e) => { dispatch(setManagerUser(e)) }} type='password' style={{ width: '100%' }} />}
@@ -1528,7 +1527,7 @@ const Terminal = (props) => {
 
                             </div>
 
-                            <span style={{ display: 'block', marginBottom: '14px' }}> <span style={{ color: '#e1e1e1' }}>Action:</span> <i>{authQR.source}</i></span>
+                            <span style={{ display: 'block', marginBottom: '14px' }}>[ {authQR.source} ]</span>
 
                             {authQR.source === 'PriceChange' &&
                                 <SelectPicker value={trxSlice.priceChangeReason} placeholder="Line Discount Reason" searchable={false} width={250}
