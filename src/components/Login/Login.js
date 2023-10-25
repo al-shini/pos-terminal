@@ -11,11 +11,13 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import QRCode from "react-qr-code";
 import Snackbar from '@mui/material/Snackbar';
 import Alert from "@mui/material/Alert";
-import PosBG from '../../assets/slide4.png';
+import PosBG from '../../assets/logo-black.png';
+import NoConnection from '../../assets/no-connection.png';
 import { login, checkLoginQrAuth } from '../../store/terminalSlice';
 import { hideLoading, notify, showLoading } from '../../store/uiSlice';
 import config from '../../config';
 import axios from '../../axios'
+import { CircularProgress } from '@mui/material';
 
 
 const Login = (props) => {
@@ -30,7 +32,7 @@ const Login = (props) => {
         password: ''
     });
 
-    const [loginQR, setLoginQR] = useState({});
+    const [loginQR, setLoginQR] = useState(undefined);
 
     const theme = createTheme();
 
@@ -45,9 +47,11 @@ const Login = (props) => {
         const fetchData = async () => {
             try {
                 const response = await reloadQrAuth();
-                if (isMounted) {
+                if (response && isMounted) {
                     // Only update state if the component is still mounted.
                     setLoginQR(response);
+                } else {
+                    await checkForConnection();
                 }
             } catch (error) {
                 // Handle errors if necessary
@@ -62,6 +66,15 @@ const Login = (props) => {
         };
     }, []);
 
+    const checkForConnection = async () => {
+        const response = await reloadQrAuth();
+        if (response) {
+            setLoginQR(response);
+        } else {
+            window.setTimeout(checkForConnection, 3000);
+        }
+    }
+
 
     useEffect(() => {
         if (terminalSlice.authenticated) {
@@ -70,9 +83,14 @@ const Login = (props) => {
     }, [terminalSlice.authenticated]);
 
     useEffect(() => {
-        if (loginQR.qrAuthKey && !terminalSlice.authenticated) {
-            dispatch(checkLoginQrAuth(loginQR.qrAuthKey));
+        if (loginQR) {
+            if (loginQR.qrAuthKey && !terminalSlice.authenticated) {
+                dispatch(checkLoginQrAuth(loginQR.qrAuthKey));
+            }
+        } else {
+            checkForConnection();
         }
+
     }, [loginQR]);
 
     const handleQRClick = async () => {
@@ -95,6 +113,7 @@ const Login = (props) => {
                 return response.data;
             } else {
                 dispatch(notify({ msg: 'Incorrect Login QR response', sev: 'error' }));
+                return undefined;
             }
         } catch (error) {
             if (error.response) {
@@ -104,6 +123,7 @@ const Login = (props) => {
             } else {
                 dispatch(notify({ msg: error.message, sev: 'error' }));
             }
+            return undefined;
         }
     };
 
@@ -119,13 +139,13 @@ const Login = (props) => {
 
     return (
         <ThemeProvider theme={theme}>
-            <Snackbar
+            {loginQR && <Snackbar
                 anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
                 open={uiSlice.toastOpen} >
                 <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
                     {uiSlice.toastMsg}
                 </Alert>
-            </Snackbar>
+            </Snackbar>}
 
             <Grid container component="main" sx={{ height: '100vh' }}>
                 <CssBaseline />
@@ -138,7 +158,7 @@ const Login = (props) => {
                         backgroundImage: `url(${PosBG})`,
                         backgroundRepeat: 'no-repeat',
                         backgroundColor: 'white',
-                        backgroundSize: 'contain',
+                        backgroundSize: '80%',
                         backgroundPosition: 'center',
                     }}
                 >
@@ -159,18 +179,22 @@ const Login = (props) => {
                     }}>
 
                         <br />
-                        <small style={{ fontSize: '70%' }}>Scan QR to Login</small>
+                        {loginQR && <small style={{ fontSize: '70%' }}>Scan QR to Login</small>}
                     </h3>
 
-                    <div style={{ textAlign: 'center', margin: '15px' }}>
-                        <QRCode onClick={handleQRClick} value={JSON.stringify(loginQR)} size={180} />
-                        <br />
-                        <small style={{ color: 'grey', fontSize: '60%' }}>Device ID: {config.deviceId} @ {config.serverIp}</small>
+                    <div style={{ textAlign: 'center', margin: '15px', marginTop: loginQR ? '' : '25%' }}>
+                        {loginQR && <QRCode onClick={handleQRClick} value={JSON.stringify(loginQR)} size={180} />}
+                        {!loginQR && <div>
+                            <CircularProgress color="inherit" />
+                            <h4>No Connection</h4>
+                        </div>
+                        }
+                        <small style={{ color: 'grey', fontSize: '60%', display: 'block' }}>Device ID: {config.deviceId} @ {config.serverIp}</small>
                     </div>
                     <h6 style={{ textAlign: 'center' }}>
-                        OR
+                        {loginQR ? 'OR' : ''}
                     </h6>
-                    <Box
+                    {loginQR && <Box
                         sx={{
                             my: 8,
                             mx: 4,
@@ -215,7 +239,9 @@ const Login = (props) => {
                                 Sign In
                             </Button>
                         </Box>
-                    </Box>
+                    </Box>}
+                    {!loginQR && <img src={NoConnection} style={{ display: 'block', margin: 'auto', maxWidth: '50%', marginTop: '10%' }} />}
+
                 </Grid>
             </Grid>
         </ThemeProvider>
