@@ -55,7 +55,10 @@ const Terminal = (props) => {
                         zIndex: '999',
                         backgroundColor: 'rgba(0,0,0,0.6)', height: '100%', width: '100%', top: '0%', left: '0%'
                     }}>
-                        <img src={Lock} style={{margin: 'auto', display: 'block', top: '10%', position: 'relative'}} width='50%' />
+                        <img src={Lock} style={{ margin: 'auto', display: 'block', top: '30%', position: 'relative' }} width='15%' />
+                        <div style={{ textAlign: 'center', color: 'white', top: '30%', position: 'relative', fontSize: '25px' }} >
+                            Terminal Locked
+                        </div>
                     </div>
                 }
             </FlexboxGrid.Item>
@@ -131,7 +134,7 @@ const Terminal = (props) => {
                         <Slide arrows={false}>
                             {slideImages.map((slideImage, index) => (
                                 <div key={index} style={{ margin: '5px' }}>
-                                    <img src={slideImage} width='100%' style={{maxHeight: '450px'}} alt=' Error loading Ad image' />
+                                    <img src={slideImage} width='100%' style={{ maxHeight: '450px' }} alt=' Error loading Ad image' />
                                 </div>
                             ))}
                         </Slide>

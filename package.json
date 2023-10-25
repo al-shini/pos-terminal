@@ -1,6 +1,6 @@
 {
   "name": "pos",
-  "version": "3.2.2",
+  "version": "3.2.4",
   "main": "public/electron.js",
   "author": "Al Shini Supermarket",
   "description": "Shini Plus POS Application for Terminals (Cashier)",

@@ -516,29 +516,29 @@ const Terminal = (props) => {
 
 
         // check connectivity to auto visa
-        let connection = true;
+        // let connection = true;
 
-        try {
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Request timed out')), 2000) // 2000 milliseconds (2 seconds)
-            );
+        // try {
+        //     const timeoutPromise = new Promise((_, reject) =>
+        //         setTimeout(() => reject(new Error('Request timed out')), 2000) // 2000 milliseconds (2 seconds)
+        //     );
 
-            const fetchPromise = fetch(`http://${terminal.terminal.bopVisaIp}:7800`);
+        //     const fetchPromise = fetch(`http://${terminal.terminal.bopVisaIp}:7800`);
 
-            const _visa_response = await Promise.race([fetchPromise, timeoutPromise]);
+        //     const _visa_response = await Promise.race([fetchPromise, timeoutPromise]);
 
-            if (!_visa_response || !_visa_response.ok) {
-                connection = false;
-            }
-        } catch (e) {
-            connection = false;
-        }
+        //     if (!_visa_response || !_visa_response.ok) {
+        //         connection = false;
+        //     }
+        // } catch (e) {
+        //     connection = false;
+        // }
 
-        if (!connection) {
-            dispatch(hideLoading())
-            dispatch(notify({ msg: `Visa @ ${terminal.terminal.bopVisaIp}:7800 not reachable`, sev: 'error' }));
-            return;;
-        }
+        // if (!connection) {
+        //     dispatch(hideLoading())
+        //     dispatch(notify({ msg: `Visa @ ${terminal.terminal.bopVisaIp}:7800 not reachable`, sev: 'error' }));
+        //     return;;
+        // } 
 
         let amt = Math.abs(trxSlice.trxChange);
 
@@ -1490,7 +1490,10 @@ const Terminal = (props) => {
                         zIndex: '999',
                         backgroundColor: 'rgba(0,0,0,0.6)', height: '100%', width: '100%', top: '0%', left: '0%'
                     }}>
-                        <img src={Lock} style={{ margin: 'auto', display: 'block', top: '10%', position: 'relative' }} width='50%' />
+                        <img src={Lock} style={{ margin: 'auto', display: 'block', top: '30%', position: 'relative' }} width='15%' />
+                        <div style={{ textAlign:'center', color: 'white', top: '30%', position: 'relative', fontSize: '25px' }} >
+                            Terminal Locked
+                        </div>
                     </div>
                 }
 
@@ -1513,7 +1516,7 @@ const Terminal = (props) => {
 
                             <div style={{ margin: 'auto', borderRadius: '10px' }}>
                                 {authQR.source !== 'ManagerMode' && ((authQR.source !== 'PriceChange') || (authQR.source === 'PriceChange' && trxSlice.priceChangeReason)) &&
-                                    <QRCode value={JSON.stringify(authQR)} size={200} style={{margin: '20px'}}
+                                    <QRCode value={JSON.stringify(authQR)} size={200} style={{ margin: '20px' }}
                                     />}
                                 {authQR.source === 'ManagerMode' &&
                                     <Input autoFocus={true} value={terminal.managerUser} onChange={(e) => { dispatch(setManagerUser(e)) }} type='password' style={{ width: '100%' }} />}
