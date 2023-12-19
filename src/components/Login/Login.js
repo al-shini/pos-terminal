@@ -29,7 +29,8 @@ const Login = (props) => {
 
     const [cred, setCred] = useState({
         username: '',
-        password: ''
+        password: '',
+        admin: config.admin
     });
 
     const [loginQR, setLoginQR] = useState(undefined);

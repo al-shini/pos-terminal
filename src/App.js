@@ -10,12 +10,14 @@ import Dashboard from "./components/Dashboard/Dashboard";
 
 import Backdrop from '@mui/material/Backdrop';
 import CircularProgress from '@mui/material/CircularProgress';
+import Admin from './components/Backoffice/Admin';
 
 
 
 
 const App = () => {
   const uiSlice = useSelector((state) => state.ui);
+  const terminalSlice = useSelector((state) => state.terminal);
 
   return (
     <HashRouter>
@@ -30,7 +32,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="app" element={<Dashboard />} >
-          <Route path="" element={<Terminal />} />
+          <Route path="" element={terminalSlice.isAdmin ? <Admin /> : <Terminal />} />
         </Route>
         <Route path="customer" element={<CustomerDisplay />} />
       </Routes>

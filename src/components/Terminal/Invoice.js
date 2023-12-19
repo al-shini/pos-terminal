@@ -6,11 +6,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp, faGift, faFaceSmileBeam, faTag, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons'
 import Typography from '@mui/material/Typography';
 import BarcodeReader from 'react-barcode-reader';
-import { scanBarcode, scanNewTransaction } from '../../store/trxSlice';
+import { scanBarcode, scanNewTransaction, scrollUp, scrollDown, resetScrollAction } from '../../store/trxSlice';
 
 import { selectLine } from '../../store/trxSlice';
-import terminalSlice from '../../store/terminalSlice';
-import BARCODE_SCAN from '../../assets/barcode-scan.gif';
 
 const Invoice = (props) => {
 
@@ -19,20 +17,22 @@ const Invoice = (props) => {
 
     const dispatch = useDispatch();
 
+    useEffect(() => {
+        if (trxSlice.scrollAction === 'up') {
+            document.querySelector('#invoiceList').scroll({
+                top: document.querySelector('#invoiceList').scrollTop - 100,
+                behavior: 'smooth'
+            });
+            dispatch(resetScrollAction())
+        } else if (trxSlice.scrollAction === 'down') {
+            document.querySelector('#invoiceList').scroll({
+                top: document.querySelector('#invoiceList').scrollTop + 100,
+                behavior: 'smooth'
+            });
+            dispatch(resetScrollAction())
+        }
+    }, [trxSlice.scrollAction])
 
-    const scrollUp = () => {
-        document.querySelector('#invoiceList').scroll({
-            top: document.querySelector('#invoiceList').scrollTop - 100,
-            behavior: 'smooth'
-        });
-    }
-
-    const scrollDown = () => {
-        document.querySelector('#invoiceList').scroll({
-            top: document.querySelector('#invoiceList').scrollTop + 100,
-            behavior: 'smooth'
-        });
-    }
 
     const handleScan = (scannedValue) => {
         if (!terminal.paymentMode) {
@@ -76,10 +76,21 @@ const Invoice = (props) => {
 
     const isEven = (number) => number % 2 === 0;
 
+    const pendingAuthQR = () => {
+        let validAuthQR = props.authQR;
+        if (!validAuthQR) {
+            return false;
+        }
+
+        if (props.authQR && trxSlice.qrAuthState === 'pending')
+            return true;
+
+        return false;
+    }
 
     return (
         <React.Fragment>
-            {!terminal.paymentMode && <BarcodeReader
+            {!terminal.paymentMode && !pendingAuthQR() && <BarcodeReader
                 onError={handleScanError}
                 onScan={handleScan}
             />}
@@ -213,11 +224,11 @@ const Invoice = (props) => {
                     <FlexboxGrid style={{ marginTop: '1vh', color: 'white', background: '#e1e1e1' }}>
                         <FlexboxGrid.Item colspan={2} />
                         <FlexboxGrid.Item colspan={5} >
-                            <IconButton onClick={scrollUp} icon={<FontAwesomeIcon size='2x' icon={faChevronUp} />} className={classes.ScrollButton} />
+                            <IconButton onClick={() => dispatch(scrollUp())} icon={<FontAwesomeIcon size='2x' icon={faChevronUp} />} className={classes.ScrollButton} />
                         </FlexboxGrid.Item>
                         <FlexboxGrid.Item colspan={3} />
                         <FlexboxGrid.Item colspan={5} >
-                            <IconButton onClick={scrollDown} icon={<FontAwesomeIcon size='2x' icon={faChevronDown} />} className={classes.ScrollButton} />
+                            <IconButton onClick={() => dispatch(scrollDown())} icon={<FontAwesomeIcon size='2x' icon={faChevronDown} />} className={classes.ScrollButton} />
                         </FlexboxGrid.Item>
                     </FlexboxGrid>
                 </FlexboxGrid.Item>

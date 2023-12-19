@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import { Outlet, useNavigate } from "react-router-dom";
 import { hideLoading, notify, showLoading } from '../../store/uiSlice';
-import { seemlessLogin, unblockActions, blockActions, setStoreCustomer, setCustomer, setTrxMode } from '../../store/terminalSlice';
+import terminalSlice, { seemlessLogin, unblockActions, blockActions, setStoreCustomer, setCustomer, setTrxMode } from '../../store/terminalSlice';
 import axios from '../../axios';
 import config from '../../config';
 import { Box } from '@mui/material';
@@ -17,37 +17,40 @@ const Dashboard = (props) => {
     const terminal = useSelector((state) => state.terminal);
 
     useEffect(() => {
-        console.log('validating token...');
-        if (!terminal.authenticated) {
-            console.log('no authentication');
-            axios({
-                method: 'post',
-                url: '/auth/validate-token',
-                params: {
-                    deviceId: config.deviceId
-                }
-            }).then((response) => {
-                if (response && response.data) {
-                    console.log('response from seemlessLogin', response.data);
-                    dispatch(seemlessLogin(response.data));
-                    updateCustomer(response.data)
-                }
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        console.log('Authorization invalid');
-                        navigate('/');
+        if (!config.admin) {
+            console.log('validating token...');
+            if (!terminal.authenticated) {
+                console.log('no authentication');
+                axios({
+                    method: 'post',
+                    url: '/auth/validate-token',
+                    params: {
+                        deviceId: config.deviceId
                     }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }).then((response) => {
+                    if (response && response.data) {
+                        console.log('response from seemlessLogin', response.data);
+                        dispatch(seemlessLogin(response.data));
+                        updateCustomer(response.data)
+                    }
+                }).catch((error) => {
+                    if (error.response) {
+                        if (error.response.status === 401) {
+                            console.log('Authorization invalid');
+                            navigate('/');
+                        }
+                    } else {
+                        dispatch(notify({ msg: error.message, sev: 'error' }));
+                    }
+                });
+            } else {
+                console.log('authentication valid');
+                if (!terminal.storeCustomer) {
+                    updateCustomer({ ...terminal });
                 }
-            });
-        } else {
-            console.log('authentication valid');
-            if (!terminal.storeCustomer) {
-                updateCustomer({ ...terminal });
             }
         }
+
     }, []);
 
     const updateCustomer = (loginResponse) => {

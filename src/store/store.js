@@ -4,6 +4,7 @@ import { PERSIST, PURGE, REHYDRATE } from 'redux-persist/es/constants';
 import terminalReducer from './terminalSlice';
 import trxReducer from './trxSlice';
 import uiReducer from './uiSlice';
+import backofficeReducer from './backofficeSlice';
 import thunk from 'redux-thunk';
 
 export const store = configureStore({
@@ -11,6 +12,7 @@ export const store = configureStore({
         terminal: terminalReducer,
         trx: trxReducer,
         ui: uiReducer,
+        backoffice: backofficeReducer
     },
     middleware: [createStateSyncMiddleware({
         predicate: (action) => {

@@ -1477,7 +1477,7 @@ const Terminal = (props) => {
     return (
         <FlexboxGrid  >
             <FlexboxGrid.Item colspan={11} style={{ background: 'white', position: 'relative', left: '6px', width: '48.83333333%' }}  >
-                {terminal.display === 'ready' && <Invoice />}
+                {terminal.display === 'ready' && <Invoice authQR={authQR} />}
                 {terminal.display === 'balance-setup' && <BalanceSetup />}
                 {terminal.display === 'payment' && <Payments />}
             </FlexboxGrid.Item>
@@ -1832,7 +1832,7 @@ const Terminal = (props) => {
                             color='green'
                             onClick={() => setActionsMode('suspended')} >
                             <FontAwesomeIcon icon={faHistory} style={{ marginRight: '5px' }} />
-                            <div>Suspend History</div>
+                            <div>Suspended</div>
                         </Button>
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
@@ -1875,7 +1875,6 @@ const Terminal = (props) => {
                                     (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') ? 'Abort' :
                                         (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType !== 'none') ? 'Back' : !terminal.paymentMode ? 'Restart' : ''
                                 }
-
                             </label>
                         </Button>
                     </FlexboxGrid.Item>

@@ -6,6 +6,7 @@ import config from '../config';
 const initialState = {
     authenticated: false,
     loggedInUser: null,
+    isAdmin: false,
     store: null,
     terminal: null,
     storeCustomer: null,
@@ -321,6 +322,7 @@ export const terminalSlice = createSlice({
             state.loggedInUser = null;
             state.token = null;
             state.till = null;
+            state.isAdmin = false;
             state.display = 'none';
             localStorage.removeItem('jwt');
             localStorage.removeItem('refresh');
@@ -331,8 +333,9 @@ export const terminalSlice = createSlice({
             state.token = action.payload.token;
             state.till = action.payload.till;
             state.store = action.payload.store;
+            state.isAdmin = action.payload.admin;
             state.terminal = action.payload.terminal;
-            if (!action.payload.till.isInitialized) {
+            if (action.payload.till && !action.payload.till.isInitialized) {
                 state.display = 'balance-setup';
             } else {
                 state.display = 'ready';
@@ -464,7 +467,8 @@ export const terminalSlice = createSlice({
             state.till = action.payload.till;
             state.store = action.payload.store;
             state.terminal = action.payload.terminal;
-            if (!action.payload.till.isInitialized) {
+            state.isAdmin = action.payload.admin;
+            if (action.payload.till && !action.payload.till.isInitialized) {
                 state.display = 'balance-setup';
             } else {
                 state.display = 'ready';
@@ -481,6 +485,7 @@ export const terminalSlice = createSlice({
             state.token = null;
             state.till = null;
             state.store = null;
+            state.isAdmin = false;
             state.display = 'none';
             localStorage.removeItem('jwt');
             localStorage.removeItem('refresh');

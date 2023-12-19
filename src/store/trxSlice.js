@@ -24,8 +24,8 @@ const initialState = {
     lastTrxPayment: null,
     cashBackCoupons: [],
     usedCoupons: {},
-    priceChangeReason: '' 
-
+    priceChangeReason: '',
+    scrollAction: 'none'
 }
 
 /**
@@ -222,6 +222,8 @@ export const rescanTrx = createAsyncThunk(
 export const submitPayment = createAsyncThunk(
     'submitPayment',
     async (payload, thunkAPI) => {
+        thunkAPI.dispatch(showLoading());
+
         let data = {
             ...payload
         };
@@ -272,6 +274,8 @@ export const submitPayment = createAsyncThunk(
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
+        }).finally(() => {
+            thunkAPI.dispatch(hideLoading());
         });
     }
 )
@@ -798,6 +802,15 @@ export const trxSlice = createSlice({
         setPriceChangeReason: (state, action) => {
             state.priceChangeReason = action.payload
         },
+        scrollUp: (state) => {
+            state.scrollAction = 'up';
+        },
+        scrollDown: (state) => {
+            state.scrollAction = 'down';
+        },
+        resetScrollAction: (state) => {
+            state.scrollAction = 'none'
+        }
     },
     extraReducers: (builder) => {
 
@@ -989,6 +1002,6 @@ export const trxSlice = createSlice({
 
 export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx, enablePriceChange, disablePriceChange, scroll,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory,
-    uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason
+    uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason,scrollDown, scrollUp, resetScrollAction
 } = trxSlice.actions
 export default trxSlice.reducer
