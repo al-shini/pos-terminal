@@ -17,7 +17,8 @@ const Dashboard = (props) => {
     const terminal = useSelector((state) => state.terminal);
 
     useEffect(() => {
-        if (!config.admin) {
+        let loginType = config.admin ? 'ADMIN' : 'USER';
+        if (loginType === 'USER') {
             console.log('validating token...');
             if (!terminal.authenticated) {
                 console.log('no authentication');
@@ -54,7 +55,7 @@ const Dashboard = (props) => {
     }, []);
 
     const updateCustomer = (loginResponse) => {
-        console.log('updaing customer');
+        console.log('updating customer');
         axios({
             method: 'post',
             url: '/posAcc/fetchCustomer',

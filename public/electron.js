@@ -55,8 +55,11 @@ function createWindow() {
 
     win.setMenu(null);
 
-    const params = `serverIp=${localConfig.serverIp}&deviceId=${localConfig.deviceId}&admin=${localConfig.admin}`;
+    let params = `serverIp=${localConfig.serverIp}&deviceId=${localConfig.deviceId}`;
 
+    if (localConfig.admin) {
+        params += `&admin=true`;
+    }
     // and load the index.html of the app.
     win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
 
