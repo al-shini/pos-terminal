@@ -30,7 +30,7 @@ const Login = (props) => {
     const [cred, setCred] = useState({
         username: '',
         password: '',
-        admin: config.admin
+        admin: config.admin ? config.admin : false
     });
 
     const [loginQR, setLoginQR] = useState(undefined);
