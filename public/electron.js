@@ -16,6 +16,8 @@ const crypto = require('crypto');
 const net = require('net');
 const { autoUpdater } = require("electron-updater")
 const { print } = require("pdf-to-printer");
+const { SerialPort, ReadlineParser, ByteLengthParser } = require('serialport')
+
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
@@ -47,7 +49,7 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: true,
+        fullscreen: localConfig.admin ? false : true,
         webPreferences: {
             nodeIntegration: true
         }
@@ -60,6 +62,10 @@ function createWindow() {
     if (localConfig.admin) {
         params += `&admin=true`;
     }
+    if (localConfig.scale) {
+        params += `&scale=true`;
+    }
+
     // and load the index.html of the app.
     win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
 
@@ -544,6 +550,35 @@ expressApp.post('/bopVisaSale', async (req, res) => {
         dialog.showErrorBox('Error', e)
     }
 })
+
+
+expressApp.get('/fetchFromScale', (req, res) => {
+
+    try {
+        const port = new SerialPort({ path: 'COM3', baudRate: 9600 })
+        const parser = port.pipe(new ByteLengthParser({length: 8}))
+
+        parser.on('data', (data) => {
+            const buffer = Buffer.from(data, 'utf-8');
+            const valueAsString = buffer.toString('utf-8');
+            setTimeout(() => {
+                res.send(valueAsString)
+                port.close();
+            }, 500)
+        })
+
+        port.on('error', (err) => {
+            console.log(err);
+            res.status(500).send(err);
+        });
+
+        port.write('n')
+    } catch (e) {
+        throw e;
+    }
+})
+
+
 
 
 // RUN express app

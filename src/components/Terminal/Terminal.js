@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import axios from '../../axios';
-import { Button, FlexboxGrid, Divider, Input, SelectPicker } from 'rsuite';
+import { Button, FlexboxGrid, Divider, Input, SelectPicker, Drawer, ButtonGroup, ButtonToolbar } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faSackDollar, faMoneyBillTransfer, faRepeat, faUser,
+    faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag,
     faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
@@ -19,7 +19,7 @@ import terminalSlice, {
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
-    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx, closeTrxPayment, clearLastPaymentHistory, setPriceChangeReason
+    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx, closeTrxPayment, clearLastPaymentHistory, setPriceChangeReason, prepareScanMultiplierPreDefined
 } from '../../store/trxSlice';
 import { hideLoading, notify, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -75,9 +75,18 @@ const Terminal = (props) => {
 
     const [hasEshiniConnection, setHasEshiniConnection] = useState(true);
 
+    const [scaleItemsOpen, setScaleItemsOpen] = useState(false);
+    const [selectedScaleCategory, setSelectedScaleCategory] = useState('veggie');
+    const [produceItems, setProduceItems] = useState([]);
+    const [localMsg, setLocalMsg] = useState('');
+    const [alphabtet, setAlphabet] = useState('all');
+
+
+
 
     useEffect(() => {
-        play();
+        if (terminal.errorSound)
+            play();
     }, [terminal.errorSound])
 
     useEffect(() => {
@@ -92,6 +101,21 @@ const Terminal = (props) => {
             dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
         });
     }, [])
+
+    useEffect(() => {
+        if (selectedScaleCategory) {
+            axios({
+                method: 'get',
+                url: '/barcode/produceItems/'.concat(selectedScaleCategory).concat('/').concat(alphabtet),
+            }).then((response) => {
+                if (response) {
+                    setProduceItems(response.data);
+                }
+            }).catch((error) => {
+                dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+            });
+        }
+    }, [selectedScaleCategory, alphabtet])
 
 
     const [logoCounter, setLogoCounter] = useState(0);
@@ -443,6 +467,49 @@ const Terminal = (props) => {
                 }
             });
         }
+    }
+
+    const scanWeightableItem = (item) => {
+        const barcode = item.barcode;
+        axios({
+            method: 'get',
+            url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/fetchFromScale`,
+        }).then((response) => {
+            let qty = response.data;
+            if (item.scalePieceItem) {
+                qty = trxSlice.multiplier ? trxSlice.multiplier : '1';
+            }
+            if (qty > 0.0) {
+
+                if (trxSlice.trx && trxSlice.trx.key) {
+                    dispatch(scanBarcode({
+                        customerKey: terminal.customer ? terminal.customer.key : null,
+                        barcode: barcode,
+                        trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                        trxMode: terminal.trxMode,
+                        tillKey: terminal.till ? terminal.till.key : null,
+                        multiplier: qty
+                    }))
+                } else {
+                    dispatch(scanNewTransaction({
+                        customerKey: terminal.customer ? terminal.customer.key : null,
+                        barcode: barcode,
+                        trxKey: null,
+                        trxMode: terminal.trxMode,
+                        tillKey: terminal.till ? terminal.till.key : null,
+                        multiplier: qty
+                    }))
+                }
+                setScaleItemsOpen(false);
+                setLocalMsg('');
+            } else {
+                setLocalMsg('Please add item on scale first');
+            }
+        }).catch((error) => {
+            console.error(error);
+            dispatch(notify({ msg: 'could not fetch weight from scale', sev: 'error' }));
+        });
+
     }
 
 
@@ -1473,6 +1540,20 @@ const Terminal = (props) => {
         });
     }
 
+    const conjureAlphabet = () => {
+        var arabicAlphabet = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي'];
+        let buttons = [];
+        buttons.push(<Button appearance={'all' === alphabtet ? 'primary' : 'default'} key={'all'} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '60px' }}
+            onClick={() => { setAlphabet('all') }} >ALL</Button>)
+        arabicAlphabet.map((c) => {
+            buttons.push(<Button appearance={c === alphabtet ? 'primary' : 'default'} key={c.barcode} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '35px' }}
+                onClick={() => { setAlphabet(c) }} >{c}</Button>)
+        })
+
+
+        return buttons;
+    }
+
 
     return (
         <FlexboxGrid  >
@@ -1491,7 +1572,7 @@ const Terminal = (props) => {
                         backgroundColor: 'rgba(0,0,0,0.6)', height: '100%', width: '100%', top: '0%', left: '0%'
                     }}>
                         <img src={Lock} style={{ margin: 'auto', display: 'block', top: '30%', position: 'relative' }} width='15%' />
-                        <div style={{ textAlign:'center', color: 'white', top: '30%', position: 'relative', fontSize: '25px' }} >
+                        <div style={{ textAlign: 'center', color: 'white', top: '30%', position: 'relative', fontSize: '25px' }} >
                             Terminal Locked
                         </div>
                     </div>
@@ -1555,7 +1636,7 @@ const Terminal = (props) => {
 
             <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '87.5vh' }}>
                 <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
-                    <h6 style={{ lineHeight: '5vh', textAlign: 'left' }}>
+                    <h6 style={{ lineHeight: '5vh', textAlign: 'left', fontSize: '95%' }}>
                         <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '20px', marginRight: '7px' }} /> {terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</span>
                         <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
                         <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
@@ -1605,6 +1686,12 @@ const Terminal = (props) => {
                         <b>WARNING:</b> NO CONNECTION TO E-SHINI
                     </span>}
                     {
+                        !terminal.paymentMode && config.scale &&
+                        (<h4 style={{ textAlign: 'center', cursor: 'pointer', }}>
+                            <a onClick={() => setScaleItemsOpen(true)}><FontAwesomeIcon icon={faScaleBalanced} /> Scale Items </a>
+                        </h4>)
+                    }
+                    {
                         terminal.paymentMode &&
                         <FlexboxGrid>
                             <FlexboxGrid.Item colspan={24} >
@@ -1645,7 +1732,7 @@ const Terminal = (props) => {
                     {
                         trxSlice.lastTrxPayment && <FlexboxGrid>
                             <FlexboxGrid.Item colspan={24} >
-                                <div style={{ border: '1px solid #e1e1e1', padding: '3px', minWidth: '60%', margin: 'auto' }}>
+                                <div style={{ border: '1px solid #e1e1e1', padding: '3px', minWidth: '60%', margin: 'auto', marginTop: '10px', marginBot: '10px' }}>
                                     <small style={{ fontSize: '20px', marginRight: '5px' }}>
                                         Paid =
                                     </small>
@@ -1654,13 +1741,7 @@ const Terminal = (props) => {
                                             {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(2)}
                                         </label>
                                     </b>
-                                </div>
-                            </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={24}>
-                                <br />
-                            </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={24}>
-                                <div style={{ border: '1px solid #e1e1e1', padding: '3px', minwidth: '60%', margin: 'auto' }}>
+                                    <Divider vertical />
                                     <small style={{ fontSize: '20px', marginRight: '5px' }}>
                                         Change =
                                     </small>
@@ -1878,10 +1959,46 @@ const Terminal = (props) => {
                             </label>
                         </Button>
                     </FlexboxGrid.Item>
-
-
                 </FlexboxGrid>
             </FlexboxGridItem >
+
+            <Drawer style={{ width: '60vw' }} position='right' open={scaleItemsOpen} onClose={() => setScaleItemsOpen(false)}>
+                <div style={{ padding: '15px' }}>
+                    <h3>
+                        <FontAwesomeIcon icon={faScaleBalanced} /> Scale Items
+                        <ButtonGroup style={{ width: '50%', float: 'right' }}>
+                            <Button style={{ width: '50%' }} appearance={selectedScaleCategory === 'veggie' ? 'primary' : 'ghost'} color='green' size='lg' onClick={() => setSelectedScaleCategory('veggie')} > Vegetables </Button>
+                            <Button style={{ width: '50%' }} appearance={selectedScaleCategory === 'fruit' ? 'primary' : 'ghost'} color='green' size='lg' onClick={() => setSelectedScaleCategory('fruit')}  > Fruits </Button>
+                        </ButtonGroup>
+                    </h3>
+                    {localMsg && <h6 style={{ color: 'darkred', margin: '10px', textAlign: 'center' }}>{localMsg}</h6>}
+                    {/* <Divider />
+                    <ButtonToolbar>
+                        <ButtonGroup>
+                            {conjureAlphabet()}
+                        </ButtonGroup>
+                    </ButtonToolbar> */}
+                    <Divider />
+                    <div style={{ overflowY: 'scroll', height: '70vh' }}>
+                        <FlexboxGrid>
+                            {produceItems.map((item) => {
+                                return (<FlexboxGrid.Item key={item.barcode} colspan={6}>
+                                    <Button style={{ width: '96%', margin: '2%', background: 'white', border: '1px solid #363636' }} onClick={() => { scanWeightableItem(item); }}>
+                                        <img src={`http://46.43.70.210:9000/veggies/${item.barcode}.jpg`}
+                                            onError={(e) => {
+                                                e.target.src = `http://46.43.70.210:9000/veggies/nophoto.jpg`;
+                                            }}
+                                            height={100} />
+                                        <br />
+                                        <b>{item.descriptionAr} {item.scalePieceItem && <FontAwesomeIcon icon={faTag} />}</b>
+                                    </Button>
+                                </FlexboxGrid.Item>)
+                            })}
+                        </FlexboxGrid>
+                    </div>
+                </div>
+            </Drawer>
+
         </FlexboxGrid >
     );
 }

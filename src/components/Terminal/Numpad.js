@@ -4,17 +4,21 @@ import { Button, Input, FlexboxGrid, Panel } from 'rsuite';
 import { IconButton } from 'rsuite';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    fa1, fa2, fa3, fa4, fa5, fa6, fa7, fa8, fa9, faTimes, faAnglesLeft, faC
+    fa1, fa2, fa3, fa4, fa5, fa6, fa7, fa8, fa9, faTimes, faAnglesLeft, faC, faScaleBalanced
 } from '@fortawesome/free-solid-svg-icons'
 import styles from './Numpad.module.css';
 import classes from './Terminal.module.css';
 
-import { changePrice, clearLastPaymentHistory, handleNumberInputChange, scanBarcode, scanNewTransaction, selectCurrency, submitPayment } from '../../store/trxSlice';
+import { changePrice, clearLastPaymentHistory, handleNumberInputChange, prepareScanMultiplierPreDefined, scanBarcode, scanNewTransaction, selectCurrency, submitPayment } from '../../store/trxSlice';
 import { notify } from '../../store/uiSlice';
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
 import { fetchSuspendedForTill, setManagerMode, submitOpeningBalance } from '../../store/terminalSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
+
+import axios from '../../axios';
+import config from '../../config';
+
 
 const Numpad = (props) => {
     const trxSlice = useSelector((state) => state.trx);
@@ -61,7 +65,7 @@ const Numpad = (props) => {
                     if (!trxSlice.selectedCurrency) {
                         dispatch(selectCurrency('NIS'))
                     }
-                    
+
                     if (!trxSlice.numberInputValue) {
                         dispatch(notify({
                             msg: 'Please specify valid amount',
@@ -121,7 +125,6 @@ const Numpad = (props) => {
             }))
         }
     }
-
     return (
 
         <FlexboxGrid dir='column' style={{ background: 'white !important' }} >
@@ -130,7 +133,7 @@ const Numpad = (props) => {
                     <FlexboxGrid>
                         {
                             // (!terminal.paymentMode) &&
-                            <FlexboxGridItem colspan={4}>
+                            <FlexboxGridItem colspan={5}>
                                 {
                                     !trxSlice.priceChangeMode &&
                                     <Input value={trxSlice.multiplier ? ('' + trxSlice.multiplier).concat(' X') : '-'}
@@ -148,7 +151,7 @@ const Numpad = (props) => {
                             </FlexboxGridItem>
                         }
                         <FlexboxGridItem colspan={terminal.paymentMode ?
-                            (terminal.exchangeRates[trxSlice.selectedCurrency] && terminal.exchangeRates[trxSlice.selectedCurrency] > 1 && terminal.paymentInput === 'numpad') ? 16 : 20
+                            (terminal.exchangeRates[trxSlice.selectedCurrency] && terminal.exchangeRates[trxSlice.selectedCurrency] > 1 && terminal.paymentInput === 'numpad') ? 14 : 19
 
                             : 19}>
                             <Input onChange={onInputChange} value={trxSlice.numberInputValue}

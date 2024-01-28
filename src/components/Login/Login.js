@@ -12,6 +12,7 @@ import QRCode from "react-qr-code";
 import Snackbar from '@mui/material/Snackbar';
 import Alert from "@mui/material/Alert";
 import PosBG from '../../assets/logo-black.png';
+import PosBG_Backoffice from '../../assets/logo-black-backoffice.png';
 import NoConnection from '../../assets/no-connection.png';
 import { login, checkLoginQrAuth } from '../../store/terminalSlice';
 import { hideLoading, notify, showLoading } from '../../store/uiSlice';
@@ -156,7 +157,7 @@ const Login = (props) => {
                     sm={4}
                     md={7}
                     sx={{
-                        backgroundImage: `url(${PosBG})`,
+                        backgroundImage: `url(${config.admin ? PosBG_Backoffice : PosBG})`,
                         backgroundRepeat: 'no-repeat',
                         backgroundColor: 'white',
                         backgroundSize: '80%',
@@ -180,20 +181,21 @@ const Login = (props) => {
                     }}>
 
                         <br />
-                        {loginQR && <small style={{ fontSize: '70%' }}>Scan QR to Login</small>}
+                        {loginQR && <small style={{ fontSize: '70%' }}>{config.admin ? 'Login' : 'Scan QR to Login'}</small>}
                     </h3>
 
                     <div style={{ textAlign: 'center', margin: '15px', marginTop: loginQR ? '' : '25%' }}>
-                        {loginQR && <QRCode onClick={handleQRClick} value={JSON.stringify(loginQR)} size={180} />}
+                        {!config.admin && loginQR && <QRCode onClick={handleQRClick} value={JSON.stringify(loginQR)} size={180} />}
                         {!loginQR && <div>
                             <CircularProgress color="inherit" />
                             <h4>No Connection</h4>
                         </div>
                         }
-                        <small style={{ color: 'grey', fontSize: '60%', display: 'block' }}>Device ID: {config.deviceId} @ {config.serverIp}</small>
+                        {!config.admin && <small style={{ color: 'grey', fontSize: '60%', display: 'block' }}>Device ID: {config.deviceId} @ {config.serverIp}</small>}
+                        {config.admin && <small style={{ color: 'grey', fontSize: '60%', display: 'block' }}>Server: {config.serverIp}</small>}
                     </div>
                     <h6 style={{ textAlign: 'center' }}>
-                        {loginQR ? 'OR' : ''}
+                        {!config.admin && loginQR ? 'OR' : 'BACK OFFICE ADMIN'}
                     </h6>
                     {loginQR && <Box
                         sx={{

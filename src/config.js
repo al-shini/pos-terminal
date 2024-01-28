@@ -3,6 +3,7 @@
 let deviceId = null;
 let serverIp = null;
 let admin = null;
+let scale = null;
 
 let query = new URLSearchParams(global.location.search);
 
@@ -18,18 +19,23 @@ if (query.get("admin")) {
     admin = query.get("admin");
 }
 
+if (query.get("scale")) {
+    scale = query.get("scale");
+}
+
 
 const config = {
     deviceId:  deviceId ? deviceId : 'test',
     serverIp: serverIp ? serverIp : '127.0.0.1',
     admin: admin ? admin : false,
+    scale: scale ? scale : false,
     visa: '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639',
     jawwalPay: 'JawwalPay',
     voucher: 'Voucher',
     onAccount: 'OnAccount',
     cashBack: 'CashBack',
     employeeExtra: 'EmployeeExtra',
-    cashDroEnabled: false
+    cashDroEnabled: false,
 }; 
 
 console.log(config);

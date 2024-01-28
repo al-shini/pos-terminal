@@ -96,13 +96,12 @@ const Invoice = (props) => {
             />}
 
             <div style={{ background: '#303030', color: 'white', height: '5vh', width: '110%', right: '10px', position: 'relative' }}>
-                <h4 id='trxModeHeader' style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
+                <h5 id='trxModeHeader' style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
                     {terminal.trxMode === 'Sale' && <span>{terminal.trxMode}</span>}
                     {terminal.trxMode === 'Refund' && <span style={{ color: 'rgb(255 60 80)' }}>{terminal.trxMode}</span>}
-
-                    {trxSlice.trx ? <Divider vertical /> : null}
-                    {trxSlice.trx ? <span>{trxSlice.trx.nanoId}</span> : null}
-                </h4>
+                    {trxSlice.trx ? <span> / </span> : null}
+                    {trxSlice.trx ? <span style={{fontSize: '65%', position: 'relative' ,bottom: '3px'}}>{trxSlice.trx.nanoId}</span> : null}
+                </h5>
             </div>
 
             <List hover id='invoiceList' style={{ height: '67vh' }} autoScroll={false}>

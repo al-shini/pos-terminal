@@ -242,12 +242,12 @@ export const submitPayment = createAsyncThunk(
                 console.log('response.data', response.data)
                 thunkAPI.dispatch(clearNumberInput());
                 // if (response.data.closeTrx) {
-                    //thunkAPI.dispatch(closeTrxPayment({
-                    //    key: response.data.trx.key
-                    //}));
-                    // window.setTimeout(() => {
-                        // thunkAPI.dispatch(clearLastPaymentHistory());
-                    // }, 6000)
+                //thunkAPI.dispatch(closeTrxPayment({
+                //    key: response.data.trx.key
+                //}));
+                // window.setTimeout(() => {
+                // thunkAPI.dispatch(clearLastPaymentHistory());
+                // }, 6000)
                 // }
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
@@ -700,7 +700,7 @@ export const trxSlice = createSlice({
             state.multiplier = '1';
         },
         clearPriceChangeReason: (state) => {
-            state.priceChangeReason= ''
+            state.priceChangeReason = ''
         },
         prepareScanMultiplier: (state) => {
             if (!state.numberInputValue || state.numberInputValue === '')
@@ -710,7 +710,12 @@ export const trxSlice = createSlice({
                 state.numberInputValue = '';
             }
         },
-
+        prepareScanMultiplierPreDefined: (state, action) => {
+            if (action.payload) {
+                state.multiplier = action.payload;
+                state.numberInputValue = '';
+            }
+        },
         handleNumberInputEntry: (state, action) => {
             const input = action.payload.value;
             const lastChar = input[input.length - 1];
@@ -1002,6 +1007,6 @@ export const trxSlice = createSlice({
 
 export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx, enablePriceChange, disablePriceChange, scroll,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory,
-    uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason,scrollDown, scrollUp, resetScrollAction
+    uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason, scrollDown, scrollUp, resetScrollAction, prepareScanMultiplierPreDefined
 } = trxSlice.actions
 export default trxSlice.reducer
