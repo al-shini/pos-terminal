@@ -555,8 +555,8 @@ expressApp.post('/bopVisaSale', async (req, res) => {
 expressApp.get('/fetchFromScale', (req, res) => {
 
     try {
-        const port = new SerialPort({ path: 'COM3', baudRate: 9600 })
-        const parser = port.pipe(new ByteLengthParser({length: 8}))
+        const port = new SerialPort({ path: localConfig.scaleCom ? localConfig.scaleCom : 'COM1', baudRate: 9600 })
+        const parser = port.pipe(new ByteLengthParser({ length: 8 }))
 
         parser.on('data', (data) => {
             const buffer = Buffer.from(data, 'utf-8');
