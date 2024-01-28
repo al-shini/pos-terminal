@@ -572,7 +572,7 @@ expressApp.get('/fetchFromScale', (req, res) => {
             res.status(500).send(err);
         });
 
-        port.write('n')
+        port.write(localConfig.scaleCommand ? localConfig.scaleCommand : '$')
     } catch (e) {
         throw e;
     }
