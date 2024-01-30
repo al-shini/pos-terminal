@@ -68,7 +68,9 @@ export const scanNewTransaction = createAsyncThunk(
 
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 }
-            });
+            }).finally(() => {
+                thunkAPI.dispatch(hideLoading());
+            });;
         } else {
             return axios({
                 method: 'post',
@@ -85,7 +87,7 @@ export const scanNewTransaction = createAsyncThunk(
                                 trxKey: response.data.trx.key,
                                 trxMode: thunkAPI.getState().terminal.trxMode,
                                 tillKey: thunkAPI.getState().terminal.till ? thunkAPI.getState().terminal.till.key : null,
-                                multiplier: thunkAPI.getState().trx.multiplier ? thunkAPI.getState().trx.multiplier : '1'
+                                multiplier: payload.multiplier ? payload.multiplier : '1'
                             }
                         ));
                     } else {
@@ -112,7 +114,9 @@ export const scanNewTransaction = createAsyncThunk(
 
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 }
-            });
+            }).finally(() => {
+                thunkAPI.dispatch(hideLoading());
+            });;
         }
     }
 )
@@ -161,6 +165,8 @@ export const scanBarcode = createAsyncThunk(
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
+        }).finally(() => {
+            thunkAPI.dispatch(hideLoading());
         });
     }
 )
@@ -215,7 +221,9 @@ export const rescanTrx = createAsyncThunk(
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
-        });
+        }).finally(() => {
+            thunkAPI.dispatch(hideLoading());
+        });;
     }
 )
 

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import axios from '../../axios';
-import { Button, FlexboxGrid, Divider, Input, SelectPicker, Drawer, ButtonGroup, ButtonToolbar } from 'rsuite';
+import { Button, FlexboxGrid, Divider, Input, SelectPicker, Drawer, ButtonGroup, IconButton, ButtonToolbar } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag,
+    faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag,faChevronUp,faChevronDown,
     faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
@@ -80,6 +80,23 @@ const Terminal = (props) => {
     const [produceItems, setProduceItems] = useState([]);
     const [localMsg, setLocalMsg] = useState('');
     const [alphabtet, setAlphabet] = useState('all');
+    const [veggieScrollAction, setVeggieScrollAction] = useState('none');
+
+    useEffect(() => {
+        if (veggieScrollAction === 'up') {
+            document.querySelector('#veggieList').scroll({
+                top: document.querySelector('#veggieList').scrollTop - 300,
+                behavior: 'smooth'
+            });
+            setVeggieScrollAction('none')
+        } else if (veggieScrollAction === 'down') {
+            document.querySelector('#veggieList').scroll({
+                top: document.querySelector('#veggieList').scrollTop + 300,
+                behavior: 'smooth'
+            });
+            setVeggieScrollAction('none')
+        }
+    }, [veggieScrollAction])
 
 
 
@@ -470,6 +487,7 @@ const Terminal = (props) => {
     }
 
     const scanWeightableItem = (item) => {
+        dispatch(showLoading());
         const barcode = item.barcode;
         axios({
             method: 'get',
@@ -480,7 +498,8 @@ const Terminal = (props) => {
                 qty = trxSlice.multiplier ? trxSlice.multiplier : '1';
             }
             if (qty > 0.0) {
-
+                setScaleItemsOpen(false);
+                setLocalMsg('');
                 if (trxSlice.trx && trxSlice.trx.key) {
                     dispatch(scanBarcode({
                         customerKey: terminal.customer ? terminal.customer.key : null,
@@ -499,17 +518,16 @@ const Terminal = (props) => {
                         tillKey: terminal.till ? terminal.till.key : null,
                         multiplier: qty
                     }))
-                }
-                setScaleItemsOpen(false);
-                setLocalMsg('');
+                } 
             } else {
                 setLocalMsg('Please add item on scale first');
             }
         }).catch((error) => {
             console.error(error);
+            setLocalMsg('could not fetch weight from scale');
             dispatch(notify({ msg: 'could not fetch weight from scale', sev: 'error' }));
-        });
-
+            dispatch(hideLoading());
+        }) 
     }
 
 
@@ -1972,14 +1990,14 @@ const Terminal = (props) => {
                         </ButtonGroup>
                     </h3>
                     {localMsg && <h6 style={{ color: 'darkred', margin: '10px', textAlign: 'center' }}>{localMsg}</h6>}
-                    {/* <Divider />
+                    <Divider />
                     <ButtonToolbar>
                         <ButtonGroup>
-                            {conjureAlphabet()}
+                            {/* {conjureAlphabet()} */}
                         </ButtonGroup>
-                    </ButtonToolbar> */}
-                    <Divider />
-                    <div style={{ overflowY: 'scroll', height: '70vh' }}>
+                    </ButtonToolbar>
+                    {/* <Divider /> */}
+                    <div id='veggieList' style={{ overflowY: 'hidden', height: '70vh' }}>
                         <FlexboxGrid>
                             {produceItems.map((item) => {
                                 return (<FlexboxGrid.Item key={item.barcode} colspan={6}>
@@ -1996,6 +2014,19 @@ const Terminal = (props) => {
                             })}
                         </FlexboxGrid>
                     </div>
+                    <FlexboxGrid style={{  color: 'white',  width: '200px', marginTop: '10px' }}>
+                        <FlexboxGrid.Item colspan={8} >
+                            <IconButton onClick={() => setVeggieScrollAction('up')} 
+                            style={{width: '100px !important'}}
+                            icon={<FontAwesomeIcon size='4x' icon={faChevronUp} />}   />
+                        </FlexboxGrid.Item>
+                        <FlexboxGrid.Item colspan={2} />
+                        <FlexboxGrid.Item colspan={8} >
+                            <IconButton onClick={() => setVeggieScrollAction('down')} 
+                             style={{width: '80px !important'}}
+                             icon={<FontAwesomeIcon size='4x' icon={faChevronDown} />}   />
+                        </FlexboxGrid.Item>
+                    </FlexboxGrid>
                 </div>
             </Drawer>
 
