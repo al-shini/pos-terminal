@@ -1504,7 +1504,7 @@ const Terminal = (props) => {
                                 trxKey: null,
                                 trxMode: terminal.trxMode,
                                 tillKey: terminal.till ? terminal.till.key : null,
-                                multiplier: '1'
+                                multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
                             }))
                         }
 
