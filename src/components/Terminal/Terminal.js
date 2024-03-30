@@ -141,7 +141,7 @@ const Terminal = (props) => {
     }
 
     useEffect(() => {
-        if (trxSlice.numberInputValue === '4994') {
+        if (trxSlice.numberInputValue === '4.994') {
             if (logoCounter === 10) {
                 dispatch(setManagerMode(true));
                 setLogoCounter(0);
@@ -796,7 +796,7 @@ const Terminal = (props) => {
         if (!trxSlice.priceChangeMode) {
             dispatch(clearNumberInput());
             // dispatch(reset());
-            if (terminal.managerMode) {
+            if (terminal.managerMode || (trxSlice.selectedLine.barcode === '7290012080142' && terminal.store.key === 'maintira') ) {
                 dispatch(enablePriceChange());
             } else {
                 axios({

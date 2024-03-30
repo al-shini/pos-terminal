@@ -65,6 +65,9 @@ function createWindow() {
     if (localConfig.scale) {
         params += `&scale=true`;
     }
+    if (localConfig.autoUpdate) {
+        params += `&autoUpdate=true`;
+    }
 
     // and load the index.html of the app.
     win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
@@ -116,7 +119,8 @@ function createWindow() {
 }
 
 autoUpdater.on('error', (error) => {
-    dialog.showErrorBox('Error while checking for updates: ', error == null ? "unknown" : (error.stack || error).toString())
+    // dialog.showErrorBox('Error while checking for updates: ', error == null ? "unknown" : (error.stack || error).toString())
+    console.log('Error while checking for updates');
 })
 
 autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
