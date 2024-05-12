@@ -75,7 +75,7 @@
   "build": {
     "appId": "shini.pos",
     "productName": "Dazzle POS",
-    "asar": false,
+    "asar": true,
     "win": {
       "target": "NSIS",
       "icon": "build/icon.ico"
