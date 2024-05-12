@@ -49,7 +49,7 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: false,//localConfig.admin ? false : true,
+        fullscreen: localConfig.admin ? false : true,
         webPreferences: {
             nodeIntegration: true
         }
@@ -74,9 +74,9 @@ function createWindow() {
 
     win.show();
     // Open the DevTools.
-    // if (localConfig.devTools) {
-    win.webContents.openDevTools({ mode: "detach" });
-    // }
+    if (localConfig.devTools) {
+        win.webContents.openDevTools({ mode: "detach" });
+    }
 
 
     // customer screen options 
