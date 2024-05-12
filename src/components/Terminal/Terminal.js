@@ -5,7 +5,7 @@ import { Button, FlexboxGrid, Divider, Input, SelectPicker, Drawer, ButtonGroup,
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag,faChevronUp,faChevronDown,
+    faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown,
     faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
@@ -518,7 +518,7 @@ const Terminal = (props) => {
                         tillKey: terminal.till ? terminal.till.key : null,
                         multiplier: qty
                     }))
-                } 
+                }
             } else {
                 setLocalMsg('Please add item on scale first');
             }
@@ -527,7 +527,7 @@ const Terminal = (props) => {
             setLocalMsg('could not fetch weight from scale');
             dispatch(notify({ msg: 'could not fetch weight from scale', sev: 'error' }));
             dispatch(hideLoading());
-        }) 
+        })
     }
 
 
@@ -796,7 +796,7 @@ const Terminal = (props) => {
         if (!trxSlice.priceChangeMode) {
             dispatch(clearNumberInput());
             // dispatch(reset());
-            if (terminal.managerMode || (trxSlice.selectedLine.barcode === '7290012080142' && terminal.store.key === 'maintira') ) {
+            if (terminal.managerMode || (trxSlice.selectedLine.barcode === '7290012080142' && terminal.store.key === 'maintira')) {
                 dispatch(enablePriceChange());
             } else {
                 axios({
@@ -1145,7 +1145,7 @@ const Terminal = (props) => {
             <br />
             {terminal.customer && terminal.store && <Button key='cashBack'
                 disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection}
-                className={classes.MainActionButton} onClick={() => { startPayment('cashBack', 'numpad') }}>
+                className={classes.MainActionButton} onClick={() => { startPayment('cashBack', 'fixed') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>Cash Back</label>
             </Button>}
@@ -2014,17 +2014,17 @@ const Terminal = (props) => {
                             })}
                         </FlexboxGrid>
                     </div>
-                    <FlexboxGrid style={{  color: 'white',  width: '200px', marginTop: '10px' }}>
+                    <FlexboxGrid style={{ color: 'white', width: '200px', marginTop: '10px' }}>
                         <FlexboxGrid.Item colspan={8} >
-                            <IconButton onClick={() => setVeggieScrollAction('up')} 
-                            style={{width: '100px !important'}}
-                            icon={<FontAwesomeIcon size='4x' icon={faChevronUp} />}   />
+                            <IconButton onClick={() => setVeggieScrollAction('up')}
+                                style={{ width: '100px !important' }}
+                                icon={<FontAwesomeIcon size='4x' icon={faChevronUp} />} />
                         </FlexboxGrid.Item>
                         <FlexboxGrid.Item colspan={2} />
                         <FlexboxGrid.Item colspan={8} >
-                            <IconButton onClick={() => setVeggieScrollAction('down')} 
-                             style={{width: '80px !important'}}
-                             icon={<FontAwesomeIcon size='4x' icon={faChevronDown} />}   />
+                            <IconButton onClick={() => setVeggieScrollAction('down')}
+                                style={{ width: '80px !important' }}
+                                icon={<FontAwesomeIcon size='4x' icon={faChevronDown} />} />
                         </FlexboxGrid.Item>
                     </FlexboxGrid>
                 </div>

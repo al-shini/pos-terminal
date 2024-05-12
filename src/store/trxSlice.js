@@ -735,6 +735,10 @@ export const trxSlice = createSlice({
 
             console.log(action.payload.paymentMode);
 
+            if (state.selectedPaymentMethod === 'CashBack') {
+                return;
+            }
+
             if (action.payload.paymentMode) {
                 if (state.selectedPaymentMethod === 'Voucher') {
                     // allow up to 14 digits

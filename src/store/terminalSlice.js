@@ -21,7 +21,7 @@ const initialState = {
     trxMode: 'Sale',
     paymentMode: false,
     paymentType: 'none', //none, cash,foreign,visa,eWallet..etc
-    paymentInput: 'fixed', //fixed, numpad
+    paymentInput: 'numpad', //fixed, numpad
     paymentMethods: {},
     cashButtons: [],
     foreignButtons: [],
@@ -29,7 +29,7 @@ const initialState = {
     exchangeRates: {},
     blockActions: false,
     errorSound: false,
-    managerMode: false,
+    managerMode: true,
     managerUser: '',
     _managerUser: '',
     actionState: 'free'
@@ -391,7 +391,7 @@ export const terminalSlice = createSlice({
             if (state.paymentType === 'none') {
                 state.paymentMode = false;
                 state.display = 'ready';
-                state.paymentInput = 'fixed';
+                state.paymentInput = 'numpad';
             } else {
                 state.paymentType = 'none';
             }
