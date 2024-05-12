@@ -49,7 +49,7 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: localConfig.admin ? false : true,
+        fullscreen: false,//localConfig.admin ? false : true,
         webPreferences: {
             nodeIntegration: true
         }
@@ -74,9 +74,9 @@ function createWindow() {
 
     win.show();
     // Open the DevTools.
-    if (localConfig.devTools) {
-        win.webContents.openDevTools({ mode: "detach" });
-    }
+    // if (localConfig.devTools) {
+    win.webContents.openDevTools({ mode: "detach" });
+    // }
 
 
     // customer screen options 
@@ -346,12 +346,7 @@ expressApp.get('/printTrx', async (req, res) => {
 
                 if (trx.campaignList) {
                     // custom campaign, remove when over
-                    if (trx.totalafterdiscount >= 200) {
-                        let howManyTimes = Math.floor(trx.totalafterdiscount / 200);
-                        for (let i = 0; i < howManyTimes; i++) {
-                            print('C:\\slip.pdf', {});
-                        }
-                    }
+                    print('C:\\slip.pdf', {});
                 }
 
 
@@ -375,116 +370,107 @@ expressApp.get('/printTrx', async (req, res) => {
 })
 
 expressApp.post('/linkTerminalWithBopVisa', async (req, res) => {
-    try {
+    const terminalKey = req.body.terminalKey;
+    const bopVisaIp = req.body.bopVisaIp;
 
-        const terminalKey = req.body.terminalKey;
-        const bopVisaIp = req.body.bopVisaIp;
-
-
-        // generate private and public keys for terminal & store them in the local pos files path
-        const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-            modulusLength: 4096,
-            publicKeyEncoding: {
-                type: 'spki',
-                format: 'pem'
-            },
-            privateKeyEncoding: {
-                type: 'pkcs8',
-                format: 'pem'
-            }
-        });
-        // create the private.key file
-        const privateKeyStream = fs.createWriteStream("C:\\pos\\private.key");
-        privateKeyStream.write(privateKey);
-        privateKeyStream.end();
-        // create the public.key file
-        const publicKeyStream = fs.createWriteStream("C:\\pos\\public.key");
-        publicKeyStream.write(publicKey);
-        publicKeyStream.end();
-
-        // open a client socket with the VISA machine and issue
-        const client = new net.Socket();
-        let received = '';
-
-        console.log(bopVisaIp);
-
-        client.connect(7800, bopVisaIp);
-        client.setEncoding('utf8');
-        client.setTimeout(80 * 1000); // timeout must be greater than terminal timeout
-
-        /* begin call back events for visa socket */
-        client.on('data', function (response) {
-            console.log('\n[data event] => ', response);
-            received += response;
-        });
-
-        client.on('error', function (response) {
-            console.log('[error event] => ', response);
-            throw new Error(response);
-        });
-
-        client.on('close', function (response) {
-            const initResponse = JSON.parse(received);
-            console.log('initResponse', initResponse);
-            if (initResponse && initResponse.rsaPubKey) {
-                const visaPubKey = initResponse.rsaPubKey;
-                // link the private and public key pairs with the terminal object in the backend, alongside the visa machine details
-                axios({
-                    method: 'post',
-                    url: '/trx/linkTerminalWithBopVisa',
-                    data: {
-                        terminalKey: terminalKey,
-                        terminalPrivateRsaKey: privateKey,
-                        terminalPublicRsaKey: publicKey,
-                        visaIp: bopVisaIp,
-                        visaPublicRsaKey: visaPubKey
-                    }
-                }).then((response) => {
-                    if (response && response.data) {
-                        res.send(response.data);
-                    }
-                }).catch((error) => {
-                    if (error.response) {
-                        dialog.showErrorBox('Error', 'Un-Authorized')
-                    } else {
-                        dialog.showErrorBox('Error', error.message)
-                    }
-                    res.status(500).send({ error: error.message })
-                });
-
-
-            } else {
-                dialog.showErrorBox('Invalid Response', JSON.stringify(initResponse))
-                res.status(500).send({ error: 'Invalid Response from VISA' })
-            }
-        });
-        /* end call back events for visa socket */
-
-        // send the request to the visa machine
-        const initRequestObject = JSON.stringify({
-            lang: 0,
-            type: 'INIT',
-            rsaPubKey: fixRsaFormat(publicKey)
-        });
-        let length = initRequestObject.length;
-        while ((length + '').length < 4) {
-            length = '0' + length;
+    // generate private and public keys for terminal & store them in the local pos files path
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 4096,
+        publicKeyEncoding: {
+            type: 'spki',
+            format: 'pem'
+        },
+        privateKeyEncoding: {
+            type: 'pkcs8',
+            format: 'pem'
         }
-        message = '~PCNC~' + length + '~' + initRequestObject;
-        console.log('Sending -> ', message)
-        client.write(message);
+    });
+    // create the private.key file
+    const privateKeyStream = fs.createWriteStream("C:\\pos\\private.key");
+    privateKeyStream.write(privateKey);
+    privateKeyStream.end();
+    // create the public.key file
+    const publicKeyStream = fs.createWriteStream("C:\\pos\\public.key");
+    publicKeyStream.write(publicKey);
+    publicKeyStream.end();
 
+    // open a client socket with the VISA machine and issue
+    const client = new net.Socket();
+    let received = '';
 
-    } catch (e) {
-        console.log(e);
-        dialog.showErrorBox('Error', e)
-        res.status(500).send(e);
+    console.log(bopVisaIp);
+
+    client.connect(7800, bopVisaIp);
+    client.setEncoding('utf8');
+    client.setTimeout(80 * 1000); // timeout must be greater than terminal timeout
+
+    /* begin call back events for visa socket */
+    client.on('data', function (response) {
+        console.log('\n[data event] => ', response);
+        received += response;
+    });
+
+    client.on('error', function (response) {
+        console.log('[error event] => ', response);
+        res.status(500).send(response);
+    });
+
+    client.on('close', function (response) {
+        let initResponse = undefined;
+        try {
+            // try and parse receievd JSON
+            console.log("RECIEVED JSON:", received);
+            initResponse = JSON.parse(received);
+        } catch (parseError) {
+            console.log('could not parse the received json');
+            return;
+        }
+
+        console.log('initResponse', initResponse);
+        if (initResponse && initResponse.rsaPubKey) {
+            const visaPubKey = initResponse.rsaPubKey;
+            // link the private and public key pairs with the terminal object in the backend, alongside the visa machine details
+            axios({
+                method: 'post',
+                url: '/trx/linkTerminalWithBopVisa',
+                data: {
+                    terminalKey: terminalKey,
+                    terminalPrivateRsaKey: privateKey,
+                    terminalPublicRsaKey: publicKey,
+                    visaIp: bopVisaIp,
+                    visaPublicRsaKey: visaPubKey
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    res.send(response.data);
+                }
+            }).catch((error) => {
+                res.status(500).send({ error: error.message })
+            });
+        } else {
+            res.status(500).send({ error: 'Invalid Response from VISA '.concat(JSON.stringify(initResponse)) })
+        }
+    });
+    /* end call back events for visa socket */
+
+    // send the request to the visa machine
+    const initRequestObject = JSON.stringify({
+        lang: 0,
+        type: 'INIT',
+        rsaPubKey: fixRsaFormat(publicKey)
+    });
+    let length = initRequestObject.length;
+    while ((length + '').length < 4) {
+        length = '0' + length;
     }
+    message = '~PCNC~' + length + '~' + initRequestObject;
+    console.log('Sending -> ', message)
+    client.write(message);
+
 })
 
 expressApp.post('/bopVisaSale', async (req, res) => {
     try {
-
         const terminal = req.body.terminal;
         if (!terminal || !terminal.bopVisaIp || !terminal.bopVisaPublicRsa) {
             // invalid terminal structure
@@ -512,7 +498,7 @@ expressApp.post('/bopVisaSale', async (req, res) => {
 
         client.on('error', function (response) {
             console.log('[error event] => ', response);
-            throw new Error(response);
+            res.status(500).send(response);
         });
 
         client.on('close', function (response) {
@@ -521,8 +507,8 @@ expressApp.post('/bopVisaSale', async (req, res) => {
                 console.log(saleResponse);
                 res.send(saleResponse);
             } catch (ex) {
-                dialog.showErrorBox('Error Decrypting Response', JSON.stringify(received))
-                res.status(500).send({ error: 'Invalid Response from VISA' })
+                console.log('[close event error] => ', response);
+                res.status(500).send({ error: response })
             }
 
         });
@@ -551,7 +537,6 @@ expressApp.post('/bopVisaSale', async (req, res) => {
     } catch (e) {
         console.log(e);
         res.status(500).send(e);
-        dialog.showErrorBox('Error', e)
     }
 })
 

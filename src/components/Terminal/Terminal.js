@@ -1552,10 +1552,10 @@ const Terminal = (props) => {
             }
             dispatch(hideLoading());
         }).catch((error) => {
-            // console.log(error.response, error.message);
-            dispatch(notify({ msg: 'could not link visa ', sev: 'error' }));
+            console.error(error.response);
+            dispatch(notify({ msg: 'could not link visa '.concat(error.response.data.code ? error.response.data.code : JSON.stringify(error.response)), sev: 'error' }));
             dispatch(hideLoading());
-        });
+        })
     }
 
     const conjureAlphabet = () => {
