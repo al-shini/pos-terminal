@@ -486,6 +486,26 @@ const Terminal = (props) => {
         }
     }
 
+    function formatDouble(number) {
+        // Ensure the number has 3 decimal places
+        let formattedNumber = number.toFixed(3);
+
+        // Split the number into whole part and decimal part
+        let parts = formattedNumber.split('.');
+        let wholePart = parts[0];
+        let decimalPart = parts[1];
+
+        // Pad the whole part with leading zeros if needed
+        while (wholePart.length < 2) {
+            wholePart = '0' + wholePart;
+        }
+
+        // Combine the parts and remove the decimal point
+        formattedNumber = wholePart + decimalPart;
+
+        return formattedNumber;
+    }
+
     const scanWeightableItem = (item) => {
         dispatch(showLoading());
         const barcode = item.barcode;
@@ -503,20 +523,20 @@ const Terminal = (props) => {
                 if (trxSlice.trx && trxSlice.trx.key) {
                     dispatch(scanBarcode({
                         customerKey: terminal.customer ? terminal.customer.key : null,
-                        barcode: barcode,
+                        barcode: '61'.concat(barcode).concat(formatDouble(qty)).concat('1'),
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                         trxMode: terminal.trxMode,
                         tillKey: terminal.till ? terminal.till.key : null,
-                        multiplier: qty
+                        multiplier: '1'
                     }))
                 } else {
                     dispatch(scanNewTransaction({
                         customerKey: terminal.customer ? terminal.customer.key : null,
-                        barcode: barcode,
+                        barcode: '61'.concat(barcode).concat(formatDouble(qty)).concat('1'),
                         trxKey: null,
                         trxMode: terminal.trxMode,
                         tillKey: terminal.till ? terminal.till.key : null,
-                        multiplier: qty
+                        multiplier: '1'
                     }))
                 }
             } else {
@@ -869,7 +889,14 @@ const Terminal = (props) => {
         if (!terminal.paymentMode) {
             //  dispatch(logout());
             // dispatch(notify({ msg: 'YOU CANT SHUTDOWN', sev: 'error' }));
-            window.location.reload();
+            if (trxSlice.numberInputValue === '123') {
+                axios({
+                    method: 'get',
+                    url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/restart`,
+                })
+            } else {
+                window.location.reload();
+            }
         } else {
             dispatch(abort());
         }

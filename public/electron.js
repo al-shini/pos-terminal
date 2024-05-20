@@ -540,34 +540,74 @@ expressApp.post('/bopVisaSale', async (req, res) => {
     }
 })
 
+ 
+
+let port;
+let parser;
+
+// Initialize the serial port and parser
+function initSerialPort() {
+    port = new SerialPort({
+        path: localConfig.scaleCom || 'COM1',
+        baudRate: localConfig.baudRate || 9600,
+        autoOpen: false // Prevent auto-opening, we'll open it manually
+    });
+
+    parser = port.pipe(new ByteLengthParser({ length: 8 }));
+
+    port.on('error', (err) => {
+        console.log('Serial Port Error: ', err.message);
+    });
+
+    port.on('close', () => {
+        console.log('Serial Port Closed');
+    });
+
+    port.open((err) => {
+        if (err) {
+            console.log('Error opening serial port: ', err.message);
+        } else {
+            console.log('Serial Port Opened');
+        }
+    });
+}
+
+// Initialize the serial port
+if(localConfig.scale){
+    initSerialPort();
+}
 
 expressApp.get('/fetchFromScale', (req, res) => {
-
-    try {
-        const port = new SerialPort({ path: localConfig.scaleCom ? localConfig.scaleCom : 'COM1', baudRate: 9600 })
-        const parser = port.pipe(new ByteLengthParser({ length: 8 }))
-
-        parser.on('data', (data) => {
-            const buffer = Buffer.from(data, 'utf-8');
-            const valueAsString = buffer.toString('utf-8');
-            setTimeout(() => {
-                res.send(valueAsString)
-                port.close();
-            }, 500)
-        })
-
-        port.on('error', (err) => {
-            console.log(err);
-            res.status(500).send(err);
-        });
-
-        port.write(localConfig.scaleCommand ? localConfig.scaleCommand : '$')
-    } catch (e) {
-        throw e;
+    if (!port.isOpen) {
+        return res.status(500).send('Serial port not open');
     }
-})
+
+    parser.once('data', (data) => {
+        const buffer = Buffer.from(data, 'utf-8');
+        const valueAsString = buffer.toString('utf-8');
+        setTimeout(() => {
+            res.send(valueAsString);
+        }, 500);
+    });
+
+    port.write(localConfig.scaleCommand || '$', (err) => {
+        if (err) {
+            console.log('Error on write: ', err.message);
+            res.status(500).send(err.message);
+        }
+    });
+});
 
 
+function restartApp() {
+    app.relaunch();
+    app.exit(0);
+}
+
+expressApp.get('/restart', (req, res) => {
+    restartApp();
+    res.send('App is restarting...');
+});
 
 
 // RUN express app
