@@ -18,13 +18,6 @@ const { autoUpdater } = require("electron-updater")
 const { print } = require("pdf-to-printer");
 const { SerialPort, ReadlineParser, ByteLengthParser } = require('serialport')
 
-const logger = require('electron-log');
-
-logger.info('Hello from main process');
-
-// You can still use console.log, but using log provides more options
-console.log = logger.info;
-
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
 const config = {
