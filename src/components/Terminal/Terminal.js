@@ -487,8 +487,9 @@ const Terminal = (props) => {
     }
 
     function formatDouble(number) {
+        console.log('number passed to format: ', number);
         // Ensure the number has 3 decimal places
-        let formattedNumber = number.toFixed(3);
+        let formattedNumber = number;//.toFixed(3);
 
         // Split the number into whole part and decimal part
         let parts = formattedNumber.split('.');
@@ -498,6 +499,9 @@ const Terminal = (props) => {
         // Pad the whole part with leading zeros if needed
         while (wholePart.length < 2) {
             wholePart = '0' + wholePart;
+        }
+        if(wholePart.length === 3){
+            wholePart = wholePart.substr(1)
         }
 
         // Combine the parts and remove the decimal point

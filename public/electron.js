@@ -18,6 +18,12 @@ const { autoUpdater } = require("electron-updater")
 const { print } = require("pdf-to-printer");
 const { SerialPort, ReadlineParser, ByteLengthParser } = require('serialport')
 
+const logger = require('electron-log');
+
+logger.info('Hello from main process');
+
+// You can still use console.log, but using log provides more options
+console.log = logger.info;
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
@@ -25,6 +31,7 @@ const config = {
     qrBaseUrl: 'http://46.43.70.210:81/process-customer-entry.xhtml'
 }
 const axiosImport = require('axios');
+const { log } = require("console");
 const axios = axiosImport.create({
     baseURL: 'http://' + localConfig.serverIp + ':8080/'
 });
@@ -70,7 +77,7 @@ function createWindow() {
     }
 
     // and load the index.html of the app.
-    win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
+     win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
 
     win.show();
     // Open the DevTools.
@@ -547,6 +554,7 @@ let parser;
 
 // Initialize the serial port and parser
 function initSerialPort() {
+    console.log('initializding port', localConfig.scaleCom);
     port = new SerialPort({
         path: localConfig.scaleCom || 'COM1',
         baudRate: localConfig.baudRate || 9600,
@@ -575,6 +583,8 @@ function initSerialPort() {
 // Initialize the serial port
 if(localConfig.scale){
     initSerialPort();
+}else{
+    console.log('scale not configured for initialization');
 }
 
 expressApp.get('/fetchFromScale', (req, res) => {
@@ -583,14 +593,17 @@ expressApp.get('/fetchFromScale', (req, res) => {
     }
 
     parser.once('data', (data) => {
+        console.log('response from scale, trying to read data');
         const buffer = Buffer.from(data, 'utf-8');
         const valueAsString = buffer.toString('utf-8');
+        console.log('data returned from scale: ' + valueAsString);
         setTimeout(() => {
             res.send(valueAsString);
-        }, 500);
+        }, 50);
     });
 
     port.write(localConfig.scaleCommand || '$', (err) => {
+        console.log('error writing scale command ');
         if (err) {
             console.log('Error on write: ', err.message);
             res.status(500).send(err.message);
