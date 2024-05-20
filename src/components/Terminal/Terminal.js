@@ -513,49 +513,67 @@ const Terminal = (props) => {
     const scanWeightableItem = (item) => {
         dispatch(showLoading());
         let barcode = item.barcode;
-        axios({
-            method: 'get',
-            url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/fetchFromScale`,
-        }).then((response) => {
-            let qty = response.data;
-            if (item.scalePieceItem) {
-                barcode = '63'.concat(barcode).concat(formatDouble(qty)).concat('1');
-                qty = trxSlice.multiplier ? trxSlice.multiplier : '1';
+
+        if (item.scalePieceItem) {
+            if (trxSlice.trx && trxSlice.trx.key) {
+                dispatch(scanBarcode({
+                    customerKey: terminal.customer ? terminal.customer.key : null,
+                    barcode: '63'.concat(barcode).concat('000011'),
+                    trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                    trxMode: terminal.trxMode,
+                    tillKey: terminal.till ? terminal.till.key : null,
+                    multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                }))
             } else {
-                barcode = '61'.concat(barcode).concat(formatDouble(qty)).concat('1');
-                qty = '1';
+                dispatch(scanNewTransaction({
+                    customerKey: terminal.customer ? terminal.customer.key : null,
+                    barcode: '63'.concat(barcode).concat('000011'),
+                    trxKey: null,
+                    trxMode: terminal.trxMode,
+                    tillKey: terminal.till ? terminal.till.key : null,
+                    multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                }))
             }
-            if (qty > 0.0) {
-                setScaleItemsOpen(false);
-                setLocalMsg('');
-                if (trxSlice.trx && trxSlice.trx.key) {
-                    dispatch(scanBarcode({
-                        customerKey: terminal.customer ? terminal.customer.key : null,
-                        barcode: barcode,
-                        trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                        trxMode: terminal.trxMode,
-                        tillKey: terminal.till ? terminal.till.key : null,
-                        multiplier: qty
-                    }))
-                } else {
-                    dispatch(scanNewTransaction({
-                        customerKey: terminal.customer ? terminal.customer.key : null,
-                        barcode: barcode,
-                        trxKey: null,
-                        trxMode: terminal.trxMode,
-                        tillKey: terminal.till ? terminal.till.key : null,
-                        multiplier: qty
-                    }))
-                }
-            } else {
-                setLocalMsg('Please add item on scale first');
-            }
-        }).catch((error) => {
-            console.error(error);
-            setLocalMsg('could not fetch weight from scale');
-            dispatch(notify({ msg: 'could not fetch weight from scale', sev: 'error' }));
             dispatch(hideLoading());
-        })
+            setScaleItemsOpen(false);
+        } else {
+            axios({
+                method: 'get',
+                url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/fetchFromScale`,
+            }).then((response) => {
+                let qty = response.data;
+                if (qty > 0.0) {
+                    setScaleItemsOpen(false);
+                    setLocalMsg('');
+                    if (trxSlice.trx && trxSlice.trx.key) {
+                        dispatch(scanBarcode({
+                            customerKey: terminal.customer ? terminal.customer.key : null,
+                            barcode: '61'.concat(barcode).concat(formatDouble(qty)).concat('1'),
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            trxMode: terminal.trxMode,
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            multiplier: qty
+                        }))
+                    } else {
+                        dispatch(scanNewTransaction({
+                            customerKey: terminal.customer ? terminal.customer.key : null,
+                            barcode: '61'.concat(barcode).concat(formatDouble(qty)).concat('1'),
+                            trxKey: null,
+                            trxMode: terminal.trxMode,
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            multiplier: qty
+                        }))
+                    }
+                } else {
+                    setLocalMsg('Please add item on scale first');
+                }
+            }).catch((error) => {
+                console.error(error);
+                setLocalMsg('could not fetch weight from scale');
+                dispatch(notify({ msg: 'could not fetch weight from scale', sev: 'error' }));
+                dispatch(hideLoading());
+            })
+        }
     }
 
 
@@ -2019,7 +2037,7 @@ const Terminal = (props) => {
             <Drawer style={{ width: '85vw' }} position='right' open={scaleItemsOpen} onClose={() => setScaleItemsOpen(false)}>
                 <div style={{ padding: '15px' }}>
                     <h3>
-                        <FontAwesomeIcon icon={faScaleBalanced} /> Scale Items 
+                        <FontAwesomeIcon icon={faScaleBalanced} /> Scale Items
                         <ButtonGroup style={{ width: '50%', float: 'right' }}>
                             <Button style={{ width: '50%' }} appearance={selectedScaleCategory === 'veggie' ? 'primary' : 'ghost'} color='green' size='lg' onClick={() => setSelectedScaleCategory('veggie')} > Vegetables </Button>
                             <Button style={{ width: '50%' }} appearance={selectedScaleCategory === 'fruit' ? 'primary' : 'ghost'} color='green' size='lg' onClick={() => setSelectedScaleCategory('fruit')}  > Fruits </Button>
