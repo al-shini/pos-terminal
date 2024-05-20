@@ -65,12 +65,18 @@ function createWindow() {
     if (localConfig.scale) {
         params += `&scale=true`;
     }
+    if (localConfig.scaleAlphabet) {
+        params += `&scaleAlphabet=true`;
+    }
     if (localConfig.autoUpdate) {
         params += `&autoUpdate=true`;
     }
 
+
+    console.log(params);
+
     // and load the index.html of the app.
-     win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
+    win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
 
     win.show();
     // Open the DevTools.
@@ -540,7 +546,7 @@ expressApp.post('/bopVisaSale', async (req, res) => {
     }
 })
 
- 
+
 
 let port;
 let parser;
@@ -574,9 +580,9 @@ function initSerialPort() {
 }
 
 // Initialize the serial port
-if(localConfig.scale){
+if (localConfig.scale) {
     initSerialPort();
-}else{
+} else {
     console.log('scale not configured for initialization');
 }
 
@@ -590,9 +596,7 @@ expressApp.get('/fetchFromScale', (req, res) => {
         const buffer = Buffer.from(data, 'utf-8');
         const valueAsString = buffer.toString('utf-8');
         console.log('data returned from scale: ' + valueAsString);
-        setTimeout(() => {
-            res.send(valueAsString);
-        }, 50);
+        res.send(valueAsString);
     });
 
     port.write(localConfig.scaleCommand || '$', (err) => {

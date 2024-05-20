@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown,
-    faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle
+    faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -500,7 +500,7 @@ const Terminal = (props) => {
         while (wholePart.length < 2) {
             wholePart = '0' + wholePart;
         }
-        if(wholePart.length === 3){
+        if (wholePart.length === 3) {
             wholePart = wholePart.substr(1)
         }
 
@@ -512,14 +512,18 @@ const Terminal = (props) => {
 
     const scanWeightableItem = (item) => {
         dispatch(showLoading());
-        const barcode = item.barcode;
+        let barcode = item.barcode;
         axios({
             method: 'get',
             url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/fetchFromScale`,
         }).then((response) => {
             let qty = response.data;
             if (item.scalePieceItem) {
+                barcode = '63'.concat(barcode).concat(formatDouble(qty)).concat('1');
                 qty = trxSlice.multiplier ? trxSlice.multiplier : '1';
+            } else {
+                barcode = '61'.concat(barcode).concat(formatDouble(qty)).concat('1');
+                qty = '1';
             }
             if (qty > 0.0) {
                 setScaleItemsOpen(false);
@@ -527,20 +531,20 @@ const Terminal = (props) => {
                 if (trxSlice.trx && trxSlice.trx.key) {
                     dispatch(scanBarcode({
                         customerKey: terminal.customer ? terminal.customer.key : null,
-                        barcode: '61'.concat(barcode).concat(formatDouble(qty)).concat('1'),
+                        barcode: barcode,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                         trxMode: terminal.trxMode,
                         tillKey: terminal.till ? terminal.till.key : null,
-                        multiplier: '1'
+                        multiplier: qty
                     }))
                 } else {
                     dispatch(scanNewTransaction({
                         customerKey: terminal.customer ? terminal.customer.key : null,
-                        barcode: '61'.concat(barcode).concat(formatDouble(qty)).concat('1'),
+                        barcode: barcode,
                         trxKey: null,
                         trxMode: terminal.trxMode,
                         tillKey: terminal.till ? terminal.till.key : null,
-                        multiplier: '1'
+                        multiplier: qty
                     }))
                 }
             } else {
@@ -1592,8 +1596,9 @@ const Terminal = (props) => {
     const conjureAlphabet = () => {
         var arabicAlphabet = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي'];
         let buttons = [];
-        buttons.push(<Button appearance={'all' === alphabtet ? 'primary' : 'default'} key={'all'} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '60px' }}
-            onClick={() => { setAlphabet('all') }} >ALL</Button>)
+        // buttons.push(<Button appearance={'all' === alphabtet ? 'primary' : 'default'} key={'all'} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '60px' }}
+        //     onClick={() => { setAlphabet('all') }} >ALL</Button>)
+
         arabicAlphabet.map((c) => {
             buttons.push(<Button appearance={c === alphabtet ? 'primary' : 'default'} key={c.barcode} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '35px' }}
                 onClick={() => { setAlphabet(c) }} >{c}</Button>)
@@ -2011,33 +2016,33 @@ const Terminal = (props) => {
                 </FlexboxGrid>
             </FlexboxGridItem >
 
-            <Drawer style={{ width: '60vw' }} position='right' open={scaleItemsOpen} onClose={() => setScaleItemsOpen(false)}>
+            <Drawer style={{ width: '85vw' }} position='right' open={scaleItemsOpen} onClose={() => setScaleItemsOpen(false)}>
                 <div style={{ padding: '15px' }}>
                     <h3>
-                        <FontAwesomeIcon icon={faScaleBalanced} /> Scale Items
+                        <FontAwesomeIcon icon={faScaleBalanced} /> Scale Items 
                         <ButtonGroup style={{ width: '50%', float: 'right' }}>
                             <Button style={{ width: '50%' }} appearance={selectedScaleCategory === 'veggie' ? 'primary' : 'ghost'} color='green' size='lg' onClick={() => setSelectedScaleCategory('veggie')} > Vegetables </Button>
                             <Button style={{ width: '50%' }} appearance={selectedScaleCategory === 'fruit' ? 'primary' : 'ghost'} color='green' size='lg' onClick={() => setSelectedScaleCategory('fruit')}  > Fruits </Button>
                         </ButtonGroup>
                     </h3>
-                    {localMsg && <h6 style={{ color: 'darkred', margin: '10px', textAlign: 'center' }}>{localMsg}</h6>}
+                    {localMsg && <h6 style={{ color: 'darkred', margin: '10px', textAlign: 'center' }}>{localMsg} </h6>}
                     <Divider />
-                    <ButtonToolbar>
-                        <ButtonGroup>
-                            {/* {conjureAlphabet()} */}
+                    {config.scaleAlphabet && <ButtonToolbar style={{ direction: 'rtl' }}>
+                        <ButtonGroup >
+                            {conjureAlphabet()}
                         </ButtonGroup>
-                    </ButtonToolbar>
+                    </ButtonToolbar>}
                     {/* <Divider /> */}
-                    <div id='veggieList' style={{ overflowY: 'hidden', height: '70vh' }}>
+                    <div id='veggieList' style={{ overflowY: 'scroll', height: config.scaleAlphabet ? '60vh' : '70vh' }}>
                         <FlexboxGrid>
                             {produceItems.map((item) => {
-                                return (<FlexboxGrid.Item key={item.barcode} colspan={6}>
+                                return (<FlexboxGrid.Item key={item.barcode} colspan={4}>
                                     <Button style={{ width: '96%', margin: '2%', background: 'white', border: '1px solid #363636' }} onClick={() => { scanWeightableItem(item); }}>
                                         <img src={`http://46.43.70.210:9000/veggies/${item.barcode}.jpg`}
                                             onError={(e) => {
                                                 e.target.src = `http://46.43.70.210:9000/veggies/nophoto.jpg`;
                                             }}
-                                            height={100} />
+                                            height={100} width={100} />
                                         <br />
                                         <b>{item.descriptionAr} {item.scalePieceItem && <FontAwesomeIcon icon={faTag} />}</b>
                                     </Button>
@@ -2046,17 +2051,24 @@ const Terminal = (props) => {
                         </FlexboxGrid>
                     </div>
                     <FlexboxGrid style={{ color: 'white', width: '200px', marginTop: '10px' }}>
-                        <FlexboxGrid.Item colspan={8} >
+                        <FlexboxGrid.Item colspan={6} >
                             <IconButton onClick={() => setVeggieScrollAction('up')}
                                 style={{ width: '100px !important' }}
                                 icon={<FontAwesomeIcon size='4x' icon={faChevronUp} />} />
                         </FlexboxGrid.Item>
-                        <FlexboxGrid.Item colspan={2} />
-                        <FlexboxGrid.Item colspan={8} >
+                        <FlexboxGrid.Item colspan={3} />
+                        <FlexboxGrid.Item colspan={6} >
                             <IconButton onClick={() => setVeggieScrollAction('down')}
-                                style={{ width: '80px !important' }}
+                                style={{ width: '100px !important' }}
                                 icon={<FontAwesomeIcon size='4x' icon={faChevronDown} />} />
                         </FlexboxGrid.Item>
+                        <FlexboxGrid.Item colspan={3} />
+                        <FlexboxGrid.Item colspan={6} >
+                            {config.scaleAlphabet && <IconButton onClick={() => { setAlphabet('all') }}
+                                style={{ width: '80px !important' }}
+                                icon={<FontAwesomeIcon size='4x' icon={faList} />} />}
+                        </FlexboxGrid.Item>
+
                     </FlexboxGrid>
                 </div>
             </Drawer>
