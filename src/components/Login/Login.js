@@ -34,9 +34,9 @@ const Login = (props) => {
         admin: config.admin ? config.admin : false
     });
 
-    useEffect(() => {
-        dispatch(login({ username: '1', password: '1', admin: false, terminalHardwareId: config.deviceId }));
-    }, [])
+    // useEffect(() => {
+    //     dispatch(login({ username: '1', password: '1', admin: false, terminalHardwareId: config.deviceId }));
+    // }, [])
 
     const [loginQR, setLoginQR] = useState(undefined);
 
