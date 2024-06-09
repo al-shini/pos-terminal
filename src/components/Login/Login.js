@@ -34,6 +34,10 @@ const Login = (props) => {
         admin: config.admin ? config.admin : false
     });
 
+    useEffect(() => {
+        dispatch(login({ username: '1', password: '1', admin: false, terminalHardwareId: config.deviceId }));
+    }, [])
+
     const [loginQR, setLoginQR] = useState(undefined);
 
     const theme = createTheme();
@@ -141,14 +145,6 @@ const Login = (props) => {
 
     return (
         <ThemeProvider theme={theme}>
-            {loginQR && <Snackbar
-                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                open={uiSlice.toastOpen} >
-                <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
-                    {uiSlice.toastMsg}
-                </Alert>
-            </Snackbar>}
-
             <Grid container component="main" sx={{ height: '100vh' }}>
                 <CssBaseline />
                 <Grid

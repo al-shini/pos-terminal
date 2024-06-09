@@ -16,7 +16,9 @@ const crypto = require('crypto');
 const net = require('net');
 const { autoUpdater } = require("electron-updater")
 const { print } = require("pdf-to-printer");
-const { SerialPort, ReadlineParser, ByteLengthParser } = require('serialport')
+const { SerialPort, ByteLengthParser } = require('serialport')
+const printComplete = require('./printComplete');
+const { ReadlineParser } = require('@serialport/parser-readline');
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
@@ -338,17 +340,45 @@ expressApp.get('/printTrx', async (req, res) => {
                 const qrUrl = 'https://plus.shini.ps/invoice?sptr=' + trx.key + '_' + trx.nanoId;
 
                 let date = trx.dateAsString;
-                printWithQR({
-                    qr: qrUrl,
-                    total: trx.totalafterdiscount,
-                    discount: trx.totaldiscount,
-                    paid: trx.paidamt,
-                    change: trx.customerchange,
-                    date,
-                    store: trx.branch,
-                    cashier: trx.username,
-                    type: trx.type
-                });
+
+                if (!localConfig.printTemplate || localConfig.printTemplate === 'qr') {
+                    printWithQR({
+                        qr: qrUrl,
+                        total: trx.totalafterdiscount,
+                        discount: trx.totaldiscount,
+                        paid: trx.paidamt,
+                        change: trx.customerchange,
+                        date,
+                        store: trx.branch,
+                        cashier: trx.username,
+                        type: trx.type
+                    });
+                } else if (localConfig.printTemplate === 'complete') {
+                    console.log({
+                        qr: qrUrl,
+                        total: trx.totalafterdiscount,
+                        discount: trx.totaldiscount,
+                        paid: trx.paidamt,
+                        change: trx.customerchange,
+                        date,
+                        store: trx.branch,
+                        cashier: trx.username,
+                        type: trx.type,
+                        lines: trx.printableLines
+                    });
+                    printComplete({
+                        qr: qrUrl,
+                        total: trx.totalafterdiscount,
+                        discount: trx.totaldiscount,
+                        paid: trx.paidamt,
+                        change: trx.customerchange,
+                        date,
+                        store: trx.branch,
+                        cashier: trx.username,
+                        type: trx.type,
+                        lines: trx.printableLines
+                    });
+                }
 
                 if (trx.campaignList) {
                     // custom campaign, remove when over
@@ -551,59 +581,114 @@ expressApp.post('/bopVisaSale', async (req, res) => {
 let port;
 let parser;
 
-// Initialize the serial port and parser
-function initSerialPort() {
-    console.log('initializding port', localConfig.scaleCom);
+expressApp.get('/openScalePort', (req, res) => {
     port = new SerialPort({
-        path: localConfig.scaleCom || 'COM1',
+        path: localConfig.scaleCOM || 'COM1',
         baudRate: localConfig.baudRate || 9600,
         autoOpen: false // Prevent auto-opening, we'll open it manually
     });
 
-    parser = port.pipe(new ByteLengthParser({ length: 8 }));
-
-    port.on('error', (err) => {
-        console.log('Serial Port Error: ', err.message);
-    });
-
-    port.on('close', () => {
-        console.log('Serial Port Closed');
-    });
+    // parser = port.pipe(new ByteLengthParser({ length: 12 }));
+    parser = port.pipe(new ReadlineParser({ delimiter: '\n' })); // LF as delimiter
 
     port.open((err) => {
         if (err) {
-            console.log('Error opening serial port: ', err.message);
+            console.error('Error opening serial port: ', err.message);
+            return res.status(500).send('Error opening serial port: '.concat(err.message));
         } else {
-            console.log('Serial Port Opened');
+            return res.status(200).send('Serial Port Opened');
         }
     });
-}
+});
 
-// Initialize the serial port
-if (localConfig.scale) {
-    initSerialPort();
-} else {
-    console.log('scale not configured for initialization');
-}
+expressApp.get('/closeScalePort', (req, res) => {
+    if (!port.isOpen) {
+        return res.status(500).send('Serial port not open to close');
+    } else {
+        port.close();
+        port.on('close', () => {
+            return res.status(200).send('Port closed');
+        });
+        port.on('error', (err) => {
+            console.log('Serial Port closing error: ', err.message);
+            return res.status(200).send('Port closing error');
+        });
+    }
+});
 
-expressApp.get('/fetchFromScale', (req, res) => {
+expressApp.get('/isScaleConnected', (req, res) => {
+    if (port && port.isOpen) {
+        return res.status(200).send('OK');
+    } else {
+        return res.status(500).send('Serial port not open');
+    }
+});
+
+expressApp.get('/weightScale', (req, res) => {
+    if (!port.isOpen) {
+        return res.status(500).send('Serial port not open');
+    }
+    let responded = false;
+
+    parser.once('data', (data) => {
+        console.log(data);
+        const buffer = Buffer.from(data, 'utf-8');
+        const valueAsString = buffer.toString('utf-8');
+        console.log(valueAsString);
+
+        const digitsOnly = valueAsString.replace(/[^\d.]/g, '');
+        // console.log('scale data: '.concat(digitsOnly));
+        responded = true;
+        res.send(digitsOnly);
+    });
+
+    port.write(localConfig.scaleWeightCommand || '$', (err) => {
+        console.log('sent command '.concat(localConfig.scaleWeightCommand || '$'));
+        if (err) {
+            console.error(err);
+            console.error('error writing weightScale command?');
+            responded = true;
+            res.status(500).send('error writing weightScale command ');
+        }
+    }); 
+});
+
+expressApp.get('/zeroScale', (req, res) => {
     if (!port.isOpen) {
         return res.status(500).send('Serial port not open');
     }
 
     parser.once('data', (data) => {
-        console.log('response from scale, trying to read data');
         const buffer = Buffer.from(data, 'utf-8');
         const valueAsString = buffer.toString('utf-8');
-        console.log('data returned from scale: ' + valueAsString);
         res.send(valueAsString);
     });
 
-    port.write(localConfig.scaleCommand || '$', (err) => {
-        console.log('error writing scale command ');
+    port.write(localConfig.scaleZeroCommand || 'Z', (err) => {
         if (err) {
-            console.log('Error on write: ', err.message);
-            res.status(500).send(err.message);
+            console.error(err);
+            console.log('error writing scale command ');
+            res.status(500).send('error writing zeroScale command ');
+        }
+    });
+});
+
+expressApp.get('/restartScale', (req, res) => {
+    if (!port.isOpen) {
+        return res.status(500).send('Serial port not open');
+    }
+
+    parser.once('data', (data) => {
+        const buffer = Buffer.from(data, 'utf-8');
+        const valueAsString = buffer.toString('utf-8');
+        res.send(valueAsString);
+    });
+
+    port.write(localConfig.scaleRestartCommand || 'Z', (err) => {
+        if (err) {
+            console.error(err);
+            console.error('error writing restartScale command ');
+            res.status(500).send('error writing restartScale command ');
         }
     });
 });

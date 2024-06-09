@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import axios from '../../axios';
-import { Button, FlexboxGrid, Divider, Input, SelectPicker, Drawer, ButtonGroup, IconButton, ButtonToolbar } from 'rsuite';
+import { Button, FlexboxGrid, Divider, Input, SelectPicker, Drawer, ButtonGroup, IconButton, ButtonToolbar, Grid, Row, Col, Panel, Modal } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown,
+    faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown, faCogs,
     faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
@@ -51,6 +51,7 @@ import USD_50 from '../../assets/money-notes/50.0USD.png';
 import USD_100 from '../../assets/money-notes/100.0USD.png';
 import Logo from '../../assets/full-logo.png';
 import Lock from '../../assets/lock.png';
+import { ArowBack, ArrowLeft, ArrowLeftLine, Funnel, Icon, IOs, ReviewRefuse, Sort, Tmall } from '@rsuite/icons';
 
 
 
@@ -76,30 +77,12 @@ const Terminal = (props) => {
     const [hasEshiniConnection, setHasEshiniConnection] = useState(true);
 
     const [scaleItemsOpen, setScaleItemsOpen] = useState(false);
+    const [scaleConnected, setScaleConnected] = useState(false);
     const [selectedScaleCategory, setSelectedScaleCategory] = useState('veggie');
     const [produceItems, setProduceItems] = useState([]);
-    const [localMsg, setLocalMsg] = useState('');
+    const [alphabetButtons, setAlphabetButtons] = useState([]);
     const [alphabtet, setAlphabet] = useState('all');
-    const [veggieScrollAction, setVeggieScrollAction] = useState('none');
-
-    useEffect(() => {
-        if (veggieScrollAction === 'up') {
-            document.querySelector('#veggieList').scroll({
-                top: document.querySelector('#veggieList').scrollTop - 300,
-                behavior: 'smooth'
-            });
-            setVeggieScrollAction('none')
-        } else if (veggieScrollAction === 'down') {
-            document.querySelector('#veggieList').scroll({
-                top: document.querySelector('#veggieList').scrollTop + 300,
-                behavior: 'smooth'
-            });
-            setVeggieScrollAction('none')
-        }
-    }, [veggieScrollAction])
-
-
-
+    const [settingsOpen, setSettingsOpen] = useState(false);
 
     useEffect(() => {
         if (terminal.errorSound)
@@ -127,6 +110,21 @@ const Terminal = (props) => {
             }).then((response) => {
                 if (response) {
                     setProduceItems(response.data);
+
+                    if (alphabetButtons.length === 0) {
+                        let abtns = {};
+                        let letters = [];
+                        response.data.map((item) => {
+                            abtns[item.descriptionAr.charAt(0)] = 1;
+                        })
+
+                        Object.keys(abtns).forEach(key => {
+                            letters.push(key);
+                        });
+
+                        setAlphabetButtons(letters);
+                    }
+
                 }
             }).catch((error) => {
                 dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
@@ -355,6 +353,9 @@ const Terminal = (props) => {
 
         // load any suspended TRX for this till
         dispatch(fetchSuspendedForTill());
+
+        checkScalePortConnection();
+
     }, [])
 
     /**
@@ -510,28 +511,120 @@ const Terminal = (props) => {
         return formattedNumber;
     }
 
+
+
+    /* [START] Scale utilities */
+
+    const openScalePort = () => {
+        if (config.scale && !scaleConnected) {
+            axios({
+                method: 'get',
+                url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/openScalePort`,
+            }).then((response) => {
+                dispatch(notify({ msg: 'Scale port opened', sev: 'info' }));
+                setScaleConnected(true);
+            }).catch((error) => {
+                dispatch(notify({ msg: 'Could not open scale port', sev: 'error' }));
+                setScaleConnected(false);
+            }).finally(() => {
+                dispatch(hideLoading());
+            })
+        }
+    }
+
+    const closeScalePort = () => {
+        if (config.scale && scaleConnected) {
+            axios({
+                method: 'get',
+                url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/closeScalePort`,
+            }).then((response) => {
+                dispatch(notify({ msg: 'Scale port closed', sev: 'info' }));
+                setScaleConnected(false);
+                setScaleItemsOpen(false);
+            }).catch((error) => {
+                dispatch(notify({ msg: 'Could not close scale port', sev: 'error' }));
+            }).finally(() => {
+                dispatch(hideLoading());
+            })
+        }
+    }
+
+    const checkScalePortConnection = () => {
+        if (config.scale) {
+            axios({
+                method: 'get',
+                url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/isScaleConnected`,
+            }).then((response) => {
+                dispatch(notify({ msg: 'Scale port is open', sev: 'info' }));
+                setScaleConnected(true);
+            }).catch((error) => {
+                dispatch(notify({ msg: 'Scale port is not open', sev: 'error' }));
+                setScaleConnected(false);
+                // attempt to open scale port after 0.5 seconds
+                window.setTimeout(openScalePort, 500);
+            }).finally(() => {
+                dispatch(hideLoading());
+            })
+        }
+    }
+
+    const zeroScale = () => {
+        if (config.scale && scaleConnected) {
+            axios({
+                method: 'get',
+                url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/zeroScale`,
+            }).then((response) => {
+                dispatch(notify({ msg: 'Scale zero command sent', sev: 'info' }));
+                setScaleConnected(true);
+            }).catch((error) => {
+                dispatch(notify({ msg: 'Scale zero command failed', sev: 'error' }));
+                setScaleConnected(false);
+            }).finally(() => {
+                dispatch(hideLoading());
+            })
+        }
+    }
+
+    const restartScale = () => {
+        if (config.scale && scaleConnected) {
+            axios({
+                method: 'get',
+                url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/restartScale`,
+            }).then((response) => {
+                dispatch(notify({ msg: 'Scale restart command sent', sev: 'info' }));
+                setSettingsOpen(false);
+            }).catch((error) => {
+                dispatch(notify({ msg: 'Scale restart command failed', sev: 'error' }));
+            }).finally(() => {
+                dispatch(hideLoading());
+            })
+        }
+    }
+
     const scanWeightableItem = (item) => {
-        dispatch(showLoading());
+        dispatch(showLoading({msg: 'Fetching weight from scale'}));
         let barcode = item.barcode;
 
         if (item.scalePieceItem) {
+            let _multi = trxSlice.multiplier ? trxSlice.multiplier : '1';
+            let _barcode = 'SQ'.concat(barcode);
             if (trxSlice.trx && trxSlice.trx.key) {
                 dispatch(scanBarcode({
                     customerKey: terminal.customer ? terminal.customer.key : null,
-                    barcode: '63'.concat(barcode).concat('000011'),
+                    barcode: _barcode,
                     trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                     trxMode: terminal.trxMode,
                     tillKey: terminal.till ? terminal.till.key : null,
-                    multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                    multiplier: _multi
                 }))
             } else {
                 dispatch(scanNewTransaction({
                     customerKey: terminal.customer ? terminal.customer.key : null,
-                    barcode: '63'.concat(barcode).concat('000011'),
+                    barcode: _barcode,
                     trxKey: null,
                     trxMode: terminal.trxMode,
                     tillKey: terminal.till ? terminal.till.key : null,
-                    multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                    multiplier: _multi
                 }))
             }
             dispatch(hideLoading());
@@ -539,12 +632,11 @@ const Terminal = (props) => {
         } else {
             axios({
                 method: 'get',
-                url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/fetchFromScale`,
+                url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/weightScale`,
             }).then((response) => {
                 let qty = response.data;
                 if (qty > 0.0) {
                     setScaleItemsOpen(false);
-                    setLocalMsg('');
                     if (trxSlice.trx && trxSlice.trx.key) {
                         dispatch(scanBarcode({
                             customerKey: terminal.customer ? terminal.customer.key : null,
@@ -565,16 +657,18 @@ const Terminal = (props) => {
                         }))
                     }
                 } else {
-                    setLocalMsg('Please add item on scale first');
+                dispatch(notify({ msg: 'Please add item on scale first', sev: 'warning' }));
                 }
             }).catch((error) => {
                 console.error(error);
-                setLocalMsg('could not fetch weight from scale');
                 dispatch(notify({ msg: 'could not fetch weight from scale', sev: 'error' }));
+            }).finally(() => {
                 dispatch(hideLoading());
             })
         }
     }
+
+    /* [END] Scale utilities */
 
 
     const startPayment = (type, inputType) => {
@@ -1395,12 +1489,22 @@ const Terminal = (props) => {
                     </div>
                 </Button>
             }
+
             {
                 terminal.till && terminal.till.status === 'L' &&
                 <Button key='unlock' style={{ zIndex: '1000' }} className={classes.MainActionButton} onClick={handleUnlockTill}>
                     <div style={{ textAlign: 'center', fontSize: '14px', }}>
                         <FontAwesomeIcon icon={faUnlock} style={{ marginRight: '5px' }} />
                         <label>Unlock Till</label>
+                    </div>
+                </Button>
+            }
+            <br />
+            {
+                <Button key='settings' className={classes.MainActionButton} onClick={() => setSettingsOpen(true)}>
+                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                        <FontAwesomeIcon icon={faCogs} style={{ marginRight: '5px' }} />
+                        <label>Settings</label>
                     </div>
                 </Button>
             }
@@ -1612,17 +1716,17 @@ const Terminal = (props) => {
     }
 
     const conjureAlphabet = () => {
-        var arabicAlphabet = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي'];
         let buttons = [];
-        // buttons.push(<Button appearance={'all' === alphabtet ? 'primary' : 'default'} key={'all'} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '60px' }}
-        //     onClick={() => { setAlphabet('all') }} >ALL</Button>)
-
-        arabicAlphabet.map((c) => {
-            buttons.push(<Button appearance={c === alphabtet ? 'primary' : 'default'} key={c.barcode} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '35px' }}
-                onClick={() => { setAlphabet(c) }} >{c}</Button>)
+        alphabetButtons.map((c) => {
+            buttons.push(<Button appearance={c === alphabtet ? 'primary' : 'default'}
+                size='lg'
+                key={c.barcode} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '60px' }}
+                onClick={() => { setAlphabet(c) }} >
+                <h5 style={{ textAlign: 'center', fontWeight: 'bolder' }}>
+                    {c}
+                </h5>
+            </Button>)
         })
-
-
         return buttons;
     }
 
@@ -1746,12 +1850,12 @@ const Terminal = (props) => {
                             <FontAwesomeIcon icon={faShieldHalved} style={{ marginLeft: '7px', marginRight: '7px' }} /> Manager
                         </span>}
 
-                    <Divider style={{ margin: '7px' }} />
+                    {/* <Divider style={{ margin: '7px' }} />
                     <div style={{ padding: '0px' }}>
                         <Alert severity={uiSlice.toastType} sx={{ width: '100%', fontSize: '15px', fontFamily: 'Janna' }}>
                             {uiSlice.toastMsg.toString()}
                         </Alert>
-                    </div>
+                    </div> */}
                     <Divider style={{ margin: '7px' }} />
                     {!hasEshiniConnection && <span style={{ color: 'orangered' }}>
                         <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginRight: '7px' }} />
@@ -1760,7 +1864,8 @@ const Terminal = (props) => {
                     {
                         !terminal.paymentMode && config.scale &&
                         (<h4 style={{ textAlign: 'center', cursor: 'pointer', }}>
-                            <a onClick={() => setScaleItemsOpen(true)}><FontAwesomeIcon icon={faScaleBalanced} /> Scale Items </a>
+                            <Button size='lg' appearance='ghost' style={{ width: '200px' }}
+                                disabled={!scaleConnected} onClick={() => setScaleItemsOpen(true)}><FontAwesomeIcon icon={faScaleBalanced} /> Scale Items </Button>
                         </h4>)
                     }
                     {
@@ -1941,6 +2046,7 @@ const Terminal = (props) => {
                     <FlexboxGrid.Item colspan={3} >
                         <Button color={terminal.managerMode ? 'red' : 'yellow'} appearance="primary" className={classes.POSButton} onClick={handleManagerMode} >
                             <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '5px' }} />
+                            <br />
                             <label>
                                 {terminal.managerMode ? 'Exit Manager' : 'Manager'}
                             </label>
@@ -2034,62 +2140,109 @@ const Terminal = (props) => {
                 </FlexboxGrid>
             </FlexboxGridItem >
 
-            <Drawer style={{ width: '85vw' }} position='right' open={scaleItemsOpen} onClose={() => setScaleItemsOpen(false)}>
-                <div style={{ padding: '15px' }}>
-                    <h3>
-                        <FontAwesomeIcon icon={faScaleBalanced} /> Scale Items
-                        <ButtonGroup style={{ width: '50%', float: 'right' }}>
-                            <Button style={{ width: '50%' }} appearance={selectedScaleCategory === 'veggie' ? 'primary' : 'ghost'} color='green' size='lg' onClick={() => setSelectedScaleCategory('veggie')} > Vegetables </Button>
-                            <Button style={{ width: '50%' }} appearance={selectedScaleCategory === 'fruit' ? 'primary' : 'ghost'} color='green' size='lg' onClick={() => setSelectedScaleCategory('fruit')}  > Fruits </Button>
-                        </ButtonGroup>
-                    </h3>
-                    {localMsg && <h6 style={{ color: 'darkred', margin: '10px', textAlign: 'center' }}>{localMsg} </h6>}
-                    <Divider />
-                    {config.scaleAlphabet && <ButtonToolbar style={{ direction: 'rtl' }}>
-                        <ButtonGroup >
-                            {conjureAlphabet()}
-                        </ButtonGroup>
-                    </ButtonToolbar>}
-                    {/* <Divider /> */}
-                    <div id='veggieList' style={{ overflowY: 'scroll', height: config.scaleAlphabet ? '60vh' : '70vh' }}>
-                        <FlexboxGrid>
-                            {produceItems.map((item) => {
-                                return (<FlexboxGrid.Item key={item.barcode} colspan={4}>
-                                    <Button style={{ width: '96%', margin: '2%', background: 'white', border: '1px solid #363636' }} onClick={() => { scanWeightableItem(item); }}>
-                                        <img src={`http://46.43.70.210:9000/veggies/${item.barcode}.jpg`}
-                                            onError={(e) => {
-                                                e.target.src = `http://46.43.70.210:9000/veggies/nophoto.jpg`;
-                                            }}
-                                            height={100} width={100} />
-                                        <br />
-                                        <b>{item.descriptionAr} {item.scalePieceItem && <FontAwesomeIcon icon={faTag} />}</b>
-                                    </Button>
-                                </FlexboxGrid.Item>)
-                            })}
-                        </FlexboxGrid>
-                    </div>
-                    <FlexboxGrid style={{ color: 'white', width: '200px', marginTop: '10px' }}>
-                        <FlexboxGrid.Item colspan={6} >
-                            <IconButton onClick={() => setVeggieScrollAction('up')}
-                                style={{ width: '100px !important' }}
-                                icon={<FontAwesomeIcon size='4x' icon={faChevronUp} />} />
-                        </FlexboxGrid.Item>
-                        <FlexboxGrid.Item colspan={3} />
-                        <FlexboxGrid.Item colspan={6} >
-                            <IconButton onClick={() => setVeggieScrollAction('down')}
-                                style={{ width: '100px !important' }}
-                                icon={<FontAwesomeIcon size='4x' icon={faChevronDown} />} />
-                        </FlexboxGrid.Item>
-                        <FlexboxGrid.Item colspan={3} />
-                        <FlexboxGrid.Item colspan={6} >
-                            {config.scaleAlphabet && <IconButton onClick={() => { setAlphabet('all') }}
-                                style={{ width: '80px !important' }}
-                                icon={<FontAwesomeIcon size='4x' icon={faList} />} />}
-                        </FlexboxGrid.Item>
-
-                    </FlexboxGrid>
-                </div>
+            <Drawer style={{ width: '100vw' }} position='right' open={scaleItemsOpen}  >
+                <Grid style={{ padding: '0px' }}>
+                    <Row>
+                        <Col xs={24}>
+                            <ButtonToolbar style={{ textAlign: 'center', marginTop: '5px' }}>
+                                <ButtonGroup >
+                                    {conjureAlphabet()}
+                                </ButtonGroup>
+                            </ButtonToolbar>
+                            <Divider style={{ margin: '5px' }} />
+                        </Col>
+                    </Row>
+                    <Row >
+                        <Col xs={24}>
+                            <div style={{ height: '72.5vh', overflowX: 'hidden', overflowY: 'auto' }}>
+                                <ButtonToolbar style={{ textAlign: 'center', width: '100%' }}>
+                                    {produceItems.map((item) => {
+                                        return (
+                                            <Button key={item.barcode} appearance='ghost' color='cyan' style={{
+                                                width: '22%', margin: '5px'
+                                            }} onClick={() => { scanWeightableItem(item); }}>
+                                                <img src={`http://46.43.70.210:9000/veggies/${item.barcode}.jpg`}
+                                                    onError={(e) => {
+                                                        e.target.src = `http://46.43.70.210:9000/veggies/nophoto.jpg`;
+                                                    }}
+                                                    height={100} width={100} />
+                                                <br />
+                                                <b style={{ color: 'black' }}>{item.descriptionAr} {item.scalePieceItem && <FontAwesomeIcon icon={faTag} />}</b>
+                                            </Button>
+                                        )
+                                    })}
+                                </ButtonToolbar>
+                            </div>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Divider style={{ margin: '10px' }} />
+                    </Row>
+                    <Row>
+                        <Col xs={7}>
+                            <ButtonToolbar >
+                                <IconButton icon={<ArrowLeft />} onClick={() => { setScaleItemsOpen(false) }}>
+                                    Go Back
+                                </IconButton>
+                                <IconButton style={{ width: '100px' }}
+                                    disabled={!scaleConnected}
+                                    icon={<Tmall />} appearance='primary'
+                                    color='blue'
+                                    onClick={zeroScale} >
+                                    ZERO
+                                </IconButton>
+                            </ButtonToolbar>
+                        </Col>
+                        <Col xs={5}>
+                        </Col>
+                        <Col xs={12}>
+                            <ButtonToolbar style={{ textAlign: 'right' }} >
+                                <IconButton style={{ width: '150px' }}
+                                    disabled={selectedScaleCategory === 'fruits'}
+                                    icon={<IOs />} appearance={selectedScaleCategory === 'fruits' ? 'default' : 'primary'}
+                                    color='cyan'
+                                    onClick={() => { setSelectedScaleCategory('fruits') }} >
+                                    Fruits
+                                </IconButton>
+                                <IconButton style={{ width: '150px' }} icon={<Funnel />}
+                                    disabled={selectedScaleCategory === 'veggie'}
+                                    appearance={selectedScaleCategory === 'veggie' ? 'default' : 'primary'}
+                                    color='cyan'
+                                    onClick={() => { setSelectedScaleCategory('veggie') }}>
+                                    Vegetables
+                                </IconButton>
+                            </ButtonToolbar>
+                        </Col>
+                    </Row>
+                </Grid>
             </Drawer>
+
+            <Modal open={settingsOpen} onClose={() => { setSettingsOpen(false) }}  >
+                <h4 style={{ padding: '0px', margin: '0px' }}>
+                    POS Settings
+                </h4>
+                <Divider style={{ margin: '5px' }} />
+                <Panel bordered header='Scale Settings' style={{ margin: '10px' }}>
+                    <ButtonToolbar >
+                        <Button appearance='primary' onClick={openScalePort}
+                            disabled={scaleConnected} >
+                            Connect to Scale
+                        </Button>
+                        <Button appearance='primary' onClick={zeroScale}
+                            disabled={!scaleConnected} >
+                            Zero Scale
+                        </Button>
+                        <Button appearance='primary' onClick={restartScale}
+                            disabled={!scaleConnected} >
+                            Restart Scale
+                        </Button>
+                        <Button appearance='primary' onClick={closeScalePort}
+                            disabled={!scaleConnected} >
+                            Close Scale Port
+                        </Button>
+                    </ButtonToolbar>
+                </Panel>
+            </Modal>
 
         </FlexboxGrid >
     );
