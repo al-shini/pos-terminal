@@ -1,4 +1,5 @@
 const { SerialPort, ByteLengthParser } = require('serialport');
+const { ReadlineParser } = require('@serialport/parser-readline');
 
 let port;
 
@@ -9,7 +10,7 @@ function createPort() {
         autoOpen: true
     });
 
-    let parser = port.pipe(new ByteLengthParser({ length: 8 }));
+    let parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
     port.on('error', (err) => {
         console.log('Serial Port Error: ', err.message);
@@ -92,7 +93,7 @@ process.on('SIGINT', () => {
 // Create and open the serial port
 createPort();
 
-setTimeout(getWeight, 1000)
+setTimeout(getWeight, 500)
 
  
 /* 

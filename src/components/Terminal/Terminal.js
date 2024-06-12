@@ -489,8 +489,7 @@ const Terminal = (props) => {
 
     function formatDouble(number) {
         console.log('number passed to format: ', number);
-        // Ensure the number has 3 decimal places
-        let formattedNumber = number;//.toFixed(3);
+        let formattedNumber = number + '';
 
         // Split the number into whole part and decimal part
         let parts = formattedNumber.split('.');

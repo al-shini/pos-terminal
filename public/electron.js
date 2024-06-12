@@ -150,385 +150,303 @@ autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 
-app.whenReady().then(() => {
-    createWindow();
+const gotTheLock = app.requestSingleInstanceLock();
 
-    updateInterval = setInterval(() => autoUpdater.checkForUpdates(), 600000); // every 10 minute
-});
+if (!gotTheLock) {
+    // If another instance is running, exit this one
+    app.quit();
+} else {
 
-
-
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") {
-        app.quit();
-    }
-});
-
-app.on("activate", () => {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) {
+    app.whenReady().then(() => {
         createWindow();
+        updateInterval = setInterval(() => autoUpdater.checkForUpdates(), 600000); // every 10 minute
+    });
 
-        if (isDev) {
-            installExtension(REACT_DEVELOPER_TOOLS)
-                .then(name => console.log(`Added Extension:  ${name}`))
-                .catch(error => console.log(`An error occurred: , ${error}`));
-        }
-    }
-});
-
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
-
-const expressApp = express();
-expressApp.use(cors());
-expressApp.use(bodyParser.json())
-expressApp.use(bodyParser.urlencoded({ extended: false }))
-
-const printWithQR = (object) => {
-    let writeStream = new stream.WritableBufferStream();
-    const qrFileName = 'C:\\pos\\qr.png'
-    const logo = 'C:\\pos\\logo.png'
-    const invoiceFileName = 'C:\\pos\\invoice.pdf'
-
-    const doc = new PDFDocument({
-        size: [203, 400],
-        margins: { // by default, all are 72
-            top: 5,
-            bottom: 5,
-            left: 5,
-            right: 5
+    // Quit when all windows are closed, except on macOS. There, it's common
+    // for applications and their menu bar to stay active until the user quits
+    // explicitly with Cmd + Q.
+    app.on("window-all-closed", () => {
+        if (process.platform !== "darwin") {
+            app.quit();
         }
     });
 
-    qr.toFile(qrFileName, object.qr, (ex, url) => {
-        if (ex) {
-            console.log('ex', ex);
+    app.on("activate", () => {
+        // On macOS it's common to re-create a window in the app when the
+        // dock icon is clicked and there are no other windows open.
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+
+            if (isDev) {
+                installExtension(REACT_DEVELOPER_TOOLS)
+                    .then(name => console.log(`Added Extension:  ${name}`))
+                    .catch(error => console.log(`An error occurred: , ${error}`));
+            }
         }
+    });
 
-        doc.pipe(writeStream);
-        doc.fontSize(15);
-        let g = 50;
 
-        doc.font('C:\\pos\\arial.ttf')
-        doc.image(logo, 55, 15 + g, { width: 100, height: 25 });
-        doc.image(qrFileName, 110, 40 + g, { width: 100, height: 100 });
-        doc.font('C:\\pos\\VT323.ttf');
-        doc.text('Total: ' + object.total + ' ILS', 15, 50 + g);
-        doc.text('Discount: ' + object.discount + ' ILS', 15, 65 + g);
-        doc.text('Paid: ' + object.paid + ' ILS', 15, 80 + g);
-        doc.text('Change: ' + object.change + ' ILS', 15, 95 + g);
-        doc.text('Type: ' + object.type, 15, 110 + g);
+    // In this file you can include the rest of your app's specific main process
+    // code. You can also put them in separate files and require them here.
 
-        doc.fontSize(13)
-        doc.text('Store: ' + object.store, 15, 140 + g);
-        doc.text('Cashier: ' + object.cashier, 15, 160 + g);
-        doc.text(object.date, 15, 182 + g);
+    const expressApp = express();
+    expressApp.use(cors());
+    expressApp.use(bodyParser.json())
+    expressApp.use(bodyParser.urlencoded({ extended: false }))
 
-        doc.end()
+    const printWithQR = (object) => {
+        let writeStream = new stream.WritableBufferStream();
+        const qrFileName = 'C:\\pos\\qr.png'
+        const logo = 'C:\\pos\\logo.png'
+        const invoiceFileName = 'C:\\pos\\invoice.pdf'
 
-        writeStream.on('finish', () => {
-            const base64 = writeStream.toBuffer().toString('base64')
-            fs.writeFile(invoiceFileName, base64, 'base64', (err) => {
-                if (err) {
-                    console.log('ERROR', err);
-                }
-                console.log('printing...............................');
-                if (localConfig.printMethod && localConfig.printMethod === 'default') {
-                    print('C:\\pos\\invoice.pdf', {});
-                } else if (!localConfig.printMethod || localConfig.printMethod === 'ptp') {
-                    exec(
-                        'ptp.exe invoice.pdf', {
-                        cwd: 'C:\\pos\\',
-                        windowsHide: true
-                    }, (e) => {
-                        if (e) {
-                            throw e;
-                        }
-                    });
-                }
+        const doc = new PDFDocument({
+            size: [203, 400],
+            margins: { // by default, all are 72
+                top: 5,
+                bottom: 5,
+                left: 5,
+                right: 5
+            }
+        });
+
+        qr.toFile(qrFileName, object.qr, (ex, url) => {
+            if (ex) {
+                console.log('ex', ex);
+            }
+
+            doc.pipe(writeStream);
+            doc.fontSize(15);
+            let g = 50;
+
+            doc.font('C:\\pos\\arial.ttf')
+            doc.image(logo, 55, 15 + g, { width: 100, height: 25 });
+            doc.image(qrFileName, 110, 40 + g, { width: 100, height: 100 });
+            doc.font('C:\\pos\\VT323.ttf');
+            doc.text('Total: ' + object.total + ' ILS', 15, 50 + g);
+            doc.text('Discount: ' + object.discount + ' ILS', 15, 65 + g);
+            doc.text('Paid: ' + object.paid + ' ILS', 15, 80 + g);
+            doc.text('Change: ' + object.change + ' ILS', 15, 95 + g);
+            doc.text('Type: ' + object.type, 15, 110 + g);
+
+            doc.fontSize(13)
+            doc.text('Store: ' + object.store, 15, 140 + g);
+            doc.text('Cashier: ' + object.cashier, 15, 160 + g);
+            doc.text(object.date, 15, 182 + g);
+
+            doc.end()
+
+            writeStream.on('finish', () => {
+                const base64 = writeStream.toBuffer().toString('base64')
+                fs.writeFile(invoiceFileName, base64, 'base64', (err) => {
+                    if (err) {
+                        console.log('ERROR', err);
+                    }
+                    console.log('printing...............................');
+                    if (localConfig.printMethod && localConfig.printMethod === 'default') {
+                        print('C:\\pos\\invoice.pdf', {});
+                    } else if (!localConfig.printMethod || localConfig.printMethod === 'ptp') {
+                        exec(
+                            'ptp.exe invoice.pdf', {
+                            cwd: 'C:\\pos\\',
+                            windowsHide: true
+                        }, (e) => {
+                            if (e) {
+                                throw e;
+                            }
+                        });
+                    }
+                });
             });
-        });
 
-    })
-}
-
-const fixRsaFormat = (data) => {
-    data = data.replace('-----BEGIN PUBLIC KEY-----', '');
-    data = data.replace('-----END PUBLIC KEY-----', '');
-    data = data.replace('-----BEGIN PRIVATE KEY-----', '');
-    data = data.replace('-----END PRIVATE KEY-----', '');
-    data = data.replace(/(\r\n|\n|\r)/gm, "");
-    return data;
-}
-
-const generateEncryptedKeyFromVisaPubKey = (visaPublicRsaKey) => {
-    try {
-        const key = crypto.randomBytes(32);
-        let prefixedKey = '-----BEGIN PUBLIC KEY-----\n'.concat(visaPublicRsaKey).concat('\n-----END PUBLIC KEY-----');
-        const encryptedKey = crypto.publicEncrypt({
-            key: prefixedKey,
-            padding: crypto.constants.RSA_PKCS1_PADDING
-        }, key);
-
-        return {
-            key,
-            encryptedKey
-        };
-    } catch (e) {
-        console.log(e);
-        throw e;
+        })
     }
-}
 
-const encryptObject = (object, visaPublicRsaKey) => {
-    try {
-        const objectAsText = JSON.stringify(object);
-        const _key = generateEncryptedKeyFromVisaPubKey(visaPublicRsaKey);
-        const cipher = crypto.createCipheriv('aes-256-ecb', _key.key, '');
-        let encryptedObject = cipher.update(objectAsText, 'utf-8', 'base64');
-        encryptedObject += cipher.final('base64');
-
-        return {
-            k: _key.encryptedKey.toString('base64'),
-            d: encryptedObject
-        }
-    } catch (e) {
-        console.log(e);
-        throw e;
+    const fixRsaFormat = (data) => {
+        data = data.replace('-----BEGIN PUBLIC KEY-----', '');
+        data = data.replace('-----END PUBLIC KEY-----', '');
+        data = data.replace('-----BEGIN PRIVATE KEY-----', '');
+        data = data.replace('-----END PRIVATE KEY-----', '');
+        data = data.replace(/(\r\n|\n|\r)/gm, "");
+        return data;
     }
-}
 
-const decryptObject = (cipherJson, terminalPrivateRsaKey) => {
-    try {
-        const encryptedMsg = JSON.parse(cipherJson);
-        const plainAesKey = crypto.privateDecrypt({
-            key: terminalPrivateRsaKey,
-            padding: crypto.constants.RSA_PKCS1_PADDING
-        }, Buffer.from(encryptedMsg.k, 'base64'));
-
-        const aes32Key = Buffer.alloc(32);
-        plainAesKey.copy(aes32Key, 0, 0, 32);
-
-        const decCipher = crypto.createDecipheriv('aes-256-ecb', aes32Key, '');
-        return decCipher.update(encryptedMsg.d, 'base64', 'utf-8') + decCipher.final('utf-8');
-    } catch (e) {
-        console.log(e);
-        throw e;
-    }
-}
-
-expressApp.get('/printTrx', async (req, res) => {
-    try {
-        axios({
-            method: 'post',
-            url: '/trx/fetchTrx',
-            headers: {
-                'trxKey': req.query.trxKey
-            }
-        }).then((response) => {
-            if (response && response.data) {
-
-                const trx = response.data;
-
-                // const qrUrl = config.qrBaseUrl + '?sptr=' + trx.key + '_' + trx.nanoId;
-                const qrUrl = 'https://plus.shini.ps/invoice?sptr=' + trx.key + '_' + trx.nanoId;
-
-                let date = trx.dateAsString;
-
-                if (!localConfig.printTemplate || localConfig.printTemplate === 'qr') {
-                    printWithQR({
-                        qr: qrUrl,
-                        total: trx.totalafterdiscount,
-                        discount: trx.totaldiscount,
-                        paid: trx.paidamt,
-                        change: trx.customerchange,
-                        date,
-                        store: trx.branch,
-                        cashier: trx.username,
-                        type: trx.type
-                    });
-                } else if (localConfig.printTemplate === 'complete') {
-                    console.log({
-                        qr: qrUrl,
-                        total: trx.totalafterdiscount,
-                        discount: trx.totaldiscount,
-                        paid: trx.paidamt,
-                        change: trx.customerchange,
-                        date,
-                        store: trx.branch,
-                        cashier: trx.username,
-                        type: trx.type,
-                        lines: trx.printableLines
-                    });
-                    printComplete({
-                        qr: qrUrl,
-                        total: trx.totalafterdiscount,
-                        discount: trx.totaldiscount,
-                        paid: trx.paidamt,
-                        change: trx.customerchange,
-                        date,
-                        store: trx.branch,
-                        cashier: trx.username,
-                        type: trx.type,
-                        lines: trx.printableLines
-                    });
-                }
-
-                if (trx.campaignList) {
-                    // custom campaign, remove when over
-                    print('C:\\slip.pdf', {});
-                }
-
-
-                res.send(trx);
-            }
-        }).catch((error) => {
-            if (error.response) {
-                dialog.showErrorBox('Error', 'Un-Authorized')
-            } else {
-                dialog.showErrorBox('Error', error.message)
-            }
-            res.send('error');
-        });
-
-
-    } catch (e) {
-        console.log(e);
-        dialog.showErrorBox('Error', e)
-        res.send(e);
-    }
-})
-
-expressApp.post('/linkTerminalWithBopVisa', async (req, res) => {
-    const terminalKey = req.body.terminalKey;
-    const bopVisaIp = req.body.bopVisaIp;
-
-    // generate private and public keys for terminal & store them in the local pos files path
-    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-        modulusLength: 4096,
-        publicKeyEncoding: {
-            type: 'spki',
-            format: 'pem'
-        },
-        privateKeyEncoding: {
-            type: 'pkcs8',
-            format: 'pem'
-        }
-    });
-    // create the private.key file
-    const privateKeyStream = fs.createWriteStream("C:\\pos\\private.key");
-    privateKeyStream.write(privateKey);
-    privateKeyStream.end();
-    // create the public.key file
-    const publicKeyStream = fs.createWriteStream("C:\\pos\\public.key");
-    publicKeyStream.write(publicKey);
-    publicKeyStream.end();
-
-    // open a client socket with the VISA machine and issue
-    const client = new net.Socket();
-    let received = '';
-
-    console.log(bopVisaIp);
-
-    client.connect(7800, bopVisaIp);
-    client.setEncoding('utf8');
-    client.setTimeout(80 * 1000); // timeout must be greater than terminal timeout
-
-    /* begin call back events for visa socket */
-    client.on('data', function (response) {
-        console.log('\n[data event] => ', response);
-        received += response;
-    });
-
-    client.on('error', function (response) {
-        console.log('[error event] => ', response);
-        res.status(500).send(response);
-    });
-
-    client.on('close', function (response) {
-        let initResponse = undefined;
+    const generateEncryptedKeyFromVisaPubKey = (visaPublicRsaKey) => {
         try {
-            // try and parse receievd JSON
-            console.log("RECIEVED JSON:", received);
-            initResponse = JSON.parse(received);
-        } catch (parseError) {
-            console.log('could not parse the received json');
-            return;
-        }
+            const key = crypto.randomBytes(32);
+            let prefixedKey = '-----BEGIN PUBLIC KEY-----\n'.concat(visaPublicRsaKey).concat('\n-----END PUBLIC KEY-----');
+            const encryptedKey = crypto.publicEncrypt({
+                key: prefixedKey,
+                padding: crypto.constants.RSA_PKCS1_PADDING
+            }, key);
 
-        console.log('initResponse', initResponse);
-        if (initResponse && initResponse.rsaPubKey) {
-            const visaPubKey = initResponse.rsaPubKey;
-            // link the private and public key pairs with the terminal object in the backend, alongside the visa machine details
+            return {
+                key,
+                encryptedKey
+            };
+        } catch (e) {
+            console.log(e);
+            throw e;
+        }
+    }
+
+    const encryptObject = (object, visaPublicRsaKey) => {
+        try {
+            const objectAsText = JSON.stringify(object);
+            const _key = generateEncryptedKeyFromVisaPubKey(visaPublicRsaKey);
+            const cipher = crypto.createCipheriv('aes-256-ecb', _key.key, '');
+            let encryptedObject = cipher.update(objectAsText, 'utf-8', 'base64');
+            encryptedObject += cipher.final('base64');
+
+            return {
+                k: _key.encryptedKey.toString('base64'),
+                d: encryptedObject
+            }
+        } catch (e) {
+            console.log(e);
+            throw e;
+        }
+    }
+
+    const decryptObject = (cipherJson, terminalPrivateRsaKey) => {
+        try {
+            const encryptedMsg = JSON.parse(cipherJson);
+            const plainAesKey = crypto.privateDecrypt({
+                key: terminalPrivateRsaKey,
+                padding: crypto.constants.RSA_PKCS1_PADDING
+            }, Buffer.from(encryptedMsg.k, 'base64'));
+
+            const aes32Key = Buffer.alloc(32);
+            plainAesKey.copy(aes32Key, 0, 0, 32);
+
+            const decCipher = crypto.createDecipheriv('aes-256-ecb', aes32Key, '');
+            return decCipher.update(encryptedMsg.d, 'base64', 'utf-8') + decCipher.final('utf-8');
+        } catch (e) {
+            console.log(e);
+            throw e;
+        }
+    }
+
+    expressApp.get('/printTrx', async (req, res) => {
+        try {
             axios({
                 method: 'post',
-                url: '/trx/linkTerminalWithBopVisa',
-                data: {
-                    terminalKey: terminalKey,
-                    terminalPrivateRsaKey: privateKey,
-                    terminalPublicRsaKey: publicKey,
-                    visaIp: bopVisaIp,
-                    visaPublicRsaKey: visaPubKey
+                url: '/trx/fetchTrx',
+                headers: {
+                    'trxKey': req.query.trxKey
                 }
             }).then((response) => {
                 if (response && response.data) {
-                    res.send(response.data);
+
+                    const trx = response.data;
+
+                    // const qrUrl = config.qrBaseUrl + '?sptr=' + trx.key + '_' + trx.nanoId;
+                    const qrUrl = 'https://plus.shini.ps/invoice?sptr=' + trx.key + '_' + trx.nanoId;
+
+                    let date = trx.dateAsString;
+
+                    if (!localConfig.printTemplate || localConfig.printTemplate === 'qr') {
+                        printWithQR({
+                            qr: qrUrl,
+                            total: trx.totalafterdiscount,
+                            discount: trx.totaldiscount,
+                            paid: trx.paidamt,
+                            change: trx.customerchange,
+                            date,
+                            store: trx.branch,
+                            cashier: trx.username,
+                            type: trx.type
+                        });
+                    } else if (localConfig.printTemplate === 'complete') {
+                        console.log({
+                            qr: qrUrl,
+                            total: trx.totalafterdiscount,
+                            discount: trx.totaldiscount,
+                            paid: trx.paidamt,
+                            change: trx.customerchange,
+                            date,
+                            store: trx.branch,
+                            cashier: trx.username,
+                            type: trx.type,
+                            lines: trx.printableLines
+                        });
+                        printComplete({
+                            qr: qrUrl,
+                            total: trx.totalafterdiscount,
+                            discount: trx.totaldiscount,
+                            paid: trx.paidamt,
+                            change: trx.customerchange,
+                            date,
+                            store: trx.branch,
+                            cashier: trx.username,
+                            type: trx.type,
+                            lines: trx.printableLines
+                        });
+                    }
+
+                    if (trx.campaignList) {
+                        // custom campaign, remove when over
+                        print('C:\\slip.pdf', {});
+                    }
+
+
+                    res.send(trx);
                 }
             }).catch((error) => {
-                res.status(500).send({ error: error.message })
+                if (error.response) {
+                    dialog.showErrorBox('Error', 'Un-Authorized')
+                } else {
+                    dialog.showErrorBox('Error', error.message)
+                }
+                res.send('error');
             });
-        } else {
-            res.status(500).send({ error: 'Invalid Response from VISA '.concat(JSON.stringify(initResponse)) })
+
+
+        } catch (e) {
+            console.log(e);
+            dialog.showErrorBox('Error', e)
+            res.send(e);
         }
-    });
-    /* end call back events for visa socket */
+    })
 
-    // send the request to the visa machine
-    const initRequestObject = JSON.stringify({
-        lang: 0,
-        type: 'INIT',
-        rsaPubKey: fixRsaFormat(publicKey)
-    });
-    let length = initRequestObject.length;
-    while ((length + '').length < 4) {
-        length = '0' + length;
-    }
-    message = '~PCNC~' + length + '~' + initRequestObject;
-    console.log('Sending -> ', message)
-    client.write(message);
+    expressApp.post('/linkTerminalWithBopVisa', async (req, res) => {
+        const terminalKey = req.body.terminalKey;
+        const bopVisaIp = req.body.bopVisaIp;
 
-})
-
-expressApp.post('/bopVisaSale', async (req, res) => {
-    try {
-        const terminal = req.body.terminal;
-        if (!terminal || !terminal.bopVisaIp || !terminal.bopVisaPublicRsa) {
-            // invalid terminal structure
-            res.status(500).send('Terminal not linked with BOP visa');
-            return;
-        }
-        const trxId = req.body.trxId;
-        const amt = req.body.amt;
-        const cur = req.body.cur;
+        // generate private and public keys for terminal & store them in the local pos files path
+        const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+            modulusLength: 4096,
+            publicKeyEncoding: {
+                type: 'spki',
+                format: 'pem'
+            },
+            privateKeyEncoding: {
+                type: 'pkcs8',
+                format: 'pem'
+            }
+        });
+        // create the private.key file
+        const privateKeyStream = fs.createWriteStream("C:\\pos\\private.key");
+        privateKeyStream.write(privateKey);
+        privateKeyStream.end();
+        // create the public.key file
+        const publicKeyStream = fs.createWriteStream("C:\\pos\\public.key");
+        publicKeyStream.write(publicKey);
+        publicKeyStream.end();
 
         // open a client socket with the VISA machine and issue
         const client = new net.Socket();
         let received = '';
 
-        client.connect(7800, terminal.bopVisaIp);
+        console.log(bopVisaIp);
+
+        client.connect(7800, bopVisaIp);
         client.setEncoding('utf8');
-        client.setTimeout(180 * 1000); // timeout must be greater than terminal timeout
-        const ReqRespPrefixLen = 11;
+        client.setTimeout(80 * 1000); // timeout must be greater than terminal timeout
 
         /* begin call back events for visa socket */
         client.on('data', function (response) {
-            // console.log('\n[data event] => ', response);
+            console.log('\n[data event] => ', response);
             received += response;
         });
 
@@ -538,174 +456,262 @@ expressApp.post('/bopVisaSale', async (req, res) => {
         });
 
         client.on('close', function (response) {
+            let initResponse = undefined;
             try {
-                const saleResponse = JSON.parse(decryptObject(received.substring(ReqRespPrefixLen), terminal.localPrivateRsa));
-                console.log(saleResponse);
-                res.send(saleResponse);
-            } catch (ex) {
-                console.log('[close event error] => ', response);
-                res.status(500).send({ error: response })
+                // try and parse receievd JSON
+                console.log("RECIEVED JSON:", received);
+                initResponse = JSON.parse(received);
+            } catch (parseError) {
+                console.log('could not parse the received json');
+                return;
             }
 
+            console.log('initResponse', initResponse);
+            if (initResponse && initResponse.rsaPubKey) {
+                const visaPubKey = initResponse.rsaPubKey;
+                // link the private and public key pairs with the terminal object in the backend, alongside the visa machine details
+                axios({
+                    method: 'post',
+                    url: '/trx/linkTerminalWithBopVisa',
+                    data: {
+                        terminalKey: terminalKey,
+                        terminalPrivateRsaKey: privateKey,
+                        terminalPublicRsaKey: publicKey,
+                        visaIp: bopVisaIp,
+                        visaPublicRsaKey: visaPubKey
+                    }
+                }).then((response) => {
+                    if (response && response.data) {
+                        res.send(response.data);
+                    }
+                }).catch((error) => {
+                    res.status(500).send({ error: error.message })
+                });
+            } else {
+                res.status(500).send({ error: 'Invalid Response from VISA '.concat(JSON.stringify(initResponse)) })
+            }
         });
         /* end call back events for visa socket */
 
         // send the request to the visa machine
-        const encryptedSaleObject = encryptObject({
+        const initRequestObject = JSON.stringify({
             lang: 0,
-            type: 'SALE',
-            amt,
-            cur,
-            rcpt: trxId
-        }, terminal.bopVisaPublicRsa);
-
-        let message = '~PCNC~';
-        const objectAsString = JSON.stringify(encryptedSaleObject);
-        let length = objectAsString.length;
-
-        while ((length + '').length < 4)
+            type: 'INIT',
+            rsaPubKey: fixRsaFormat(publicKey)
+        });
+        let length = initRequestObject.length;
+        while ((length + '').length < 4) {
             length = '0' + length;
-
-        message += length + '~' + objectAsString;
-        // console.log('Sending -> ', message);
+        }
+        message = '~PCNC~' + length + '~' + initRequestObject;
+        console.log('Sending -> ', message)
         client.write(message);
 
-    } catch (e) {
-        console.log(e);
-        res.status(500).send(e);
-    }
-})
+    })
+
+    expressApp.post('/bopVisaSale', async (req, res) => {
+        try {
+            const terminal = req.body.terminal;
+            if (!terminal || !terminal.bopVisaIp || !terminal.bopVisaPublicRsa) {
+                // invalid terminal structure
+                res.status(500).send('Terminal not linked with BOP visa');
+                return;
+            }
+            const trxId = req.body.trxId;
+            const amt = req.body.amt;
+            const cur = req.body.cur;
+
+            // open a client socket with the VISA machine and issue
+            const client = new net.Socket();
+            let received = '';
+
+            client.connect(7800, terminal.bopVisaIp);
+            client.setEncoding('utf8');
+            client.setTimeout(180 * 1000); // timeout must be greater than terminal timeout
+            const ReqRespPrefixLen = 11;
+
+            /* begin call back events for visa socket */
+            client.on('data', function (response) {
+                // console.log('\n[data event] => ', response);
+                received += response;
+            });
+
+            client.on('error', function (response) {
+                console.log('[error event] => ', response);
+                res.status(500).send(response);
+            });
+
+            client.on('close', function (response) {
+                try {
+                    const saleResponse = JSON.parse(decryptObject(received.substring(ReqRespPrefixLen), terminal.localPrivateRsa));
+                    console.log(saleResponse);
+                    res.send(saleResponse);
+                } catch (ex) {
+                    console.log('[close event error] => ', response);
+                    res.status(500).send({ error: response })
+                }
+
+            });
+            /* end call back events for visa socket */
+
+            // send the request to the visa machine
+            const encryptedSaleObject = encryptObject({
+                lang: 0,
+                type: 'SALE',
+                amt,
+                cur,
+                rcpt: trxId
+            }, terminal.bopVisaPublicRsa);
+
+            let message = '~PCNC~';
+            const objectAsString = JSON.stringify(encryptedSaleObject);
+            let length = objectAsString.length;
+
+            while ((length + '').length < 4)
+                length = '0' + length;
+
+            message += length + '~' + objectAsString;
+            // console.log('Sending -> ', message);
+            client.write(message);
+
+        } catch (e) {
+            console.log(e);
+            res.status(500).send(e);
+        }
+    })
 
 
 
-let port;
-let parser;
+    let port;
+    let parser;
 
-expressApp.get('/openScalePort', (req, res) => {
-    port = new SerialPort({
-        path: localConfig.scaleCOM || 'COM1',
-        baudRate: localConfig.baudRate || 9600,
-        autoOpen: false // Prevent auto-opening, we'll open it manually
+    expressApp.get('/openScalePort', (req, res) => {
+        port = new SerialPort({
+            path: localConfig.scaleCOM || 'COM1',
+            baudRate: localConfig.baudRate || 9600,
+            autoOpen: false // Prevent auto-opening, we'll open it manually
+        });
+
+        // parser = port.pipe(new ByteLengthParser({ length: 12 }));
+        parser = port.pipe(new ReadlineParser({ delimiter: '\n' })); // LF as delimiter
+
+        port.open((err) => {
+            if (err) {
+                console.error('Error opening serial port: ', err.message);
+                return res.status(500).send('Error opening serial port: '.concat(err.message));
+            } else {
+                return res.status(200).send('Serial Port Opened');
+            }
+        });
     });
 
-    // parser = port.pipe(new ByteLengthParser({ length: 12 }));
-    parser = port.pipe(new ReadlineParser({ delimiter: '\n' })); // LF as delimiter
-
-    port.open((err) => {
-        if (err) {
-            console.error('Error opening serial port: ', err.message);
-            return res.status(500).send('Error opening serial port: '.concat(err.message));
+    expressApp.get('/closeScalePort', (req, res) => {
+        if (!port.isOpen) {
+            return res.status(500).send('Serial port not open to close');
         } else {
-            return res.status(200).send('Serial Port Opened');
+            port.close();
+            port.on('close', () => {
+                return res.status(200).send('Port closed');
+            });
+            port.on('error', (err) => {
+                console.log('Serial Port closing error: ', err.message);
+                return res.status(200).send('Port closing error');
+            });
         }
     });
-});
 
-expressApp.get('/closeScalePort', (req, res) => {
-    if (!port.isOpen) {
-        return res.status(500).send('Serial port not open to close');
-    } else {
-        port.close();
-        port.on('close', () => {
-            return res.status(200).send('Port closed');
-        });
-        port.on('error', (err) => {
-            console.log('Serial Port closing error: ', err.message);
-            return res.status(200).send('Port closing error');
-        });
-    }
-});
-
-expressApp.get('/isScaleConnected', (req, res) => {
-    if (port && port.isOpen) {
-        return res.status(200).send('OK');
-    } else {
-        return res.status(500).send('Serial port not open');
-    }
-});
-
-expressApp.get('/weightScale', (req, res) => {
-    if (!port.isOpen) {
-        return res.status(500).send('Serial port not open');
-    }
-    let responded = false;
-
-    parser.once('data', (data) => {
-        console.log(data);
-        const buffer = Buffer.from(data, 'utf-8');
-        const valueAsString = buffer.toString('utf-8');
-        console.log(valueAsString);
-
-        const digitsOnly = valueAsString.replace(/[^\d.]/g, '');
-        // console.log('scale data: '.concat(digitsOnly));
-        responded = true;
-        res.send(digitsOnly);
+    expressApp.get('/isScaleConnected', (req, res) => {
+        if (port && port.isOpen) {
+            return res.status(200).send('OK');
+        } else {
+            return res.status(500).send('Serial port not open');
+        }
     });
 
-    port.write(localConfig.scaleWeightCommand || '$', (err) => {
-        console.log('sent command '.concat(localConfig.scaleWeightCommand || '$'));
-        if (err) {
-            console.error(err);
-            console.error('error writing weightScale command?');
+    expressApp.get('/weightScale', (req, res) => {
+        if (!port.isOpen) {
+            return res.status(500).send('Serial port not open');
+        }
+        let responded = false;
+
+        parser.once('data', (data) => {
+            console.log(data);
+            const buffer = Buffer.from(data, 'utf-8');
+            const valueAsString = buffer.toString('utf-8');
+            console.log(valueAsString);
+
+            const digitsOnly = valueAsString.replace(/[^\d.]/g, '');
+            console.log('scale data: '.concat(digitsOnly));
             responded = true;
-            res.status(500).send('error writing weightScale command ');
-        }
-    }); 
-});
+            res.send(digitsOnly);
+        });
 
-expressApp.get('/zeroScale', (req, res) => {
-    if (!port.isOpen) {
-        return res.status(500).send('Serial port not open');
+        port.write(localConfig.scaleWeightCommand || '$', (err) => {
+            console.log('sent command '.concat(localConfig.scaleWeightCommand || '$'));
+            if (err) {
+                console.error(err);
+                console.error('error writing weightScale command?');
+                responded = true;
+                res.status(500).send('error writing weightScale command ');
+            }
+        });
+    });
+
+    expressApp.get('/zeroScale', (req, res) => {
+        if (!port.isOpen) {
+            return res.status(500).send('Serial port not open');
+        }
+
+        parser.once('data', (data) => {
+            const buffer = Buffer.from(data, 'utf-8');
+            const valueAsString = buffer.toString('utf-8');
+            res.send(valueAsString);
+        });
+
+        port.write(localConfig.scaleZeroCommand || 'Z', (err) => {
+            if (err) {
+                console.error(err);
+                console.log('error writing scale command ');
+                res.status(500).send('error writing zeroScale command ');
+            }
+        });
+    });
+
+    expressApp.get('/restartScale', (req, res) => {
+        if (!port.isOpen) {
+            return res.status(500).send('Serial port not open');
+        }
+
+        parser.once('data', (data) => {
+            const buffer = Buffer.from(data, 'utf-8');
+            const valueAsString = buffer.toString('utf-8');
+            res.send(valueAsString);
+        });
+
+        port.write(localConfig.scaleRestartCommand || 'Z', (err) => {
+            if (err) {
+                console.error(err);
+                console.error('error writing restartScale command ');
+                res.status(500).send('error writing restartScale command ');
+            }
+        });
+    });
+
+
+    function restartApp() {
+        app.relaunch();
+        app.exit(0);
     }
 
-    parser.once('data', (data) => {
-        const buffer = Buffer.from(data, 'utf-8');
-        const valueAsString = buffer.toString('utf-8');
-        res.send(valueAsString);
+    expressApp.get('/restart', (req, res) => {
+        restartApp();
+        res.send('App is restarting...');
     });
 
-    port.write(localConfig.scaleZeroCommand || 'Z', (err) => {
-        if (err) {
-            console.error(err);
-            console.log('error writing scale command ');
-            res.status(500).send('error writing zeroScale command ');
-        }
-    });
-});
 
-expressApp.get('/restartScale', (req, res) => {
-    if (!port.isOpen) {
-        return res.status(500).send('Serial port not open');
-    }
+    // RUN express app
+    expressApp.listen(localConfig.expressPort ? localConfig.expressPort : 3001, () => {
+        console.log(`Terminal app listening on port ${localConfig.expressPort ? localConfig.expressPort : '3001'}`)
+    })
 
-    parser.once('data', (data) => {
-        const buffer = Buffer.from(data, 'utf-8');
-        const valueAsString = buffer.toString('utf-8');
-        res.send(valueAsString);
-    });
-
-    port.write(localConfig.scaleRestartCommand || 'Z', (err) => {
-        if (err) {
-            console.error(err);
-            console.error('error writing restartScale command ');
-            res.status(500).send('error writing restartScale command ');
-        }
-    });
-});
-
-
-function restartApp() {
-    app.relaunch();
-    app.exit(0);
 }
-
-expressApp.get('/restart', (req, res) => {
-    restartApp();
-    res.send('App is restarting...');
-});
-
-
-// RUN express app
-expressApp.listen(localConfig.expressPort ? localConfig.expressPort : 3001, () => {
-    console.log(`Terminal app listening on port ${localConfig.expressPort ? localConfig.expressPort : '3001'}`)
-})

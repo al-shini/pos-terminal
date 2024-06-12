@@ -12,7 +12,7 @@ const printComplete = async (object) => {
     const pdfDoc = await PDFDocument.create();
     pdfDoc.registerFontkit(fontkit);
 
-    const page = pdfDoc.addPage([220, 400 + (object.lines.length * 40)]);
+    const page = pdfDoc.addPage([210, 400 + (object.lines.length * 40)]);
     const { width, height } = page.getSize();
 
     // Embed the Arial font
@@ -32,16 +32,16 @@ const printComplete = async (object) => {
     const logoImage = await pdfDoc.embedPng(logoBytes);
 
     // Generate QR code
-    const qrCodeBytes = await qr.toBuffer(object.qr);
-    const qrImage = await pdfDoc.embedPng(qrCodeBytes);
+    // const qrCodeBytes = await qr.toBuffer(object.qr);
+    // const qrImage = await pdfDoc.embedPng(qrCodeBytes);
 
-    let fontSize = 10;
+    let fontSize = 7.5;
 
     // Draw the logo
-    const logoWidth = 200; // Adjust as needed
+    const logoWidth = 180; // Adjust as needed
     const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
     page.drawImage(logoImage, {
-        x: (width - logoWidth) / 2,
+        x: 10 + (width - logoWidth) / 2,
         y: height - logoHeight - 10,
         width: logoWidth,
         height: logoHeight,
@@ -50,17 +50,16 @@ const printComplete = async (object) => {
     // Extract and draw the transaction ID above the store detail
     const transactionID = object.qr.split('_')[1];
     page.drawText(`Transaction ID: ${transactionID}`, {
-        x: 10,
+        x: 20,
         y: height - logoHeight - 30,
-        size: 8,
+        size: 10,
     });
 
     // Draw the additional details in a 2x2 grid
     const detailsYStart = height - logoHeight - 50;
-    const detailsXStart = 10;
+    const detailsXStart = 20;
     const detailsXEnd = width - 10;
 
-    fontSize = 10;
     page.setFont(arialFont);
     page.setFontSize(fontSize);
 
@@ -79,18 +78,18 @@ const printComplete = async (object) => {
     // Date and time
     page.drawText(`Date: ${object.date}`, {
         x: detailsXStart,
-        y: detailsYStart - 20,
+        y: detailsYStart - 12.5,
     });
 
     // Type
     page.drawText(`Type: ${object.type}`, {
         x: detailsXEnd - arialFont.widthOfTextAtSize(`Type: ${object.type}`, fontSize),
-        y: detailsYStart - 20,
+        y: detailsYStart - 12.5,
     });
 
     // Draw a dashed line
-    const lineYPosition = detailsYStart - 40;
-    const lineDash = [5, 5]; // Dash pattern: 5 units on, 5 units off
+    const lineYPosition = detailsYStart - 25;
+    const lineDash = [3, 1]; // Dash pattern: 5 units on, 5 units off
     page.drawLine({
         start: { x: 0, y: lineYPosition },
         end: { x: width, y: lineYPosition },
@@ -106,7 +105,7 @@ const printComplete = async (object) => {
 
     // Table headers
     const headers = ['الإجمالي', 'السعر', 'الكمية', 'الوصف'];
-    const headerPositions = [35, 70, 105, 220];
+    const headerPositions = [40, 70, 105, 200];
 
     headers.forEach((header, index) => {
         const textWidth = arialFont.widthOfTextAtSize(header, fontSize);
@@ -116,7 +115,7 @@ const printComplete = async (object) => {
     yPosition -= 20;
 
     // Table rows
-    fontSize = 9.5;
+    fontSize = 9;
     page.setFontSize(fontSize);
     object.lines.forEach((item) => {
         let textWidth;
@@ -167,7 +166,7 @@ const printComplete = async (object) => {
         page.drawText(item.quantity.toString(), { x: headerPositions[2] - textWidth, y: yPosition });
 
         textWidth = arialFont.widthOfTextAtSize(item.description, fontSize);
-        page.drawText(item.description.concat(offer ? ' ☺ ' : ''), { x: headerPositions[3] - textWidth, y: yPosition });
+        page.drawText(item.description, { x: headerPositions[3] - textWidth, y: yPosition });
 
         yPosition -= 20;
     });
@@ -182,9 +181,16 @@ const printComplete = async (object) => {
         object.paid.toFixed(2),
         object.change.toFixed(2),
     ];
-
-    fontSize = 10;
+    
     page.setFontSize(fontSize);
+
+    page.drawLine({
+        start: { x: 0, y: summaryYStart + 20  },
+        end: { x: width, y: summaryYStart  + 20},
+        thickness: 1,
+        color: rgb(0, 0, 0),
+        dashArray: lineDash,
+    });
 
     // المجموع النهائي (Total)
     page.drawText(`${summaryLabels[0]}: ${reverseNumber(summaryValues[0])} ₪`, {
@@ -246,8 +252,8 @@ const invoiceData = {
     paid: 100,
     change: 7,
     date: '2024-06-09 03:32:23',
-    store: 'Test Store',
-    cashier: '1',
+    store: 'Shini Mini 2',
+    cashier: 'Haneen Murrar',
     type: 'Sale',
     lines: [
         {
@@ -265,4 +271,4 @@ const invoiceData = {
     ]
 };
 
-// printComplete(invoiceData);
+printComplete(invoiceData);
