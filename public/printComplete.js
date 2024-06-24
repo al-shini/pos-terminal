@@ -245,6 +245,9 @@ const printComplete = async (object) => {
 
 module.exports = printComplete;
 
+// printComplete(invoiceData);
+
+
 const invoiceData = {
     qr: 'https://plus.shini.ps/invoice?sptr=ad3175fc-f1c5-48e7-967b-54e5ef0589c41717936343053_55-123387646961800',
     total: 93,
@@ -271,4 +274,26 @@ const invoiceData = {
     ]
 };
 
-// printComplete(invoiceData);
+// const { ThermalPrinter, PrinterTypes, CharacterSet, BreakLine } = require('node-thermal-printer');
+// let printer = new ThermalPrinter({
+//     type: PrinterTypes.EPSON,                                  // Printer type: 'star' or 'epson'
+//     interface: 'USB\VID_154F&PID_154F\5&54CAEAD&0&11',                              // Printer interface
+//     characterSet: CharacterSet.PC852_LATIN2,                   // Printer character set
+//     removeSpecialCharacters: false,                            // Removes special characters - default: false
+//     lineCharacter: "=",                                        // Set character for lines - default: "-"
+//     breakLine: BreakLine.WORD,                                 // Break line after WORD or CHARACTERS. Disabled with NONE - default: WORD
+//     options:{                                                  // Additional options
+//       timeout: 5000                                            // Connection timeout (ms) [applicable only for network printers] - default: 3000
+//     }
+//   });
+
+//   const connect = async () => {
+//     let isConnected = await printer.isPrinterConnected(); 
+
+//     console.log(isConnected);
+//   }
+
+//   connect();
+
+  
+

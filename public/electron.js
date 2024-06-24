@@ -20,7 +20,11 @@ const { SerialPort, ByteLengthParser } = require('serialport')
 const printComplete = require('./printComplete');
 const { ReadlineParser } = require('@serialport/parser-readline');
 
+ 
+
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
+// let localConfigFile = fs.readFileSync('/etc/pos/posconfig.json');
+
 let localConfig = JSON.parse(localConfigFile);
 const config = {
     qrBaseUrl: 'http://46.43.70.210:81/process-customer-entry.xhtml'
@@ -72,6 +76,9 @@ function createWindow() {
     }
     if (localConfig.autoUpdate) {
         params += `&autoUpdate=true`;
+    }
+    if (isDev) {
+        params += `&isDev=true`;
     }
 
 

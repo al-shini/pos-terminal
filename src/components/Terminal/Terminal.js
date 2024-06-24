@@ -55,6 +55,31 @@ import { ArowBack, ArrowLeft, ArrowLeftLine, Funnel, Icon, IOs, ReviewRefuse, So
 
 
 
+// Import the images
+const importAll = (requireContext) => requireContext.keys().reduce((acc, next) => {
+    acc[next.replace('./', '')] = requireContext(next);
+    return acc;
+}, {});
+
+const images = importAll(require.context('../../assets/produce_images', false, /\.(png|jpe?g|svg)$/));
+
+
+const matchProduceCategory = (selectedScaleCategory, itemCategory) => {
+    if (!itemCategory) return false;
+
+    const normalizedCategory = itemCategory.toLowerCase();
+
+    if (selectedScaleCategory === 'fruit') {
+        return /fruit/i.test(normalizedCategory);
+    } else if (selectedScaleCategory === 'vegetable') {
+        return /vegetable/i.test(normalizedCategory);
+    } else {
+        return false;
+    }
+}
+
+
+
 const Terminal = (props) => {
     const terminal = useSelector((state) => state.terminal);
     const trxSlice = useSelector((state) => state.trx);
@@ -78,10 +103,9 @@ const Terminal = (props) => {
 
     const [scaleItemsOpen, setScaleItemsOpen] = useState(false);
     const [scaleConnected, setScaleConnected] = useState(false);
-    const [selectedScaleCategory, setSelectedScaleCategory] = useState('veggie');
+    const [selectedScaleCategory, setSelectedScaleCategory] = useState('vegetable');
     const [produceItems, setProduceItems] = useState([]);
-    const [alphabetButtons, setAlphabetButtons] = useState([]);
-    const [alphabtet, setAlphabet] = useState('all');
+    const [alphabtet, setAlphabet] = useState('ا');
     const [settingsOpen, setSettingsOpen] = useState(false);
 
     useEffect(() => {
@@ -103,34 +127,19 @@ const Terminal = (props) => {
     }, [])
 
     useEffect(() => {
-        if (selectedScaleCategory) {
+        if (config.scale && !(produceItems.length > 0)) {
             axios({
                 method: 'get',
-                url: '/barcode/produceItems/'.concat(selectedScaleCategory).concat('/').concat(alphabtet),
+                url: '/barcode/produceItems/',
             }).then((response) => {
                 if (response) {
                     setProduceItems(response.data);
-
-                    if (alphabetButtons.length === 0) {
-                        let abtns = {};
-                        let letters = [];
-                        response.data.map((item) => {
-                            abtns[item.descriptionAr.charAt(0)] = 1;
-                        })
-
-                        Object.keys(abtns).forEach(key => {
-                            letters.push(key);
-                        });
-
-                        setAlphabetButtons(letters);
-                    }
-
                 }
             }).catch((error) => {
                 dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             });
         }
-    }, [selectedScaleCategory, alphabtet])
+    }, [])
 
 
     const [logoCounter, setLogoCounter] = useState(0);
@@ -487,6 +496,7 @@ const Terminal = (props) => {
         }
     }
 
+
     function formatDouble(number) {
         console.log('number passed to format: ', number);
         let formattedNumber = number + '';
@@ -601,7 +611,7 @@ const Terminal = (props) => {
     }
 
     const scanWeightableItem = (item) => {
-        dispatch(showLoading({msg: 'Fetching weight from scale'}));
+        dispatch(showLoading({ msg: 'Fetching weight from scale' }));
         let barcode = item.barcode;
 
         if (item.scalePieceItem) {
@@ -656,7 +666,7 @@ const Terminal = (props) => {
                         }))
                     }
                 } else {
-                dispatch(notify({ msg: 'Please add item on scale first', sev: 'warning' }));
+                    dispatch(notify({ msg: 'Please add item on scale first', sev: 'warning' }));
                 }
             }).catch((error) => {
                 console.error(error);
@@ -1715,8 +1725,9 @@ const Terminal = (props) => {
     }
 
     const conjureAlphabet = () => {
+        const _alphabetButtons = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ر', 'ذ', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي'];
         let buttons = [];
-        alphabetButtons.map((c) => {
+        _alphabetButtons.map((c) => {
             buttons.push(<Button appearance={c === alphabtet ? 'primary' : 'default'}
                 size='lg'
                 key={c.barcode} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '60px' }}
@@ -2156,19 +2167,32 @@ const Terminal = (props) => {
                             <div style={{ height: '72.5vh', overflowX: 'hidden', overflowY: 'auto' }}>
                                 <ButtonToolbar style={{ textAlign: 'center', width: '100%' }}>
                                     {produceItems.map((item) => {
-                                        return (
-                                            <Button key={item.barcode} appearance='ghost' color='cyan' style={{
-                                                width: '22%', margin: '5px'
-                                            }} onClick={() => { scanWeightableItem(item); }}>
-                                                <img src={`http://46.43.70.210:9000/veggies/${item.barcode}.jpg`}
-                                                    onError={(e) => {
-                                                        e.target.src = `http://46.43.70.210:9000/veggies/nophoto.jpg`;
-                                                    }}
-                                                    height={100} width={100} />
-                                                <br />
-                                                <b style={{ color: 'black' }}>{item.descriptionAr} {item.scalePieceItem && <FontAwesomeIcon icon={faTag} />}</b>
-                                            </Button>
-                                        )
+                                        if (typeof item.descriptionAr === 'string' && item.descriptionAr.startsWith(alphabtet)
+                                            && matchProduceCategory(selectedScaleCategory, item.category)) {
+
+                                            const imgSrc = images[`PLU_${item.barcode}.jpg`] || images['nophoto.jpg'];
+
+
+                                            return (
+                                                <Button key={item.barcode} appearance='ghost' color='cyan' style={{ width: '22%', margin: '5px' }}
+                                                    onClick={() => { scanWeightableItem(item); }}>
+                                                    <img
+                                                         src={imgSrc}
+                                                         onError={(e) => {
+                                                             e.target.src = images['nophoto.jpg'];
+                                                         }}
+                                                         
+                                                        height={100} width={100}
+                                                    />
+                                                    <br />
+                                                    <b style={{ color: 'black' }}>
+                                                        {item.descriptionAr} {item.scalePieceItem && <FontAwesomeIcon icon={faTag} />}
+                                                    </b>
+                                                </Button>
+                                            );
+                                        } else {
+                                            return null;
+                                        }
                                     })}
                                 </ButtonToolbar>
                             </div>
@@ -2197,17 +2221,17 @@ const Terminal = (props) => {
                         <Col xs={12}>
                             <ButtonToolbar style={{ textAlign: 'right' }} >
                                 <IconButton style={{ width: '150px' }}
-                                    disabled={selectedScaleCategory === 'fruits'}
-                                    icon={<IOs />} appearance={selectedScaleCategory === 'fruits' ? 'default' : 'primary'}
+                                    disabled={selectedScaleCategory === 'fruit'}
+                                    icon={<IOs />} appearance={selectedScaleCategory === 'fruit' ? 'default' : 'primary'}
                                     color='cyan'
-                                    onClick={() => { setSelectedScaleCategory('fruits') }} >
+                                    onClick={() => { setSelectedScaleCategory('fruit') }} >
                                     Fruits
                                 </IconButton>
                                 <IconButton style={{ width: '150px' }} icon={<Funnel />}
-                                    disabled={selectedScaleCategory === 'veggie'}
-                                    appearance={selectedScaleCategory === 'veggie' ? 'default' : 'primary'}
+                                    disabled={selectedScaleCategory === 'vegetable'}
+                                    appearance={selectedScaleCategory === 'vegetable' ? 'default' : 'primary'}
                                     color='cyan'
-                                    onClick={() => { setSelectedScaleCategory('veggie') }}>
+                                    onClick={() => { setSelectedScaleCategory('vegetable') }}>
                                     Vegetables
                                 </IconButton>
                             </ButtonToolbar>
