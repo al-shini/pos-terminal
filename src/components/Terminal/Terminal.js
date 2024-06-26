@@ -23,7 +23,6 @@ import {
 } from '../../store/trxSlice';
 import { hideLoading, notify, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
-import Alert from "@mui/material/Alert";
 import confirm from '../UI/ConfirmDlg';
 import config from '../../config';
 import errorBeep from '../../assets/beep.wav';
@@ -82,25 +81,16 @@ const matchProduceCategory = (selectedScaleCategory, itemCategory) => {
 
 const Terminal = (props) => {
     const terminal = useSelector((state) => state.terminal);
-    const trxSlice = useSelector((state) => state.trx);
-    const uiSlice = useSelector((state) => state.ui);
+    const trxSlice = useSelector((state) => state.trx); 
 
     const [actionsMode, setActionsMode] = useState('payment');
     const [notesImages, setNotesImages] = useState([]);
     const [authQR, setAuthQR] = useState({});
     const [bopVisaIp, setBopVisaIp] = useState('');
     const [play] = useSound(errorBeep);
-
     const [groupedFastItems, setGroupedFastItems] = useState({});
     const [selectedFGroup, setSelectedFGroup] = useState(null);
-
-    const [cashDroState, setCashDroState] = useState({
-        timestamp: new Date().getTime(),
-        state: 0 // 0 = idle, 1 = listening
-    });
-
     const [hasEshiniConnection, setHasEshiniConnection] = useState(true);
-
     const [scaleItemsOpen, setScaleItemsOpen] = useState(false);
     const [scaleConnected, setScaleConnected] = useState(false);
     const [selectedScaleCategory, setSelectedScaleCategory] = useState('vegetable');
@@ -381,121 +371,7 @@ const Terminal = (props) => {
 
         setGroupedFastItems(tmp);
     }, [terminal.fastItems]);
-
-    useEffect(() => {
-        // console.log('TRX changed, check for cashdro');
-        // console.log(trxSlice.trx);
-        // console.log(terminal.paymentMode);
-        if (config.cashDroEnabled
-            && trxSlice.trx
-            && trxSlice.trx.cashdroId
-            && terminal.paymentMode) {
-            if (trxSlice.trx.cashdroState === 'PENDING') {
-                // change CashDro state to listening
-                setCashDroState({
-                    timestamp: new Date().getTime(),
-                    state: 1
-                });
-            } else if (trxSlice.trx.cashdroState === 'COMPLETED') {
-                const change = trxSlice.trx.customerchange;
-                if (change >= 0) {
-                    dispatch(closeTrxPayment({
-                        key: trxSlice.trx.key
-                    }));
-                    window.setTimeout(() => {
-                        dispatch(clearLastPaymentHistory());
-                    }, 6000)
-
-                    return;
-                }
-            }
-        }
-
-        axios({
-            method: 'post',
-            url: '/trx/hasEshiniConnection'
-        }).then((response) => {
-            if (response) {
-                setHasEshiniConnection(response.data);
-            }
-        }).catch((error) => {
-            dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
-        });
-
-    }, [trxSlice.trx]);
-
-    useEffect(() => {
-        if (cashDroState.state === 1) {
-            // start listening for CashDro transaction state
-            if (terminal.paymentMode) {
-                checkCashDroState();
-            } else {
-                setCashDroState({
-                    timestamp: new Date().getTime(),
-                    state: 0
-                });
-            }
-        }
-    }, [cashDroState]);
-
-    const checkCashDroState = () => {
-
-        if (cashDroState.state === 1) {
-            // still listening, check again
-            axios({
-                method: 'post',
-                headers: {
-                    trxKey: trxSlice.trx ? trxSlice.trx.key : null
-                },
-                url: '/trx/checkTrxCashDroStatus'
-            }).then((response) => {
-                if (response && response.data) {
-                    const cashDroResponse = response.data;
-                    if (cashDroResponse.state === 'F') {
-                        // CashDro state finished, submit payment
-                        // console.log('CashDro state finished, submit payment');
-                        let paymentAmt = cashDroResponse.totalIn + cashDroResponse.totalOut;
-                        paymentAmt = paymentAmt / 100.0;
-                        if (paymentAmt > 0) {
-                            dispatch(submitPayment({
-                                tillKey: terminal.till ? terminal.till.key : null,
-                                trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                                paymentMethodKey: 'Cash',
-                                currency: 'NIS',
-                                amount: paymentAmt,
-                                sourceKey: 'CashDro',
-                                visaPayment: null
-                            }));
-                            // console.log('stop listening');
-                            setCashDroState({
-                                timestamp: new Date().getTime(),
-                                state: 0
-                            }); // stop listening
-                        }
-                    } else {
-                        // console.log('waiting for payment from CashDro');
-                        setCashDroState({
-                            timestamp: new Date().getTime(),
-                            state: 1
-                        }); // keep listening
-                    }
-                } else {
-                    dispatch(notify({ msg: 'Incorrect /trx/checkTrxCashDroStatus response', sev: 'error' }))
-                }
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                    } else {
-                        dispatch(notify({ msg: error.response.data, sev: 'error' }));
-                    }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
-                }
-            });
-        }
-    }
-
+ 
 
     function formatDouble(number) {
         console.log('number passed to format: ', number);
@@ -690,50 +566,10 @@ const Terminal = (props) => {
         dispatch(selectPaymentMethod(config[type]));
         if (type === 'cashBack') {
             loadCashbackCoupons();
-        }
-
-        if (type === 'cash' && config.cashDroEnabled) {
-            // initiate cashdro listener
-            cashdrowFlow();
-        }
+        } 
     }
 
-    const cashdrowFlow = () => {
-        // start
-        // console.log(terminal.terminal);
-        if (terminal.terminal && terminal.terminal.cashDroIp) {
-            // start operation on cashdro & link TRX with operation
-            axios({
-                method: 'post',
-                headers: {
-                    trxKey: trxSlice.trx ? trxSlice.trx.key : null
-                },
-                url: '/trx/linkTrxToCashDro'
-            }).then((response) => {
-                if (response && response.data) {
-                    dispatch(setTrx(response.data));
-                } else {
-                    dispatch(notify({ msg: 'Incorrect /trx/linkTrxToCashDro response', sev: 'error' }))
-                }
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                    } else {
-
-                        dispatch(notify({ msg: error.response.data, sev: 'error' }));
-                    }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
-                }
-
-            });
-        } else {
-            // console.log('terminal has no cashdro configured');
-        }
-
-    }
-
+ 
     const autoVisaFlow = async () => {
 
         if (trxSlice.selectedCurrency === 'EUR') {
@@ -1727,10 +1563,10 @@ const Terminal = (props) => {
     const conjureAlphabet = () => {
         const _alphabetButtons = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ر', 'ذ', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي'];
         let buttons = [];
-        _alphabetButtons.map((c) => {
+        _alphabetButtons.map((c, i) => {
             buttons.push(<Button appearance={c === alphabtet ? 'primary' : 'default'}
                 size='lg'
-                key={c.barcode} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '60px' }}
+                key={i} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '60px' }}
                 onClick={() => { setAlphabet(c) }} >
                 <h5 style={{ textAlign: 'center', fontWeight: 'bolder' }}>
                     {c}
@@ -1859,13 +1695,7 @@ const Terminal = (props) => {
                         <span style={{ color: '#db2417' }}>
                             <FontAwesomeIcon icon={faShieldHalved} style={{ marginLeft: '7px', marginRight: '7px' }} /> Manager
                         </span>}
-
-                    {/* <Divider style={{ margin: '7px' }} />
-                    <div style={{ padding: '0px' }}>
-                        <Alert severity={uiSlice.toastType} sx={{ width: '100%', fontSize: '15px', fontFamily: 'Janna' }}>
-                            {uiSlice.toastMsg.toString()}
-                        </Alert>
-                    </div> */}
+ 
                     <Divider style={{ margin: '7px' }} />
                     {!hasEshiniConnection && <span style={{ color: 'orangered' }}>
                         <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginRight: '7px' }} />
@@ -2181,7 +2011,7 @@ const Terminal = (props) => {
                                                          onError={(e) => {
                                                              e.target.src = images['nophoto.jpg'];
                                                          }}
-                                                         
+
                                                         height={100} width={100}
                                                     />
                                                     <br />

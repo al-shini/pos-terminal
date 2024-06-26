@@ -6,7 +6,6 @@ let admin = null;
 let scale = null;
 let scaleAlphabet = null;
 let autoUpdate = null;
-let isDev = false;
 
 let query = new URLSearchParams(global.location.search);
 
@@ -26,10 +25,6 @@ if (query.get("scale")) {
     scale = query.get("scale");
 }
 
-if (query.get("isDev")) {
-    isDev = query.get("isDev");
-}
-
 if (query.get("scaleAlphabet")) {
     scaleAlphabet = query.get("scaleAlphabet");
 }
@@ -44,7 +39,6 @@ const config = {
     serverIp: serverIp ? serverIp : '127.0.0.1',
     admin: admin ? admin : false,
     scale: scale ? scale : false,
-    isDev: isDev ? isDev : false,
     scaleAlphabet: scaleAlphabet ? scaleAlphabet : false,
     autoUpdate: autoUpdate ? autoUpdate : false,
     visa: '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639',

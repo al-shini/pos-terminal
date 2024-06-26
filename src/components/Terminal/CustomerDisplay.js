@@ -12,6 +12,7 @@ import 'react-slideshow-image/dist/styles.css'
 
 import Logo from '../../assets/full-logo.png';
 import Lock from '../../assets/lock.png';
+import Ad from '../../assets/ad.png'
 
 
 
@@ -34,11 +35,11 @@ const Terminal = (props) => {
         color: '#000000'
     }
 
-    const slideImages = [
-        'http://46.43.70.210:9000/pos-ads/ad-01.png',
-        'http://46.43.70.210:9000/pos-ads/ad-02.png',
-        'http://46.43.70.210:9000/pos-ads/ad-03.png'
-    ];
+    // const slideImages = [
+    //     'http://46.43.70.210:9000/pos-ads/ad-01.png',
+    //     'http://46.43.70.210:9000/pos-ads/ad-02.png',
+    //     'http://46.43.70.210:9000/pos-ads/ad-03.png'
+    // ];
 
 
     return (
@@ -131,13 +132,14 @@ const Terminal = (props) => {
                     }
                     <br />
                     <div className="slide-container">
-                        <Slide arrows={false}>
+                    <img src={Ad} width='100%' style={{ maxHeight: '450px' }} alt=' Error loading Ad image' />
+                        {/* <Slide arrows={false}>
                             {slideImages.map((slideImage, index) => (
                                 <div key={index} style={{ margin: '5px' }}>
                                     <img src={slideImage} width='100%' style={{ maxHeight: '450px' }} alt=' Error loading Ad image' />
                                 </div>
                             ))}
-                        </Slide>
+                        </Slide> */}
                     </div>
                 </div>
             </FlexboxGrid.Item>

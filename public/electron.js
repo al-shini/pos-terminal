@@ -20,7 +20,7 @@ const { SerialPort, ByteLengthParser } = require('serialport')
 const printComplete = require('./printComplete');
 const { ReadlineParser } = require('@serialport/parser-readline');
 
- 
+
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 // let localConfigFile = fs.readFileSync('/etc/pos/posconfig.json');
@@ -76,10 +76,7 @@ function createWindow() {
     }
     if (localConfig.autoUpdate) {
         params += `&autoUpdate=true`;
-    }
-    if (isDev) {
-        params += `&isDev=true`;
-    }
+    } 
 
 
     console.log(params);
@@ -536,6 +533,7 @@ if (!gotTheLock) {
             client.setEncoding('utf8');
             client.setTimeout(180 * 1000); // timeout must be greater than terminal timeout
             const ReqRespPrefixLen = 11;
+            let sent = false;
 
             /* begin call back events for visa socket */
             client.on('data', function (response) {
@@ -545,7 +543,10 @@ if (!gotTheLock) {
 
             client.on('error', function (response) {
                 console.log('[error event] => ', response);
-                res.status(500).send(response);
+                if (!sent) {
+                    res.status(500).send(response);
+                    sent = true;
+                }
             });
 
             client.on('close', function (response) {
@@ -555,7 +556,10 @@ if (!gotTheLock) {
                     res.send(saleResponse);
                 } catch (ex) {
                     console.log('[close event error] => ', response);
-                    res.status(500).send({ error: response })
+                    if (!sent) {
+                        res.status(500).send({ error: response })
+                        sent = true;
+                    }
                 }
 
             });
@@ -599,7 +603,6 @@ if (!gotTheLock) {
             autoOpen: false // Prevent auto-opening, we'll open it manually
         });
 
-        // parser = port.pipe(new ByteLengthParser({ length: 12 }));
         parser = port.pipe(new ReadlineParser({ delimiter: '\n' })); // LF as delimiter
 
         port.open((err) => {

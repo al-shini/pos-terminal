@@ -825,6 +825,9 @@ export const trxSlice = createSlice({
         scrollDown: (state) => {
             state.scrollAction = 'down';
         },
+        scrollBottom: (state) => {
+            state.scrollAction = 'bottom';
+        },
         resetScrollAction: (state) => {
             state.scrollAction = 'none'
         }
@@ -1019,6 +1022,6 @@ export const trxSlice = createSlice({
 
 export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx, enablePriceChange, disablePriceChange, scroll,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory,
-    uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason, scrollDown, scrollUp, resetScrollAction, prepareScanMultiplierPreDefined
+    uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason, scrollDown, scrollUp, resetScrollAction, prepareScanMultiplierPreDefined, scrollBottom
 } = trxSlice.actions
 export default trxSlice.reducer
