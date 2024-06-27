@@ -490,7 +490,7 @@ const Terminal = (props) => {
         dispatch(showLoading({ msg: 'Fetching weight from scale' }));
         let barcode = item.barcode;
 
-        if (item.scalePieceItem) {
+        if (item.isScalePiece) {
             let _multi = trxSlice.multiplier ? trxSlice.multiplier : '1';
             let _barcode = 'SQ'.concat(barcode);
             if (trxSlice.trx && trxSlice.trx.key) {
@@ -2016,7 +2016,7 @@ const Terminal = (props) => {
                                                     />
                                                     <br />
                                                     <b style={{ color: 'black' }}>
-                                                        {item.descriptionAr} {item.scalePieceItem && <FontAwesomeIcon icon={faTag} />}
+                                                        {item.descriptionAr} {item.isScalePiece && <FontAwesomeIcon icon={faTag} />}
                                                     </b>
                                                 </Button>
                                             );
