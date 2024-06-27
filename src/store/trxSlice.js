@@ -131,6 +131,10 @@ export const scanBarcode = createAsyncThunk(
             return thunkAPI.rejectWithValue('No valid transaction ');
         }
 
+        if (payload.barcode.includes('LC-')) {
+            thunkAPI.dispatch(showLoading());
+        }
+
         return axios({
             method: 'post',
             url: '/trx/new-scan',

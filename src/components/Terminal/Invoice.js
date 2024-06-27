@@ -131,6 +131,7 @@ const Invoice = (props) => {
     const listRef = useRef();
 
     useEffect(() => {
+        console.log(trxSlice.scrollAction);
         if (trxSlice.scrollAction === 'up' && listRef.current) {
             const currentScrollOffset = listRef.current.state.scrollOffset;
             listRef.current.scrollTo(currentScrollOffset - 100);
@@ -139,11 +140,11 @@ const Invoice = (props) => {
             const currentScrollOffset = listRef.current.state.scrollOffset;
             listRef.current.scrollTo(currentScrollOffset + 100);
             dispatch(resetScrollAction());
-        } else if (trxSlice.scrollAction === 'bottom' && listRef.current && trxSlice.scannedItems) {
-            listRef.current.scrollToItem(trxSlice.scannedItems.length - 1, 'end');
+        } else if (trxSlice.scrollAction === 'bottom' && listRef.current) {
+            listRef.current.scrollToItem(trxSlice.scannedItems ? trxSlice.scannedItems.length - 1 : 0, 'end');
             dispatch(resetScrollAction());
         }
-    }, [trxSlice.scrollAction, dispatch]);
+    }, [trxSlice.scrollAction]);
 
     const handleScan = (scannedValue) => {
         if (!terminal.paymentMode) {
@@ -170,7 +171,9 @@ const Invoice = (props) => {
     };
 
     useEffect(() => {
-        dispatch(scrollBottom())
+        // dispatch(scrollBottom())
+        listRef.current.scrollToItem(trxSlice.scannedItems ? trxSlice.scannedItems.length - 1 : 0, 'end');
+        dispatch(resetScrollAction());
     }, [trxSlice.scannedItems]);
 
     const handleScanError = (err) => {
@@ -182,7 +185,7 @@ const Invoice = (props) => {
     };
 
     const data = {
-        items: trxSlice.scannedItems || [],
+        items: trxSlice.scannedItems ? trxSlice.scannedItems : [],
         handleItemClick,
         selectedLine: trxSlice.selectedLine,
         terminal,
