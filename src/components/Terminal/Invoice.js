@@ -139,7 +139,7 @@ const Invoice = (props) => {
             const currentScrollOffset = listRef.current.state.scrollOffset;
             listRef.current.scrollTo(currentScrollOffset + 100);
             dispatch(resetScrollAction());
-        } else if (trxSlice.scrollAction === 'bottom' && listRef.current) {
+        } else if (trxSlice.scrollAction === 'bottom' && listRef.current && trxSlice.scannedItems) {
             listRef.current.scrollToItem(trxSlice.scannedItems.length - 1, 'end');
             dispatch(resetScrollAction());
         }
@@ -182,7 +182,7 @@ const Invoice = (props) => {
     };
 
     const data = {
-        items: trxSlice.scannedItems,
+        items: trxSlice.scannedItems || [],
         handleItemClick,
         selectedLine: trxSlice.selectedLine,
         terminal,
