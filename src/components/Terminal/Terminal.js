@@ -81,7 +81,7 @@ const matchProduceCategory = (selectedScaleCategory, itemCategory) => {
 
 const Terminal = (props) => {
     const terminal = useSelector((state) => state.terminal);
-    const trxSlice = useSelector((state) => state.trx); 
+    const trxSlice = useSelector((state) => state.trx);
 
     const [actionsMode, setActionsMode] = useState('payment');
     const [notesImages, setNotesImages] = useState([]);
@@ -371,7 +371,7 @@ const Terminal = (props) => {
 
         setGroupedFastItems(tmp);
     }, [terminal.fastItems]);
- 
+
 
     function formatDouble(number) {
         console.log('number passed to format: ', number);
@@ -566,10 +566,10 @@ const Terminal = (props) => {
         dispatch(selectPaymentMethod(config[type]));
         if (type === 'cashBack') {
             loadCashbackCoupons();
-        } 
+        }
     }
 
- 
+
     const autoVisaFlow = async () => {
 
         if (trxSlice.selectedCurrency === 'EUR') {
@@ -1695,7 +1695,7 @@ const Terminal = (props) => {
                         <span style={{ color: '#db2417' }}>
                             <FontAwesomeIcon icon={faShieldHalved} style={{ marginLeft: '7px', marginRight: '7px' }} /> Manager
                         </span>}
- 
+
                     <Divider style={{ margin: '7px' }} />
                     {!hasEshiniConnection && <span style={{ color: 'orangered' }}>
                         <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginRight: '7px' }} />
@@ -1719,7 +1719,7 @@ const Terminal = (props) => {
                                     </small>
                                     <b>
                                         <label id='Total' style={{ fontSize: '25px' }}>
-                                            {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(2)}
+                                            ₪ {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(2)}
                                         </label>
                                     </b>
                                 </div>
@@ -1732,7 +1732,7 @@ const Terminal = (props) => {
                                         {trxSlice.trxChange > 0 ? 'Change = ' : 'Due = '}
                                     </small>
                                     <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
-                                        {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(2)}
+                                        ₪ {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(2)}
                                     </label>
                                     </b>
                                     {
@@ -1740,6 +1740,11 @@ const Terminal = (props) => {
                                         <small style={{ fontSize: '15px', marginLeft: '5px' }}>
                                             ( {(Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2)} {trxSlice.selectedCurrency} )
                                         </small>
+                                    }
+                                    {
+                                        (trxSlice.trx && trxSlice.trx.affectedByPlusTax && trxSlice.trx.totalPlusTaxAmt > 0) && <h5 style={{ fontSize: '15px', color: '#8B0000' }}>
+                                            *Required Plus Tax = <span style={{ fontFamily: 'DSDIGI' }}>₪ {trxSlice.trx.totalPlusTaxAmt}</span>
+                                        </h5>
                                     }
                                 </div>
                             </FlexboxGrid.Item>
@@ -2007,10 +2012,10 @@ const Terminal = (props) => {
                                                 <Button key={item.barcode} appearance='ghost' color='cyan' style={{ width: '22%', margin: '5px' }}
                                                     onClick={() => { scanWeightableItem(item); }}>
                                                     <img
-                                                         src={imgSrc}
-                                                         onError={(e) => {
-                                                             e.target.src = images['nophoto.jpg'];
-                                                         }}
+                                                        src={imgSrc}
+                                                        onError={(e) => {
+                                                            e.target.src = images['nophoto.jpg'];
+                                                        }}
 
                                                         height={100} width={100}
                                                     />

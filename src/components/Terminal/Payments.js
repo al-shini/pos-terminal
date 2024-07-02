@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 
-import { FlexboxGrid, List, IconButton } from 'rsuite';
+import { FlexboxGrid, List, IconButton , Divider} from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
@@ -150,10 +150,8 @@ const Invoice = (props) => {
                         </FlexboxGrid.Item>
                     </FlexboxGrid>
                 </FlexboxGrid.Item>
-                <FlexboxGrid.Item colspan={2} >
-                </FlexboxGrid.Item>
 
-                <FlexboxGrid.Item colspan={12} >
+                <FlexboxGrid.Item colspan={14} >
                     <div style={{ fontSize: '18px', position: 'relative', top: '7px', textAlign: 'right', marginRight: '8px' }}>
                         <span style={{ color: '#000000', marginRight: '10px' }}>
                             {trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
@@ -163,10 +161,17 @@ const Invoice = (props) => {
                         </span>
                     </div>
                     <div style={{ textAlign: 'right', marginRight: '10px' }}>
-                        <small id='NISSymbol'>
-                            ₪
-                        </small>
-                        <label id='Total' >
+                        {/* <span style={{ color: 'grey', fontFamily: 'monospace' }}>
+                            Tax:
+                            <small id='NISSymbolTax'>₪</small>
+                            <small id='TotalTax'>
+                                {trxSlice.trx ? (Math.round((trxSlice.trx.totalafterdiscount - trxSlice.trx.totalAfterDiscountBeforeTax) * 100) / 100).toFixed(2) : '0.00'}
+                            </small>
+                        </span>
+
+                        <Divider vertical /> */}
+                        <small id='NISSymbol'>₪</small>
+                        <label id='Total'>
                             {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(2) : '0.00'}
                         </label>
                     </div>
