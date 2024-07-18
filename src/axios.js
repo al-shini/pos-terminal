@@ -5,8 +5,6 @@ const instance = axios.create({
     baseURL: 'http://'+config.serverIp+':8080/'
 });
 
-
-
 instance.interceptors.request.use(request => {
     // console.log(request);
     // Edit request config
@@ -20,15 +18,19 @@ instance.interceptors.request.use(request => {
 
     return request;
 }, error => {
-    console.log(error);
+    console.error('Request Error:', error);
     return Promise.reject(error);
 });
 
 instance.interceptors.response.use(response => {
-    // console.log(response);
     // Edit response config
     return response;
 }, error => {
+    if (error.response) {
+        console.error(`Response Error: ${JSON.stringify(error.response)}`);
+    } else {
+        console.error('Network Error:', error.message);
+    }
     return Promise.reject(error);
 });
 

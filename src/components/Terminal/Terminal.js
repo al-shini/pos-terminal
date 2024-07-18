@@ -25,7 +25,7 @@ import { hideLoading, notify, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import confirm from '../UI/ConfirmDlg';
 import config from '../../config';
-import errorBeep from '../../assets/beep.wav';
+import errorBeep from '../../assets/error.wav';
 import QRCode from "react-qr-code";
 import useSound from 'use-sound';
 /* notes images */
@@ -50,8 +50,8 @@ import USD_50 from '../../assets/money-notes/50.0USD.png';
 import USD_100 from '../../assets/money-notes/100.0USD.png';
 import Logo from '../../assets/full-logo.png';
 import Lock from '../../assets/lock.png';
-import { ArowBack, ArrowLeft, ArrowLeftLine, Funnel, Icon, IOs, ReviewRefuse, Sort, Tmall } from '@rsuite/icons';
-
+import { ArrowLeft, Funnel, IOs, Tmall } from '@rsuite/icons';
+const { ipcRenderer } = window.require('electron');
 
 
 // Import the images
@@ -98,10 +98,24 @@ const Terminal = (props) => {
     const [alphabtet, setAlphabet] = useState('ا');
     const [settingsOpen, setSettingsOpen] = useState(false);
 
+
     useEffect(() => {
-        if (terminal.errorSound)
-            play();
+        // Set up the interval to reload the window every 3 minutes
+        const intervalId = setInterval(() => {
+            if (!trxSlice.trx) {
+                dispatch(showLoading('reloading app...'));
+                window.location.reload();
+            }
+        }, 3000); // 180000 milliseconds = 3 minutes
+
+        // Clean up the interval on component unmount
+        return () => clearInterval(intervalId);
+    }, [trxSlice.trx]);
+
+    useEffect(() => {
+        play();
     }, [terminal.errorSound])
+
 
     useEffect(() => {
         axios({
@@ -138,8 +152,8 @@ const Terminal = (props) => {
     }
 
     useEffect(() => {
-        if (trxSlice.numberInputValue === '4.994') {
-            if (logoCounter === 10) {
+        if (trxSlice.numberInputValue === '123.4994') {
+            if (logoCounter === 5) {
                 dispatch(setManagerMode(true));
                 setLogoCounter(0);
             }
@@ -860,7 +874,7 @@ const Terminal = (props) => {
                     url: `http://localhost:${config.expressPort ? config.expressPort : '3001'}/restart`,
                 })
             } else {
-                window.location.reload();
+                // window.location.reload();
             }
         } else {
             dispatch(abort());
@@ -1969,18 +1983,16 @@ const Terminal = (props) => {
                         </Button>
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton}
-                            // disabled={terminal.display === 'ready'}
+                        {terminal.paymentMode && <Button className={classes.POSButton}
                             onClick={handleAbort}
                             appearance='primary' color='red'>
-                            <FontAwesomeIcon icon={faTimes} style={{ marginRight: '5px' }} />
-                            <label>
+                            <label style={{fontSize: '12px'}}>
                                 {
-                                    (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') ? 'Abort' :
-                                        (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType !== 'none') ? 'Back' : !terminal.paymentMode ? 'Restart' : ''
+                                    (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') ? 'Cancel Payment' :
+                                        (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType !== 'none') ? 'Back' : !terminal.paymentMode ? '' : ''
                                 }
                             </label>
-                        </Button>
+                        </Button>}
                     </FlexboxGrid.Item>
                 </FlexboxGrid>
             </FlexboxGridItem >
@@ -2098,6 +2110,16 @@ const Terminal = (props) => {
                             disabled={!scaleConnected} >
                             Close Scale Port
                         </Button>
+                    </ButtonToolbar>
+                </Panel>
+                <Panel bordered header='Admin Settings' style={{ margin: '10px' }}>
+                    <ButtonToolbar >
+                        <Button appearance='primary' onClick={() => {
+                            ipcRenderer.send('show-dev-tools', {});
+                        }} >
+                            Open DEV Tools
+                        </Button>
+
                     </ButtonToolbar>
                 </Panel>
             </Modal>

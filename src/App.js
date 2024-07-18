@@ -17,7 +17,6 @@ import Snackbar from '@mui/material/Snackbar';
 import Alert from "@mui/material/Alert";
 
 
-
 const App = () => {
   const uiSlice = useSelector((state) => state.ui);
   const dispatch = useDispatch();

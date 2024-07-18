@@ -1,7 +1,5 @@
-const path = require("path");
 const fs = require('fs');
-const fsPromises = require('fs/promises');
-const { downloadRelease } = require('@terascope/fetch-github-release');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser')
@@ -9,17 +7,17 @@ const PDFDocument = require('pdfkit');
 const { exec } = require("child_process");
 const stream = require('./stream');
 const qr = require('qrcode');
-const bwipjs = require('bwip-js');
 const { app, BrowserWindow, dialog, screen } = require("electron");
 const isDev = require("electron-is-dev");
 const crypto = require('crypto');
 const net = require('net');
 const { autoUpdater } = require("electron-updater")
 const { print } = require("pdf-to-printer");
-const { SerialPort, ByteLengthParser } = require('serialport')
+const { SerialPort } = require('serialport')
 const printComplete = require('./printComplete');
 const { ReadlineParser } = require('@serialport/parser-readline');
-
+const logger = require('./logger');
+const { ipcMain } = require('electron');
 
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
@@ -30,7 +28,6 @@ const config = {
     qrBaseUrl: 'http://46.43.70.210:81/process-customer-entry.xhtml'
 }
 const axiosImport = require('axios');
-const { log } = require("console");
 const axios = axiosImport.create({
     baseURL: 'http://' + localConfig.serverIp + ':8080/'
 });
@@ -47,6 +44,12 @@ if (isDev) {
 
 
 let updateInterval = null;
+const logFilePath = path.join(__dirname, 'logs', 'app.log');
+
+ipcMain.on('log-message', (event, arg) => {
+    const { level, message } = arg;
+    logger[level](message);
+});
 
 function createWindow() {
     // Create the browser window.
@@ -55,14 +58,20 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: localConfig.admin ? false : true,
+        fullscreen: false,// localConfig.admin ? false : true,
         webPreferences: {
-            nodeIntegration: true
+            nodeIntegration: true, contextIsolation: false, enableRemoteModule: true
         }
     });
 
     win.setMenu(null);
 
+    ipcMain.on('show-dev-tools', (event, arg) => {
+        win.webContents.openDevTools();
+    }); 
+    
+    fs.promises.writeFile(logFilePath, '');
+    
     let params = `serverIp=${localConfig.serverIp}&deviceId=${localConfig.deviceId}`;
 
     if (localConfig.admin) {
@@ -76,23 +85,18 @@ function createWindow() {
     }
     if (localConfig.autoUpdate) {
         params += `&autoUpdate=true`;
-    } 
+    }
 
 
-    console.log(params);
+    logger.info(params);
 
     // and load the index.html of the app.
     win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
 
     win.show();
-    // Open the DevTools.
-    if (localConfig.devTools) {
-        win.webContents.openDevTools({ mode: "detach" });
-    }
 
 
     // customer screen options 
-
     if (localConfig.showCustomerScreen) {
         const displays = screen.getAllDisplays()
         const externalDisplay = displays.find((display) => {
@@ -128,7 +132,7 @@ function createWindow() {
         customerScreen.show();
     }
 
-}
+}  
 
 autoUpdater.on('error', (error) => {
     // dialog.showErrorBox('Error while checking for updates: ', error == null ? "unknown" : (error.stack || error).toString())
@@ -163,6 +167,7 @@ if (!gotTheLock) {
 
     app.whenReady().then(() => {
         createWindow();
+        createLogWindow();
         updateInterval = setInterval(() => autoUpdater.checkForUpdates(), 600000); // every 10 minute
     });
 

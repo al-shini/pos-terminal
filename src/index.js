@@ -4,11 +4,27 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { Provider } from 'react-redux';
 import { store } from './store/store';
-import 'rsuite/dist/rsuite.min.css'
+import 'rsuite/dist/rsuite.min.css' 
+import ErrorBoundary from './ErrorBoundary';
+
+
+// // Capture global errors
+// window.onerror = (message, source, lineno, colno, error) => {
+//   console.error(`Global Error: ${message} at ${source}:${lineno}:${colno}`, error);
+// };
+
+// // Capture unhandled promise rejections
+// window.onunhandledrejection = (event) => {
+//   console.error('Unhandled Rejection:', event.reason);
+// };
+
+
 ReactDOM.render(
   <React.StrictMode>
     <Provider store={store}>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </Provider>
   </React.StrictMode>,
   document.getElementById('root')
