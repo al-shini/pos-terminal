@@ -98,19 +98,17 @@ const Terminal = (props) => {
     const [alphabtet, setAlphabet] = useState('ا');
     const [settingsOpen, setSettingsOpen] = useState(false);
 
+    const [trxCounter, setTrxCounter] = useState(0);
 
-    useEffect(() => {
-        // Set up the interval to reload the window every 3 minutes
-        const intervalId = setInterval(() => {
-            if (!trxSlice.trx) {
-                dispatch(showLoading('reloading app...'));
-                window.location.reload();
-            }
-        }, 3000); // 180000 milliseconds = 3 minutes
-
-        // Clean up the interval on component unmount
-        return () => clearInterval(intervalId);
-    }, [trxSlice.trx]);
+    const incrementTrxCount = () => {
+        if (trxCounter == 9) {
+            // 10th transaction closed, reload 
+            dispatch(showLoading('Purging Cache'))
+            window.location.reload();
+        } else {
+            setTrxCounter(trxCounter + 1);
+        }
+    }
 
     useEffect(() => {
         play();
@@ -1026,7 +1024,7 @@ const Terminal = (props) => {
     }
 
     const handleSwitchToRefund = () => {
-        confirm('Switch to Refund Mode?', '',
+        confirm('Refund Mode?', '',
             () => {
                 if (terminal.managerMode) {
                     dispatch(setTrxMode('Refund'));
@@ -1117,47 +1115,47 @@ const Terminal = (props) => {
 
     const buildPaymentTypesButtons = () => {
         return <React.Fragment>
-            <Button key='cash' disabled={terminal.trxMode === 'Refund' && !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('cash', 'fixed') }}>
+            <Button key='cash' disabled={!trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('cash', 'fixed') }}>
                 <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '5px' }} />
                 <label>Cash</label>
             </Button>
-            <br />
-            <Button key='foregin' disabled={terminal.trxMode === 'Refund'} className={classes.MainActionButton} onClick={() => { startPayment('foreign', 'fixed') }}>
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            <Button key='foregin' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('foreign', 'fixed') }}>
                 <FontAwesomeIcon icon={faMoneyBillTransfer} style={{ marginRight: '5px' }} />
                 <label>Currency</label>
             </Button>
-            <br />
-            <Button key='visa' disabled={terminal.trxMode === 'Refund'} className={classes.MainActionButton} onClick={() => { startPayment('visa', 'numpad') }}>
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            <Button key='visa' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('visa', 'numpad') }}>
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
                 <label>Visa</label>
             </Button>
-            <br />
-            <Button key='jawwalPay' disabled={terminal.trxMode === 'Refund'} className={classes.MainActionButton} onClick={() => { startPayment('jawwalPay', 'numpad') }}>
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            <Button key='jawwalPay' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('jawwalPay', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>Jawwal Pay</label>
             </Button>
-            <br />
-            <Button key='voucher' disabled={terminal.trxMode === 'Refund'} className={classes.MainActionButton} onClick={() => { startPayment('voucher', 'numpad') }}>
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            <Button key='voucher' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('voucher', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>Voucher</label>
             </Button>
-            <br />
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {terminal.customer && terminal.store && <Button key='onAccount'
-                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || terminal.customer.club}
+                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || terminal.customer.club || !trxSlice.trx}
                 className={classes.MainActionButton} onClick={() => { startPayment('onAccount', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>On Account</label>
             </Button>}
-            <br />
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {terminal.customer && terminal.store && <Button key='cashBack'
-                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection}
+                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection || !trxSlice.trx}
                 className={classes.MainActionButton} onClick={() => { startPayment('cashBack', 'fixed') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>Cash Back</label>
             </Button>}
-            <br />
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {terminal.customer && terminal.customer.employee && terminal.store && <Button key='employeeExtra'
-                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection}
+                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection || !trxSlice.trx}
                 className={classes.MainActionButton} onClick={() => { startPayment('employeeExtra', 'numpad') }}>
                 <FontAwesomeIcon icon={faPlusSquare} style={{ marginRight: '5px' }} />
                 <label>Employee</label>
@@ -1310,7 +1308,7 @@ const Terminal = (props) => {
                     <label>Suspend Trx</label>
                 </div>
             </Button>
-            <br />
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             <Button key='voidTrx' className={classes.MainActionButton}
                 onClick={handleVoidTrx}
                 disabled={terminal.paymentMode} >
@@ -1319,7 +1317,7 @@ const Terminal = (props) => {
                     <label>Void TRX </label>
                 </div>
             </Button>
-            <br />
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
                 terminal.trxMode === 'Sale' &&
                 <Button disabled={trxSlice.trx !== null} key='refund' className={classes.MainActionButton} onClick={handleSwitchToRefund}>
@@ -1338,7 +1336,7 @@ const Terminal = (props) => {
                     </div>
                 </Button>
             }
-            <br />
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
                 (terminal.till && terminal.till.status === 'O') &&
                 <Button disabled={trxSlice.trx !== null} key='lock' className={classes.MainActionButton} onClick={handleLockTill}>
@@ -1358,7 +1356,7 @@ const Terminal = (props) => {
                     </div>
                 </Button>
             }
-            <br />
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
                 <Button key='settings' className={classes.MainActionButton} onClick={() => setSettingsOpen(true)}>
                     <div style={{ textAlign: 'center', fontSize: '14px', }}>
@@ -1525,7 +1523,13 @@ const Terminal = (props) => {
                         }
 
                     }} >
-                    <div key={obj.key + 'di'} style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <div
+                        key={obj.key + 'di'}
+                        style={{
+                            textAlign: 'center',
+                            fontSize: obj.itemName.length > 18 ? '10px' : '14px',
+                        }}
+                    >
                         {obj.itemName}
                     </div>
                 </Button>
@@ -1592,10 +1596,9 @@ const Terminal = (props) => {
 
 
     return (
-        <FlexboxGrid  >
+        <FlexboxGrid style={{ zoom: 0.9 }} >
             <FlexboxGrid.Item colspan={11} style={{ background: 'white', position: 'relative', left: '6px', width: '48.83333333%' }}  >
                 {terminal.display === 'ready' && <Invoice authQR={authQR} />}
-                {terminal.display === 'balance-setup' && <BalanceSetup />}
                 {terminal.display === 'payment' && <Payments />}
             </FlexboxGrid.Item>
 
@@ -1670,7 +1673,7 @@ const Terminal = (props) => {
                 }
             </FlexboxGrid.Item>
 
-            <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '87.5vh' }}>
+            <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '100vh' }}>
                 <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
                     <h6 style={{ lineHeight: '5vh', textAlign: 'left', fontSize: '95%' }}>
                         <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '20px', marginRight: '7px' }} /> {terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</span>
@@ -1680,13 +1683,8 @@ const Terminal = (props) => {
                     <img src={Logo} onClick={handleLogoClick} style={{ position: 'fixed', right: '1vw', top: '0', zIndex: 1000, height: 'inherit' }} />
                 </div>
 
-                <div id='rightPosPanel' style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', height: '33vh' }}>
+                <div id='rightPosPanel' style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', }}>
                     <span>
-                        {/* <a style={{ color: '#2196f3', padding: '2px' }} onClick={() => {
-                            confirm('Reset Customer?', 'This clears to default customer',
-                                () => { resetToStoreCustomer() }
-                            )
-                        }}> */}
                         <FontAwesomeIcon icon={faIdCard} style={{
                             marginLeft: '7px', marginRight: '7px', fontSize: '18px'
                         }} />
@@ -1792,7 +1790,7 @@ const Terminal = (props) => {
                 </div>
 
                 <div style={{ background: 'white', padding: '10px', position: 'absolute', bottom: '0%', width: '96.5%' }}>
-                    <Numpad />
+                    <Numpad incrementTrxCount={incrementTrxCount} />
                 </div>
 
             </FlexboxGrid.Item>
@@ -1802,9 +1800,9 @@ const Terminal = (props) => {
                     <h6 style={{ lineHeight: '5vh', textAlign: 'center' }}>
                     </h6>
                 </div>
-                <div  >
+                <div style={{ marginTop: 10 }}>
                     <FlexboxGrid justify='space-between' style={{
-                        maxHeight: "82vh",
+                        maxHeight: "90vh",
                         overflowY: "hidden",
                         width: "105%",
                         marginLeft: '10px'
@@ -1905,10 +1903,9 @@ const Terminal = (props) => {
                     <FlexboxGrid.Item colspan={3} >
                         <Button color={terminal.managerMode ? 'red' : 'yellow'} appearance="primary" className={classes.POSButton} onClick={handleManagerMode} >
                             <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '5px' }} />
-                            <br />
-                            <label>
+                            <div>
                                 {terminal.managerMode ? 'Exit Manager' : 'Manager'}
-                            </label>
+                            </div>
                         </Button>
                     </FlexboxGrid.Item>
 
@@ -1920,7 +1917,7 @@ const Terminal = (props) => {
                                 setActionsMode('payment')
                             }} >
                             <FontAwesomeIcon icon={faSackDollar} style={{ marginRight: '5px' }} />
-                            <label>Payment</label>
+                            <div>Payment</div>
                         </Button>
                     </FlexboxGrid.Item>
 
@@ -1930,7 +1927,7 @@ const Terminal = (props) => {
                             color='green'
                             onClick={() => setActionsMode('fastItems')} >
                             <FontAwesomeIcon icon={faCarrot} style={{ marginRight: '5px' }} />
-                            <label>Fast Items</label>
+                            <div>Fast Items</div>
                         </Button>
                     </FlexboxGrid.Item>
 
@@ -1940,7 +1937,7 @@ const Terminal = (props) => {
                             color='green'
                             onClick={() => setActionsMode('operations')} >
                             <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
-                            <label>Operations</label>
+                            <div>Operations</div>
                         </Button>
                     </FlexboxGrid.Item>
 
@@ -1986,7 +1983,7 @@ const Terminal = (props) => {
                         {terminal.paymentMode && <Button className={classes.POSButton}
                             onClick={handleAbort}
                             appearance='primary' color='red'>
-                            <label style={{fontSize: '12px'}}>
+                            <label style={{ fontSize: '12px' }}>
                                 {
                                     (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') ? 'Cancel Payment' :
                                         (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType !== 'none') ? 'Back' : !terminal.paymentMode ? '' : ''
@@ -2119,7 +2116,16 @@ const Terminal = (props) => {
                         }} >
                             Open DEV Tools
                         </Button>
-
+                        <Button appearance='primary' onClick={() => {
+                            window.location.reload();
+                        }} >
+                            Restart
+                        </Button>
+                        <Button appearance='primary' onClick={() => {
+                            ipcRenderer.send('checkForUpdates', {});
+                        }} >
+                            Check for Updates
+                        </Button>
                     </ButtonToolbar>
                 </Panel>
             </Modal>

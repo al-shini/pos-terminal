@@ -93,13 +93,15 @@
     font-size: 17px;
     color: #000000;
     background-color: white !important;
+    border-top: 1px solid #e1e1e1
 }
 
 .OddRow {
     font-weight: bold !important;
     font-size: 17px;
     color: #000000;
-    background-color: #e1e1e1 !important;
+    background-color: white !important;
+    border-top: 1px solid #e1e1e1
 }
 
 .SelectedRow {

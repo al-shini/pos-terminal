@@ -10,7 +10,7 @@ import styles from './Numpad.module.css';
 import classes from './Terminal.module.css';
 
 import { changePrice, clearLastPaymentHistory, handleNumberInputChange, prepareScanMultiplierPreDefined, scanBarcode, scanNewTransaction, selectCurrency, submitPayment } from '../../store/trxSlice';
-import { notify } from '../../store/uiSlice';
+import { notify, showLoading } from '../../store/uiSlice';
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
 import { fetchSuspendedForTill, setManagerMode, submitOpeningBalance } from '../../store/terminalSlice';
@@ -57,6 +57,10 @@ const Numpad = (props) => {
                         window.setTimeout(() => {
                             dispatch(clearLastPaymentHistory());
                         }, 6000)
+
+                        window.setTimeout(() => {
+                            props.incrementTrxCount();
+                        }, 3000)
 
                         return;
                     }

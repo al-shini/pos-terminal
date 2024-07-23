@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 
-import { FlexboxGrid, List, IconButton , Divider} from 'rsuite';
+import { FlexboxGrid, List, IconButton, Divider } from 'rsuite';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
@@ -96,7 +96,7 @@ const Invoice = (props) => {
                 </h4>
             </div>
 
-            <List hover id='paymentList' style={{ height: '67vh' }} autoScroll={false}>
+            <List hover id='paymentList' style={{ height: '79vh' }} autoScroll={false}>
 
                 {
                     trxSlice.payments ? trxSlice.payments.map((obj, i) => {
@@ -133,13 +133,19 @@ const Invoice = (props) => {
                     }) : null
                 }
             </List>
-            <FlexboxGrid style={{ height: '15.5vh', color: 'white', background: '#e1e1e1', justifyContent: 'flex-end', }}>
+            <FlexboxGrid style={{
+                height: '15.5vh', color: 'white', background: 'white', justifyContent: 'flex-end',
+                borderBottom: '1px solid #e1e1e1',
+                borderTop: '1px solid #e1e1e1',
+                paddingBottom: 5
+            }}>
+
                 <FlexboxGrid.Item colspan={24} >
                     <span style={{ color: 'transparent', lineHeight: '1vh' }}>.</span>
                 </FlexboxGrid.Item>
 
                 <FlexboxGrid.Item colspan={10} >
-                    <FlexboxGrid style={{ marginTop: '1vh', color: 'white', background: '#e1e1e1' }}>
+                    <FlexboxGrid style={{ marginTop: '1vh', color: 'white' }}>
                         <FlexboxGrid.Item colspan={2} />
                         <FlexboxGrid.Item colspan={5} >
                             <IconButton onClick={scrollUp} icon={<FontAwesomeIcon size='2x' icon={faChevronUp} />} className={classes.ScrollButton} />

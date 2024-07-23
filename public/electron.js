@@ -58,7 +58,7 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: false,// localConfig.admin ? false : true,
+        fullscreen: localConfig.admin ? false : true,
         webPreferences: {
             nodeIntegration: true, contextIsolation: false, enableRemoteModule: true
         }
@@ -135,9 +135,33 @@ function createWindow() {
 }  
 
 autoUpdater.on('error', (error) => {
-    // dialog.showErrorBox('Error while checking for updates: ', error == null ? "unknown" : (error.stack || error).toString())
-    console.log('Error while checking for updates');
+    dialog.showErrorBox('Error while checking for updates: ', error == null ? "unknown" : (error.stack || error).toString())
+    logger.info('Error while checking for updates');
 })
+
+autoUpdater.on('update-available', (info) => {
+    log.info('Update available:', info);
+    const dialogOpts = {
+        type: 'info',
+        buttons: ['OK'],
+        title: 'Update Available',
+        message: 'A new version of the application is available.',
+        detail: 'It will be downloaded in the background. You will be notified when it is ready to be installed.'
+    };
+    dialog.showMessageBox(dialogOpts);
+});
+
+autoUpdater.on('update-not-available', (info) => {
+    log.info('No update available:', info);
+    const dialogOpts = {
+        type: 'info',
+        buttons: ['OK'],
+        title: 'No Updates',
+        message: 'You are using the latest version of the application.',
+        detail: 'No updates are available at this time.'
+    };
+    dialog.showMessageBox(dialogOpts);
+});
 
 autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
     const dialogOpts = {
@@ -168,7 +192,7 @@ if (!gotTheLock) {
     app.whenReady().then(() => {
         createWindow();
         createLogWindow();
-        updateInterval = setInterval(() => autoUpdater.checkForUpdates(), 600000); // every 10 minute
+        // updateInterval = setInterval(() => autoUpdater.checkForUpdates(), 600000); // every 10 minute
     });
 
     // Quit when all windows are closed, except on macOS. There, it's common
@@ -188,8 +212,8 @@ if (!gotTheLock) {
 
             if (isDev) {
                 installExtension(REACT_DEVELOPER_TOOLS)
-                    .then(name => console.log(`Added Extension:  ${name}`))
-                    .catch(error => console.log(`An error occurred: , ${error}`));
+                    .then(name => logger.info(`Added Extension:  ${name}`))
+                    .catch(error => logger.info(`An error occurred: , ${error}`));
             }
         }
     });
@@ -221,7 +245,7 @@ if (!gotTheLock) {
 
         qr.toFile(qrFileName, object.qr, (ex, url) => {
             if (ex) {
-                console.log('ex', ex);
+                logger.info('ex', ex);
             }
 
             doc.pipe(writeStream);
@@ -249,9 +273,9 @@ if (!gotTheLock) {
                 const base64 = writeStream.toBuffer().toString('base64')
                 fs.writeFile(invoiceFileName, base64, 'base64', (err) => {
                     if (err) {
-                        console.log('ERROR', err);
+                        logger.info('ERROR', err);
                     }
-                    console.log('printing...............................');
+                    logger.info('printing...............................');
                     if (localConfig.printMethod && localConfig.printMethod === 'default') {
                         print('C:\\pos\\invoice.pdf', {});
                     } else if (!localConfig.printMethod || localConfig.printMethod === 'ptp') {
@@ -294,7 +318,7 @@ if (!gotTheLock) {
                 encryptedKey
             };
         } catch (e) {
-            console.log(e);
+            logger.info(e);
             throw e;
         }
     }
@@ -312,7 +336,7 @@ if (!gotTheLock) {
                 d: encryptedObject
             }
         } catch (e) {
-            console.log(e);
+            logger.info(e);
             throw e;
         }
     }
@@ -331,7 +355,7 @@ if (!gotTheLock) {
             const decCipher = crypto.createDecipheriv('aes-256-ecb', aes32Key, '');
             return decCipher.update(encryptedMsg.d, 'base64', 'utf-8') + decCipher.final('utf-8');
         } catch (e) {
-            console.log(e);
+            logger.info(e);
             throw e;
         }
     }
@@ -367,7 +391,7 @@ if (!gotTheLock) {
                             type: trx.type
                         });
                     } else if (localConfig.printTemplate === 'complete') {
-                        console.log({
+                        logger.info({
                             qr: qrUrl,
                             total: trx.totalafterdiscount,
                             discount: trx.totaldiscount,
@@ -412,7 +436,7 @@ if (!gotTheLock) {
 
 
         } catch (e) {
-            console.log(e);
+            logger.info(e);
             dialog.showErrorBox('Error', e)
             res.send(e);
         }
@@ -447,7 +471,7 @@ if (!gotTheLock) {
         const client = new net.Socket();
         let received = '';
 
-        console.log(bopVisaIp);
+        logger.info(bopVisaIp);
 
         client.connect(7800, bopVisaIp);
         client.setEncoding('utf8');
@@ -455,12 +479,12 @@ if (!gotTheLock) {
 
         /* begin call back events for visa socket */
         client.on('data', function (response) {
-            console.log('\n[data event] => ', response);
+            logger.info('\n[data event] => ', response);
             received += response;
         });
 
         client.on('error', function (response) {
-            console.log('[error event] => ', response);
+            logger.info('[error event] => ', response);
             res.status(500).send(response);
         });
 
@@ -468,14 +492,14 @@ if (!gotTheLock) {
             let initResponse = undefined;
             try {
                 // try and parse receievd JSON
-                console.log("RECIEVED JSON:", received);
+                logger.info("RECIEVED JSON:", received);
                 initResponse = JSON.parse(received);
             } catch (parseError) {
-                console.log('could not parse the received json');
+                logger.info('could not parse the received json');
                 return;
             }
 
-            console.log('initResponse', initResponse);
+            logger.info('initResponse', initResponse);
             if (initResponse && initResponse.rsaPubKey) {
                 const visaPubKey = initResponse.rsaPubKey;
                 // link the private and public key pairs with the terminal object in the backend, alongside the visa machine details
@@ -513,7 +537,7 @@ if (!gotTheLock) {
             length = '0' + length;
         }
         message = '~PCNC~' + length + '~' + initRequestObject;
-        console.log('Sending -> ', message)
+        logger.info('Sending -> ', message)
         client.write(message);
 
     })
@@ -542,12 +566,12 @@ if (!gotTheLock) {
 
             /* begin call back events for visa socket */
             client.on('data', function (response) {
-                // console.log('\n[data event] => ', response);
+                // logger.info('\n[data event] => ', response);
                 received += response;
             });
 
             client.on('error', function (response) {
-                console.log('[error event] => ', response);
+                logger.info('[error event] => ', response);
                 if (!sent) {
                     res.status(500).send(response);
                     sent = true;
@@ -557,10 +581,10 @@ if (!gotTheLock) {
             client.on('close', function (response) {
                 try {
                     const saleResponse = JSON.parse(decryptObject(received.substring(ReqRespPrefixLen), terminal.localPrivateRsa));
-                    console.log(saleResponse);
+                    logger.info(saleResponse);
                     res.send(saleResponse);
                 } catch (ex) {
-                    console.log('[close event error] => ', response);
+                    logger.info('[close event error] => ', response);
                     if (!sent) {
                         res.status(500).send({ error: response })
                         sent = true;
@@ -587,11 +611,11 @@ if (!gotTheLock) {
                 length = '0' + length;
 
             message += length + '~' + objectAsString;
-            // console.log('Sending -> ', message);
+            // logger.info('Sending -> ', message);
             client.write(message);
 
         } catch (e) {
-            console.log(e);
+            logger.info(e);
             res.status(500).send(e);
         }
     })
@@ -612,7 +636,7 @@ if (!gotTheLock) {
 
         port.open((err) => {
             if (err) {
-                console.error('Error opening serial port: ', err.message);
+                logger.error('Error opening serial port: ', err.message);
                 return res.status(500).send('Error opening serial port: '.concat(err.message));
             } else {
                 return res.status(200).send('Serial Port Opened');
@@ -629,7 +653,7 @@ if (!gotTheLock) {
                 return res.status(200).send('Port closed');
             });
             port.on('error', (err) => {
-                console.log('Serial Port closing error: ', err.message);
+                logger.info('Serial Port closing error: ', err.message);
                 return res.status(200).send('Port closing error');
             });
         }
@@ -650,22 +674,22 @@ if (!gotTheLock) {
         let responded = false;
 
         parser.once('data', (data) => {
-            console.log(data);
+            logger.info(data);
             const buffer = Buffer.from(data, 'utf-8');
             const valueAsString = buffer.toString('utf-8');
-            console.log(valueAsString);
+            logger.info(valueAsString);
 
             const digitsOnly = valueAsString.replace(/[^\d.]/g, '');
-            console.log('scale data: '.concat(digitsOnly));
+            logger.info('scale data: '.concat(digitsOnly));
             responded = true;
             res.send(digitsOnly);
         });
 
         port.write(localConfig.scaleWeightCommand || '$', (err) => {
-            console.log('sent command '.concat(localConfig.scaleWeightCommand || '$'));
+            logger.info('sent command '.concat(localConfig.scaleWeightCommand || '$'));
             if (err) {
-                console.error(err);
-                console.error('error writing weightScale command?');
+                logger.error(err);
+                logger.error('error writing weightScale command?');
                 responded = true;
                 res.status(500).send('error writing weightScale command ');
             }
@@ -685,8 +709,8 @@ if (!gotTheLock) {
 
         port.write(localConfig.scaleZeroCommand || 'Z', (err) => {
             if (err) {
-                console.error(err);
-                console.log('error writing scale command ');
+                logger.error(err);
+                logger.info('error writing scale command ');
                 res.status(500).send('error writing zeroScale command ');
             }
         });
@@ -697,7 +721,7 @@ if (!gotTheLock) {
             return res.status(500).send('Serial port not open');
         }
 
-        parser.once('data', (data) => {
+        parser.once('data', (data) => {AAAAAAAAAAA
             const buffer = Buffer.from(data, 'utf-8');
             const valueAsString = buffer.toString('utf-8');
             res.send(valueAsString);
@@ -705,8 +729,8 @@ if (!gotTheLock) {
 
         port.write(localConfig.scaleRestartCommand || 'Z', (err) => {
             if (err) {
-                console.error(err);
-                console.error('error writing restartScale command ');
+                logger.error(err);
+                logger.error('error writing restartScale command ');
                 res.status(500).send('error writing restartScale command ');
             }
         });
@@ -722,11 +746,17 @@ if (!gotTheLock) {
         restartApp();
         res.send('App is restarting...');
     });
+    
+    // autoUpdater.checkForUpdates()
 
+    expressApp.get('/checkForUpdates', (req, res) => {
+        autoUpdater.checkForUpdates()
+        res.send('Checking for updates...');
+    });
 
     // RUN express app
     expressApp.listen(localConfig.expressPort ? localConfig.expressPort : 3001, () => {
-        console.log(`Terminal app listening on port ${localConfig.expressPort ? localConfig.expressPort : '3001'}`)
+        logger.info(`Terminal app listening on port ${localConfig.expressPort ? localConfig.expressPort : '3001'}`)
     })
 
 }

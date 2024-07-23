@@ -206,8 +206,8 @@ const Invoice = (props) => {
                 </h4>
             </div>
 
-            <List
-                height={489}
+            <List 
+                height={580}
                 itemCount={trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
                 itemSize={85}
                 width={'100%'}
@@ -218,12 +218,14 @@ const Invoice = (props) => {
                 {InvoiceItem}
             </List>
 
-            <FlexboxGrid style={{ height: '15.5vh', color: 'white', background: '#e1e1e1', justifyContent: 'flex-end' }}>
+            <FlexboxGrid style={{ height: '15.5vh', color: 'white', background: 'white', justifyContent: 'flex-end', 
+            borderBottom: '1px solid #e1e1e1',
+            borderTop: '1px solid #e1e1e1' }}>
                 <FlexboxGrid.Item colspan={24}>
                     <span style={{ color: 'transparent', lineHeight: '1vh' }}>.</span>
                 </FlexboxGrid.Item>
                 <FlexboxGrid.Item colspan={10}>
-                    <FlexboxGrid style={{ marginTop: '1vh', color: 'white', background: '#e1e1e1' }}>
+                    <FlexboxGrid style={{ marginTop: '1vh', color: 'white' }}>
                         <FlexboxGrid.Item colspan={2} />
                         <FlexboxGrid.Item colspan={5}>
                             <IconButton onClick={() => dispatch(scrollUp())} icon={<FontAwesomeIcon size='2x' icon={faChevronUp} />} className={classes.ScrollButton} />
@@ -244,15 +246,6 @@ const Invoice = (props) => {
                         </span>
                     </div>
                     <div style={{ textAlign: 'right', marginRight: '10px' }}>
-                        {/* <span style={{ color: 'grey', fontFamily: 'monospace' }}>
-                            Tax:
-                            <small id='NISSymbolTax'>₪</small>
-                            <small id='TotalTax'>
-                                {trxSlice.trx ? (Math.round((trxSlice.trx.totalafterdiscount - trxSlice.trx.totalAfterDiscountBeforeTax) * 100) / 100).toFixed(2) : '0.00'}
-                            </small>
-                        </span> */}
-
-                        <Divider vertical />
                         <small id='NISSymbol'>₪</small>
                         <label id='Total'>
                             {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(2) : '0.00'}
