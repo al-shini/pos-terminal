@@ -120,11 +120,13 @@ function createWindow() {
             show: true,
             fullscreen: true,
             webPreferences: {
-                nodeIntegration: true
+                nodeIntegration: true, contextIsolation: false, enableRemoteModule: true
             }
         });
 
         customerScreen.setMenu(null);
+
+        // customerScreen.webContents.openDevTools();
 
         // and load the index.html of the app.
         customerScreen.loadURL(isDev ? `http://localhost:3000/#/customer?${params}` : `file://${__dirname}/../build/index.html#/customer?${params}`);
