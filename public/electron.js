@@ -17,7 +17,7 @@ const { SerialPort } = require('serialport')
 const printComplete = require('./printComplete');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const logger = require('./logger');
-const { ipcMain } = require('electron');
+const { ipcMain } = require('electron'); 
 
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
@@ -68,10 +68,11 @@ function createWindow() {
 
     ipcMain.on('show-dev-tools', (event, arg) => {
         win.webContents.openDevTools();
-    }); 
-    
+    });
+
+
     fs.promises.writeFile(logFilePath, '');
-    
+
     let params = `serverIp=${localConfig.serverIp}&deviceId=${localConfig.deviceId}`;
 
     if (localConfig.admin) {
@@ -94,7 +95,6 @@ function createWindow() {
     win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
 
     win.show();
-
 
     // customer screen options 
     if (localConfig.showCustomerScreen) {
@@ -134,7 +134,7 @@ function createWindow() {
         customerScreen.show();
     }
 
-}  
+}
 
 autoUpdater.on('error', (error) => {
     dialog.showErrorBox('Error while checking for updates: ', error == null ? "unknown" : (error.stack || error).toString())
@@ -481,12 +481,14 @@ if (!gotTheLock) {
 
         /* begin call back events for visa socket */
         client.on('data', function (response) {
-            logger.info('\n[data event] => ', response);
+            logger.info('Data Event on Socket => ');
+            logger.info(response);
             received += response;
         });
 
         client.on('error', function (response) {
-            logger.info('[error event] => ', response);
+            logger.info('Error Event on Socket => ');
+            logger.info(response);
             res.status(500).send(response);
         });
 
@@ -494,7 +496,8 @@ if (!gotTheLock) {
             let initResponse = undefined;
             try {
                 // try and parse receievd JSON
-                logger.info("RECIEVED JSON:", received);
+                logger.info("Recieved JSON ->");
+                logger.info(received);
                 initResponse = JSON.parse(received);
             } catch (parseError) {
                 logger.info('could not parse the received json');
@@ -539,7 +542,10 @@ if (!gotTheLock) {
             length = '0' + length;
         }
         message = '~PCNC~' + length + '~' + initRequestObject;
-        logger.info('Sending -> ', message)
+
+        logger.info('Sending -> ')
+        logger.info(message)
+
         client.write(message);
 
     })
@@ -621,9 +627,7 @@ if (!gotTheLock) {
             res.status(500).send(e);
         }
     })
-
-
-
+ 
     let port;
     let parser;
 
@@ -723,7 +727,8 @@ if (!gotTheLock) {
             return res.status(500).send('Serial port not open');
         }
 
-        parser.once('data', (data) => {AAAAAAAAAAA
+        parser.once('data', (data) => {
+            AAAAAAAAAAA
             const buffer = Buffer.from(data, 'utf-8');
             const valueAsString = buffer.toString('utf-8');
             res.send(valueAsString);
@@ -748,7 +753,7 @@ if (!gotTheLock) {
         restartApp();
         res.send('App is restarting...');
     });
-    
+
     // autoUpdater.checkForUpdates()
 
     expressApp.get('/checkForUpdates', (req, res) => {

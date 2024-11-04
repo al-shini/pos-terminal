@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown, faCogs,
-    faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList
+    faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -143,22 +143,6 @@ const Terminal = (props) => {
         }
     }, [])
 
-
-    const [logoCounter, setLogoCounter] = useState(0);
-    const handleLogoClick = () => {
-        setLogoCounter(logoCounter + 1);
-    }
-
-    useEffect(() => {
-        if (trxSlice.numberInputValue === '123.4994') {
-            if (logoCounter === 5) {
-                dispatch(setManagerMode(true));
-                setLogoCounter(0);
-            }
-        } else {
-            setLogoCounter(0);
-        }
-    }, [logoCounter])
 
 
 
@@ -594,33 +578,7 @@ const Terminal = (props) => {
             return;
         }
 
-        dispatch(showLoading('Connecting to Auto Visa...'));
-
-
-        // check connectivity to auto visa
-        // let connection = true;
-
-        // try {
-        //     const timeoutPromise = new Promise((_, reject) =>
-        //         setTimeout(() => reject(new Error('Request timed out')), 2000) // 2000 milliseconds (2 seconds)
-        //     );
-
-        //     const fetchPromise = fetch(`http://${terminal.terminal.bopVisaIp}:7800`);
-
-        //     const _visa_response = await Promise.race([fetchPromise, timeoutPromise]);
-
-        //     if (!_visa_response || !_visa_response.ok) {
-        //         connection = false;
-        //     }
-        // } catch (e) {
-        //     connection = false;
-        // }
-
-        // if (!connection) {
-        //     dispatch(hideLoading())
-        //     dispatch(notify({ msg: `Visa @ ${terminal.terminal.bopVisaIp}:7800 not reachable`, sev: 'error' }));
-        //     return;;
-        // } 
+        dispatch(showLoading('Connecting to Auto Visa [BANK OF PALESTINE]...'));
 
         let amt = Math.abs(trxSlice.trxChange);
 
@@ -696,6 +654,119 @@ const Terminal = (props) => {
                 // console.log(error, error.response, error.message);
                 dispatch(notify({ msg: error.response ? error.response : error.message, sev: 'error' }));
                 dispatch(hideLoading());
+            });
+
+        } // end IF
+    }
+
+    const autoVisaFlowArabi = async () => {
+
+        if (trxSlice.selectedCurrency === 'EUR') {
+            dispatch(notify({ msg: 'Auto Visa does not support Euro', sev: 'warning' }));
+            return;
+        }
+
+        if (trxSlice.selectedCurrency !== 'NIS' && !terminal.exchangeRates[trxSlice.selectedCurrency]) {
+            dispatch(notify({ msg: 'Selected currency has no exchange rate defined', sev: 'error' }));
+            return;
+        }
+
+        dispatch(showLoading('Connecting to Auto Visa [BANK OF PALESTINE]...'));
+
+        let amt = Math.abs(trxSlice.trxChange);
+
+        if (trxSlice.trx && amt > 0) {
+
+            let cur = 376;
+
+            switch (trxSlice.selectedCurrency) {
+                case 'NIS': {
+                    cur = 376;
+                    break;
+                }
+                case 'JOD': {
+                    cur = 400;
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 1000) / 100).toFixed(3);
+                    break;
+                }
+                case 'USD': {
+                    cur = 840;
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2);
+                    break;
+                }
+            }
+
+            let integerPart = Math.floor(amt);
+            let decimalPart = amt - integerPart;
+            decimalPart = decimalPart.toFixed(2);
+
+            amt = integerPart * 100;
+            amt += parseFloat(decimalPart) * 100;
+
+            let trxId = trxSlice.trx.nanoId.replace('-', '');
+            // implement ARABI BANK auto visa flow
+            axios({
+                method: 'post',
+                data: {
+                    id: trxId,
+                    amt,
+                    curr: cur
+                },
+                url: `http://127.0.0.1:9600/arabiVisaSale`
+            }).then((response) => {
+                try {
+                    let makePayment = false;
+
+                    const badFormatData = response.data;
+                    const responseDataAsString = badFormatData.split("{")[1].split("}")[0];
+                    const responseData = JSON.parse("{" + responseDataAsString + "}");
+                    console.log(responseData, responseData.RespCode);
+                    if (responseData.RespCode === '-139') {
+                    } else if (responseData.RespCode === '000') {
+                        makePayment = true;
+                    } else if (responseData.RespCode === '001') {
+                        makePayment = true;
+                    } else if (responseData.RespCode === '003') {
+                        makePayment = true;
+                    } else if (responseData.RespCode === '004') {
+                        makePayment = true;
+                    } else if (responseData.RespCode === '007') {
+                        makePayment = true;
+                    } else if (responseData.RespCode === '010') {
+                        makePayment = true;
+                    }
+
+                    if (makePayment) {
+                        dispatch(notify({ msg: responseData.RespDesc, sev: 'info' }));
+                        const transactionAmountAsString = responseData.TransAmount;
+                        const transactionAmount = parseFloat(transactionAmountAsString) / 100;
+
+                        dispatch(submitPayment({
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            paymentMethodKey: trxSlice.selectedPaymentMethod,
+                            currency: trxSlice.selectedCurrency,
+                            amount: transactionAmount,
+                            sourceKey: 'AUTO VISA'
+                        }))
+                    }
+
+                } catch (e) {
+                    console.log(e);
+                    dispatch(notify({ msg: 'could not parse response data object!', sev: 'error' }));
+                }
+                dispatch(hideLoading())
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    } else {
+                        dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+                dispatch(hideLoading())
             });
 
         } // end IF
@@ -882,32 +953,7 @@ const Terminal = (props) => {
 
     const handleManagerMode = () => {
         if (!terminal.managerMode) {
-            axios({
-                method: 'post',
-                url: '/utilities/generateQR',
-                data: {
-                    hardwareId: config.deviceId,
-                    source: 'ManagerMode',
-                    sourceKey: terminal.till.key,
-                }
-            }).then((response) => {
-                if (response && response.data) {
-                    setAuthQR({
-                        ...response.data,
-                        source: 'ManagerMode'
-                    });
-                } else {
-                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-                }
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                    }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
-                }
-            });
+            dispatch(setManagerMode(true))
         } else {
             dispatch(setManagerMode(false))
         }
@@ -1125,9 +1171,18 @@ const Terminal = (props) => {
                 <label>Currency</label>
             </Button>
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
-            <Button key='visa' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('visa', 'numpad') }}>
+            <Button key='visa' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
+                style={{ background: '#b32572', color: 'white' }}
+                onClick={() => { startPayment('visa', 'numpad') }}>
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
-                <label>Visa</label>
+                <label>Visa (BOP)</label>
+            </Button>
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            <Button key='visaArabi' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
+                style={{ background: '#015aab', color: 'white' }}
+                onClick={() => { startPayment('visaArabi', 'numpad') }}>
+                <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
+                <label>Visa (ARABI)</label>
             </Button>
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             <Button key='jawwalPay' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('jawwalPay', 'numpad') }}>
@@ -1261,41 +1316,57 @@ const Terminal = (props) => {
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.key + 'space'} > .</div>);
         });
 
-        if (!terminal.terminal.bopVisaIp) {
-            tmp.push(<div key='fsbopvisasetup' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+        tmp.push(
+            <Button key='autovisa' className={classes.ActionButton}
+                disabled={!terminal.terminal.bopVisaIp}
+                style={{ background: '#b32572', color: 'white' }}
+                onClick={() => {
+                    autoVisaFlow();
+                }} >
+                <div style={{ textAlign: 'center' }}>
+                    <FontAwesomeIcon icon={faChain} />
+                    <label style={{ marginLeft: '2px' }}>AUTO - BOP</label>
+                </div>
+            </Button>
+        )
+        tmp.push(<div key='fs2' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+
+
+        return tmp;
+    }
+
+    const buildVisaButtonsArabi = () => {
+        let tmp = [];
+
+        terminal.currencies.map((obj, i) => {
             tmp.push(
-                <Input key='bopvisasetupIp' placeholder='BOP Visa IP'
-                    value={bopVisaIp} disabled={!terminal.managerMode}
-                    onChange={(e) => { setBopVisaIp(e) }} >
-                </Input>
-            )
-            tmp.push(
-                <Button key='bopvisasetup' className={classes.ActionButton}
-                    style={{ background: '#ffbf00', color: 'black', marginTop: '5px' }}
-                    disabled={terminal.terminal.bopVisaIp}
-                    onClick={initTerminalWithBopVisa} >
-                    <div style={{ textAlign: 'center' }}>
-                        <FontAwesomeIcon icon={faChain} />
-                        LINK VISA
-                    </div>
-                </Button>
-            )
-        } else {
-            tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
-            tmp.push(
-                <Button key='autovisa' className={classes.ActionButton}
-                    style={{ background: '#b5ff00', color: 'black' }}
+                <Button key={i} className={classes.ActionButton}
+                    appearance={obj.key === trxSlice.selectedCurrency ? 'primary' : 'default'}
                     onClick={() => {
-                        autoVisaFlow();
+                        dispatch(selectCurrency(obj.key));
                     }} >
                     <div style={{ textAlign: 'center' }}>
-                        <FontAwesomeIcon icon={faChain} />
-                        <label style={{ marginLeft: '2px' }}>AUTO VISA</label>
+                        {obj.key}
                     </div>
                 </Button>
             )
-        }
-        tmp.push(<div key='fs2' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
+            tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.key + 'space'} > .</div>);
+        });
+
+        tmp.push(
+            <Button key='autovisa_arabi' className={classes.ActionButton}
+                disabled={!terminal.terminal.bopVisaIp}
+                style={{ background: '#015aab', color: 'white' }}
+                onClick={() => {
+                    autoVisaFlowArabi();
+                }} >
+                <div style={{ textAlign: 'center' }}>
+                    <FontAwesomeIcon icon={faChain} />
+                    <label style={{ marginLeft: '2px' }}>AUTO - ARABI</label>
+                </div>
+            </Button>
+        )
+        tmp.push(<div key='fs3' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
 
         return tmp;
     }
@@ -1680,7 +1751,7 @@ const Terminal = (props) => {
                         <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
                         <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
                     </h6>
-                    <img src={Logo} onClick={handleLogoClick} style={{ position: 'fixed', right: '1vw', top: '0', zIndex: 1000, height: 'inherit' }} />
+                    <img src={Logo} style={{ position: 'fixed', right: '1vw', top: '0', zIndex: 1000, height: 'inherit' }} />
                 </div>
 
                 <div id='rightPosPanel' style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', }}>
@@ -1830,6 +1901,11 @@ const Terminal = (props) => {
                             }
 
                             {
+                                actionsMode === 'payment' && terminal.paymentType === 'visaArabi' &&
+                                buildVisaButtonsArabi()
+                            }
+
+                            {
                                 actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'jawwalPay' &&
                                 <Button className={classes.ActionButton}
                                     appearance={'NIS' === trxSlice.selectedCurrency ? 'primary' : 'default'}
@@ -1900,13 +1976,9 @@ const Terminal = (props) => {
             </FlexboxGridItem>
             <FlexboxGridItem colspan={24} style={{ left: '6px' }}>
                 <FlexboxGrid  >
-                    <FlexboxGrid.Item colspan={3} >
-                        <Button color={terminal.managerMode ? 'red' : 'yellow'} appearance="primary" className={classes.POSButton} onClick={handleManagerMode} >
-                            <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '5px' }} />
-                            <div>
-                                {terminal.managerMode ? 'Exit Manager' : 'Manager'}
-                            </div>
-                        </Button>
+
+                    <FlexboxGrid.Item colspan={3}>
+
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={3}>
@@ -2089,7 +2161,7 @@ const Terminal = (props) => {
                     POS Settings
                 </h4>
                 <Divider style={{ margin: '5px' }} />
-                <Panel bordered header='Scale Settings' style={{ margin: '10px' }}>
+                <Panel bordered header='Integrated Scale' style={{ margin: '10px' }}>
                     <ButtonToolbar >
                         <Button appearance='primary' onClick={openScalePort}
                             disabled={scaleConnected} >
@@ -2109,8 +2181,11 @@ const Terminal = (props) => {
                         </Button>
                     </ButtonToolbar>
                 </Panel>
-                <Panel bordered header='Admin Settings' style={{ margin: '10px' }}>
+                <Panel bordered header='General' style={{ margin: '10px' }}>
                     <ButtonToolbar >
+                        <Button color={terminal.managerMode ? 'red' : 'yellow'} appearance="primary" onClick={handleManagerMode} >
+                            {terminal.managerMode ? 'Exit Manager' : 'Manager'}
+                        </Button>
                         <Button appearance='primary' onClick={() => {
                             ipcRenderer.send('show-dev-tools', {});
                         }} >
@@ -2127,6 +2202,26 @@ const Terminal = (props) => {
                             Check for Updates
                         </Button>
                     </ButtonToolbar>
+                </Panel>
+                <Panel bordered header='BOP VISA Integration' style={{ margin: '10px' }}>
+                    {!terminal.terminal.bopVisaIp && <Input key='bopvisasetupIp' placeholder='BOP Visa IP'
+                        style={{ width: 150, display: 'inline-block', marginRight: 5 }}
+                        value={bopVisaIp}
+                        onChange={(e) => { setBopVisaIp(e) }} >
+                    </Input>}
+
+                    {!terminal.terminal.bopVisaIp && <Button key='bopvisasetup'
+                        style={{ display: 'inline-block' }}
+                        onClick={initTerminalWithBopVisa} >
+                        <div style={{ textAlign: 'center' }}>
+                            <FontAwesomeIcon icon={faChain} /> Link BOP Visa
+                        </div>
+                    </Button>}
+
+                    {terminal.terminal.bopVisaIp && <div style={{ textAlign: 'center' }}>
+                        <FontAwesomeIcon icon={faCheck} /> Already Linked @ {terminal.terminal.bopVisaIp}
+                    </div>}
+                    <br />
                 </Panel>
             </Modal>
 

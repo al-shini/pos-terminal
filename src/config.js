@@ -6,6 +6,7 @@ let admin = null;
 let scale = null;
 let scaleAlphabet = null;
 let autoUpdate = null;
+let arabiVisaCom = null;
 
 let query = new URLSearchParams(global.location.search);
 
@@ -33,21 +34,27 @@ if (query.get("autoUpdate")) {
     autoUpdate = query.get("autoUpdate");
 }
 
+if (query.get("arabiVisaCom")) {
+    arabiVisaCom = query.get("arabiVisaCom");
+}
+
 
 const config = {
     deviceId:  deviceId ? deviceId : 'test',
-    serverIp: serverIp ? serverIp : '127.0.0.1',
+    serverIp:  serverIp ? serverIp : '127.0.0.1',
     admin: admin ? admin : false,
     scale: scale ? scale : false,
     scaleAlphabet: scaleAlphabet ? scaleAlphabet : false,
     autoUpdate: autoUpdate ? autoUpdate : false,
     visa: '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639',
+    visaArabi: 'VISA_AB',
     jawwalPay: 'JawwalPay',
     voucher: 'Voucher',
     onAccount: 'OnAccount',
     cashBack: 'CashBack',
     employeeExtra: 'EmployeeExtra',
     cashDroEnabled: false,
+    arabiVisaCom: arabiVisaCom ? arabiVisaCom : false
 }; 
 
 console.log(config);
