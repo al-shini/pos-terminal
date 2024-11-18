@@ -7,6 +7,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp, faGift, faTag, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import Typography from '@mui/material/Typography';
 import BarcodeReader from 'react-barcode-reader';
+import config from '../../config';
+
 import { scanBarcode, scanNewTransaction, scrollUp, scrollDown, resetScrollAction, selectLine, scrollBottom } from '../../store/trxSlice';
 
 const InvoiceItem = React.memo(({ index, style, data }) => {
@@ -57,7 +59,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                                 fontSize: '20px',
                                 fontFamily: 'DSDIGI'
                             }}>
-                            <b>₪ {(Math.round((obj.totalprice) * 100) / 100).toFixed(2)}</b>
+                            <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round((obj.totalprice) * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}</b>
                         </span>
                     </Typography>
                 </FlexboxGrid.Item>
@@ -65,16 +67,22 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                 {/* Promotion row */}
                 <FlexboxGrid.Item colspan={3} />
                 <FlexboxGrid.Item colspan={16}>
-                    {(obj.finalprice !== obj.totalprice) &&
+                    {(obj.finalprice < obj.totalprice) &&
                         <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '18px', top: '5px', display: 'inline-block' }}>
                             <FontAwesomeIcon icon={faTag} style={{ marginRight: '7px' }} />
-                            <b>عرض</b>
+                            <b>خصم</b>
+                        </span>
+                    }
+                    {(obj.finalprice > obj.totalprice) &&
+                        <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '18px', top: '5px', display: 'inline-block' }}>
+                            <FontAwesomeIcon icon={faTag} style={{ marginRight: '7px' }} />
+                            <b>خصم عكسي</b>
                         </span>
                     }
                     {(obj.finalprice !== obj.totalprice) && obj.priceOverride &&
                         <span style={{ color: '#fa8900', position: 'relative', fontSize: '18px', top: '5px', display: 'inline-block' }}>
                             <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginLeft: '12px', marginRight: '7px' }} />
-                            <b>خصم يدوي</b>
+                            <b>نعديل سعر</b>
                         </span>
                     }
                 </FlexboxGrid.Item>
@@ -88,7 +96,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                                     fontSize: '20px',
                                     fontFamily: 'DSDIGI'
                                 }}>
-                                <b>₪ {(Math.round((obj.finalprice) * 100) / 100).toFixed(2)}</b>
+                                <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round((obj.finalprice) * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}</b>
                             </span>
                         }
                     </Typography>
@@ -114,7 +122,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                                     fontSize: '20px',
                                     fontFamily: 'DSDIGI'
                                 }}>
-                                <b>₪ {(Math.round((obj.cashBackAmt) * 100) / 100).toFixed(2)}</b>
+                                <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round((obj.cashBackAmt) * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}</b>
                             </span>
                         }
                     </Typography>
@@ -179,7 +187,7 @@ const Invoice = (props) => {
 
     const handleScanError = (err) => {
         console.error(err)
-        if(err && err.startsWith('C-')){
+        if (err && err.startsWith('C-')) {
             // custoemr barcode
             handleScan(err);
         }
@@ -206,7 +214,7 @@ const Invoice = (props) => {
                 </h4>
             </div>
 
-            <List 
+            <List
                 height={580}
                 itemCount={trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
                 itemSize={85}
@@ -218,13 +226,15 @@ const Invoice = (props) => {
                 {InvoiceItem}
             </List>
 
-            <FlexboxGrid style={{ height: '15.5vh', color: 'white', background: 'white', justifyContent: 'flex-end', 
-            borderBottom: '1px solid #e1e1e1',
-            borderTop: '1px solid #e1e1e1' }}>
+            <FlexboxGrid style={{
+                height: '15.5vh', color: 'white', background: 'white', justifyContent: 'flex-end',
+                borderBottom: '1px solid #e1e1e1',
+                borderTop: '1px solid #e1e1e1'
+            }}>
                 <FlexboxGrid.Item colspan={24}>
                     <span style={{ color: 'transparent', lineHeight: '1vh' }}>.</span>
                 </FlexboxGrid.Item>
-                <FlexboxGrid.Item colspan={10}>
+                <FlexboxGrid.Item colspan={8}>
                     <FlexboxGrid style={{ marginTop: '1vh', color: 'white' }}>
                         <FlexboxGrid.Item colspan={2} />
                         <FlexboxGrid.Item colspan={5}>
@@ -236,7 +246,7 @@ const Invoice = (props) => {
                         </FlexboxGrid.Item>
                     </FlexboxGrid>
                 </FlexboxGrid.Item>
-                <FlexboxGrid.Item colspan={14}>
+                <FlexboxGrid.Item colspan={16}>
                     <div style={{ fontSize: '22px', position: 'relative', top: '7px', textAlign: 'right', marginRight: '8px' }}>
                         <span style={{ color: '#000000', marginRight: '10px', fontFamily: 'monospace' }}>
                             {trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
@@ -246,9 +256,16 @@ const Invoice = (props) => {
                         </span>
                     </div>
                     <div style={{ textAlign: 'right', marginRight: '10px' }}>
-                        <small id='NISSymbol'>₪</small>
+                        <small id='NISSymbol'>{config.systemCurrency === 'NIS' ? '₪' : 'JD'}</small>
                         <label id='Total'>
-                            {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(2) : '0.00'}
+                            {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3) : '0.00'}
+                            {trxSlice.trx && <small style={{
+                                fontSize: 15,
+                                color: trxSlice.trx.isTaxExempt ? 'red' : '',
+                                textDecoration: trxSlice.trx.isTaxExempt ? 'line-through' : ''
+                            }}>
+                                Tax: {trxSlice.trx ? (Math.round((trxSlice.trx.totalTaxAmt) * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3) : '0.00'}
+                            </small>}
                         </label>
                     </div>
                 </FlexboxGrid.Item>

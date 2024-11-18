@@ -32,7 +32,8 @@ const initialState = {
     managerMode: false,
     managerUser: '',
     _managerUser: '',
-    actionState: 'free'
+    actionState: 'free',
+    
 }
 
 /**
@@ -45,7 +46,7 @@ export const checkLoginQrAuth = createAsyncThunk(
         return axios({
             method: 'post',
             url: '/utilities/checkQRState',
-            headers: {
+            headers: { 
                 authKey: payload
             }
         }).then((response) => {

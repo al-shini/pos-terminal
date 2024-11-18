@@ -58,7 +58,7 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: localConfig.admin ? false : true,
+        fullscreen: false,//localConfig.admin ? false : true,
         webPreferences: {
             nodeIntegration: true, contextIsolation: false, enableRemoteModule: true
         }
@@ -69,6 +69,7 @@ function createWindow() {
     ipcMain.on('show-dev-tools', (event, arg) => {
         win.webContents.openDevTools();
     });
+    win.webContents.openDevTools();
 
 
     fs.promises.writeFile(logFilePath, '');
@@ -86,6 +87,11 @@ function createWindow() {
     }
     if (localConfig.autoUpdate) {
         params += `&autoUpdate=true`;
+    }
+    if (localConfig.systemCurrency) {
+        params += `&systemCurrency=${localConfig.systemCurrency}`;
+    }else{
+        params += `&systemCurrency=NIS`;
     }
 
 
@@ -415,7 +421,11 @@ if (!gotTheLock) {
                             store: trx.branch,
                             cashier: trx.username,
                             type: trx.type,
-                            lines: trx.printableLines
+                            lines: trx.printableLines,
+                            totalTax: trx.totalTaxAmt,
+                            payments: trx.paymentSummaryList,
+                            taxDiscount: trx.taxDiscount
+
                         });
                     }
 

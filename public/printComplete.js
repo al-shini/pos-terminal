@@ -4,6 +4,9 @@ const fs = require('fs');
 const { print } = require('pdf-to-printer');
 const qr = require('qrcode');
 
+let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
+let localConfig = JSON.parse(localConfigFile);
+
 const reverseNumber = (number) => {
     return number.toString().split('').reverse().join('');
 };
@@ -14,6 +17,9 @@ const printComplete = async (object) => {
 
     const page = pdfDoc.addPage([210, 400 + (object.lines.length * 40)]);
     const { width, height } = page.getSize();
+    console.log('height');
+    console.log(height);
+
 
     // Embed the Arial font
     let arialFontBytes;
@@ -58,13 +64,13 @@ const printComplete = async (object) => {
     // Draw the additional details in a 2x2 grid
     const detailsYStart = height - logoHeight - 50;
     const detailsXStart = 20;
-    const detailsXEnd = width - 10;
+    const detailsXEnd = width - 5;
 
     page.setFont(arialFont);
     page.setFontSize(fontSize);
 
-     // Store name
-     page.drawText(`Store: ${object.store}`, {
+    // Store name
+    page.drawText(`Store: ${object.store}`, {
         x: detailsXStart,
         y: detailsYStart,
     });
@@ -112,7 +118,7 @@ const printComplete = async (object) => {
         page.drawText(header, { x: headerPositions[index] - textWidth, y: yPosition });
     });
 
-    yPosition -= 20;
+    yPosition -= 15;
 
     // Table rows
     fontSize = 9;
@@ -124,8 +130,8 @@ const printComplete = async (object) => {
         if (item.totalPrice !== item.finalPrice) {
             offer = true;
             // Original total price with strikethrough
-            textWidth = arialFont.widthOfTextAtSize(item.totalPrice.toFixed(2), fontSize);
-            page.drawText(item.totalPrice.toFixed(2), { x: headerPositions[0] - textWidth, y: yPosition, color: rgb(1, 0, 0) });
+            textWidth = arialFont.widthOfTextAtSize(item.totalPrice.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), fontSize);
+            page.drawText(item.totalPrice.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[0] - textWidth, y: yPosition, color: rgb(1, 0, 0) });
             page.drawLine({
                 start: { x: headerPositions[0] - textWidth, y: yPosition + 2 },
                 end: { x: headerPositions[0], y: yPosition + 2 },
@@ -134,8 +140,8 @@ const printComplete = async (object) => {
             });
 
             // Original price per unit with strikethrough
-            textWidth = arialFont.widthOfTextAtSize((item.totalPrice / item.quantity).toFixed(2), fontSize);
-            page.drawText((item.totalPrice / item.quantity).toFixed(2), { x: headerPositions[1] - textWidth, y: yPosition, color: rgb(1, 0, 0) });
+            textWidth = arialFont.widthOfTextAtSize((item.totalPrice / item.quantity).toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), fontSize);
+            page.drawText((item.totalPrice / item.quantity).toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[1] - textWidth, y: yPosition, color: rgb(1, 0, 0) });
             page.drawLine({
                 start: { x: headerPositions[1] - textWidth, y: yPosition + 2 },
                 end: { x: headerPositions[1], y: yPosition + 2 },
@@ -146,19 +152,19 @@ const printComplete = async (object) => {
             yPosition -= 10;
 
             // Discounted total price
-            textWidth = arialFont.widthOfTextAtSize(item.finalPrice.toFixed(2), fontSize);
-            page.drawText(item.finalPrice.toFixed(2), { x: headerPositions[0] - textWidth, y: yPosition });
+            textWidth = arialFont.widthOfTextAtSize(item.finalPrice.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), fontSize);
+            page.drawText(item.finalPrice.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[0] - textWidth, y: yPosition });
 
             // Discounted price per unit
-            textWidth = arialFont.widthOfTextAtSize((item.finalPrice / item.quantity).toFixed(2), fontSize);
-            page.drawText((item.finalPrice / item.quantity).toFixed(2), { x: headerPositions[1] - textWidth, y: yPosition });
+            textWidth = arialFont.widthOfTextAtSize((item.finalPrice / item.quantity).toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), fontSize);
+            page.drawText((item.finalPrice / item.quantity).toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[1] - textWidth, y: yPosition });
         } else {
             // Regular price
-            textWidth = arialFont.widthOfTextAtSize(item.finalPrice.toFixed(2), fontSize);
-            page.drawText(item.finalPrice.toFixed(2), { x: headerPositions[0] - textWidth, y: yPosition });
+            textWidth = arialFont.widthOfTextAtSize(item.finalPrice.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), fontSize);
+            page.drawText(item.finalPrice.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[0] - textWidth, y: yPosition });
 
-            textWidth = arialFont.widthOfTextAtSize((item.totalPrice / item.quantity).toFixed(2), fontSize);
-            page.drawText((item.totalPrice / item.quantity).toFixed(2), { x: headerPositions[1] - textWidth, y: yPosition });
+            textWidth = arialFont.widthOfTextAtSize((item.totalPrice / item.quantity).toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), fontSize);
+            page.drawText((item.totalPrice / item.quantity).toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[1] - textWidth, y: yPosition });
         }
 
         // Quantity and description
@@ -168,60 +174,88 @@ const printComplete = async (object) => {
         textWidth = arialFont.widthOfTextAtSize(item.description, fontSize);
         page.drawText(item.description, { x: headerPositions[3] - textWidth, y: yPosition });
 
-        yPosition -= 20;
+        yPosition -= 12.5;
     });
 
     // Draw the total, discount, paid, and change in a 2x2 grid in Arabic
-    const summaryYStart = yPosition - 20;
+    const summaryYStart = yPosition - 15;
 
-    const summaryLabels = ['المجموع النهائي', 'مجموع التوفير', 'المدفوع', 'الباقي'];
+    const summaryLabels = ['المجموع النهائي', 'مجموع التوفير', 'المدفوع', 'الباقي', 'قيمة الضريبة', 'خصم ضريبي'];
     const summaryValues = [
-        object.total.toFixed(2),
-        object.discount.toFixed(2),
-        object.paid.toFixed(2),
-        object.change.toFixed(2),
+        object.total.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3),
+        object.discount.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3),
+        object.paid.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3),
+        object.change.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3),
+        object.totalTax.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3),
+        object.taxDiscount ? object.taxDiscount.toFixed(localConfig.systtemCurrency === 'NIS' ? 2 : 3) : 0.000,
     ];
-    
+
     page.setFontSize(fontSize);
 
     page.drawLine({
-        start: { x: 0, y: summaryYStart + 20  },
-        end: { x: width, y: summaryYStart  + 20},
+        start: { x: 0, y: summaryYStart + 20 },
+        end: { x: width, y: summaryYStart + 20 },
         thickness: 1,
         color: rgb(0, 0, 0),
         dashArray: lineDash,
     });
 
     // المجموع النهائي (Total)
-    page.drawText(`${summaryLabels[0]}: ${reverseNumber(summaryValues[0])} ₪`, {
-        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[0]}: ${reverseNumber(summaryValues[0])} ₪`, fontSize),
+    page.drawText(`${summaryLabels[0]}: ${reverseNumber(summaryValues[0])} ${localConfig.systtemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
+        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[0]}: ${reverseNumber(summaryValues[0])} ${localConfig.systtemCurrency === 'NIS' ? '₪' : 'DJ'}`, fontSize),
         y: summaryYStart,
     });
 
     // مجموع الخصم (Discount)
-    page.drawText(`${summaryLabels[1]}: ${reverseNumber(summaryValues[1])} ₪`, {
+    page.drawText(`${summaryLabels[1]}: ${reverseNumber(summaryValues[1])} ${localConfig.systtemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
         x: detailsXStart,
         y: summaryYStart,
     });
 
     // المدفوع (Paid)
-    page.drawText(`${summaryLabels[2]}: ${reverseNumber(summaryValues[2])} ₪`, {
-        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[2]}: ${reverseNumber(summaryValues[2])} ₪`, fontSize),
-        y: summaryYStart - 20,
+    page.drawText(`${summaryLabels[2]}: ${reverseNumber(summaryValues[2])} ${localConfig.systtemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
+        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[2]}: ${reverseNumber(summaryValues[2])} ${localConfig.systtemCurrency === 'NIS' ? '₪' : 'DJ'}`, fontSize),
+        y: summaryYStart - 12.5,
     });
 
     // الباقي (Change)
-    page.drawText(`${summaryLabels[3]}: ${reverseNumber(summaryValues[3])} ₪`, {
+    page.drawText(`${summaryLabels[3]}: ${reverseNumber(summaryValues[3])} ${localConfig.systtemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
         x: detailsXStart,
-        y: summaryYStart - 20,
+        y: summaryYStart - 12.5,
     });
+
+    // Tax Total
+    page.drawText(`${summaryLabels[4]}: ${reverseNumber(summaryValues[4])} ${localConfig.systtemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
+        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[4]}: ${reverseNumber(summaryValues[4])} ${localConfig.systtemCurrency === 'NIS' ? '₪' : 'DJ'}`, fontSize),
+        y: summaryYStart - 25,
+    });
+
+    // Tax discount
+    page.drawText(`${summaryLabels[5]}: ${reverseNumber(summaryValues[5])} ${localConfig.systtemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
+        x: detailsXStart,
+        y: summaryYStart - 25,
+    });
+
+    let yAxisPointer = 25;
+
+    yAxisPointer += 20;
+
+    object.payments.map((payment) => {
+        page.drawText(`► ${payment.amount} in ${payment.paymentMethodName} (${payment.currency})`, {
+            x: detailsXStart,
+            y: summaryYStart - yAxisPointer,
+        });
+        yAxisPointer += 12.5;
+    })
+
+
 
     // Draw the "thank you" message
     const thankYouMessage = "شكرا لتسوقكم لدى الشني إكسترا";
     const thankYouMessageWidth = arialFont.widthOfTextAtSize(thankYouMessage, fontSize);
     page.drawText(thankYouMessage, {
         x: (width - thankYouMessageWidth) / 2,
-        y: summaryYStart - 40,
+        y: summaryYStart - (5 + yAxisPointer),
     });
 
     // Draw the QR code next to the "thank you" message
@@ -240,60 +274,7 @@ const printComplete = async (object) => {
 
     console.log('PDF created successfully');
 
-    print('C:\\pos\\invoice.pdf');
+    print('C:\\pos\\invoice.pdf', { scale: 'noscale' });
 };
 
 module.exports = printComplete;
-
-// printComplete(invoiceData);
-
-
-const invoiceData = {
-    qr: 'https://plus.shini.ps/invoice?sptr=ad3175fc-f1c5-48e7-967b-54e5ef0589c41717936343053_55-123387646961800',
-    total: 93,
-    discount: 23.5,
-    paid: 100,
-    change: 7,
-    date: '2024-06-09 03:32:23',
-    store: 'Shini Mini 2',
-    cashier: 'Haneen Murrar',
-    type: 'Sale',
-    lines: [
-        {
-            description: 'خبز 1ربطة',
-            quantity: 1,
-            totalPrice: 4,
-            finalPrice: 3
-        },
-        {
-            description: 'لحمة خاروف',
-            quantity: 1.5,
-            totalPrice: 112.5,
-            finalPrice: 90
-        }
-    ]
-};
-
-// const { ThermalPrinter, PrinterTypes, CharacterSet, BreakLine } = require('node-thermal-printer');
-// let printer = new ThermalPrinter({
-//     type: PrinterTypes.EPSON,                                  // Printer type: 'star' or 'epson'
-//     interface: 'USB\VID_154F&PID_154F\5&54CAEAD&0&11',                              // Printer interface
-//     characterSet: CharacterSet.PC852_LATIN2,                   // Printer character set
-//     removeSpecialCharacters: false,                            // Removes special characters - default: false
-//     lineCharacter: "=",                                        // Set character for lines - default: "-"
-//     breakLine: BreakLine.WORD,                                 // Break line after WORD or CHARACTERS. Disabled with NONE - default: WORD
-//     options:{                                                  // Additional options
-//       timeout: 5000                                            // Connection timeout (ms) [applicable only for network printers] - default: 3000
-//     }
-//   });
-
-//   const connect = async () => {
-//     let isConnected = await printer.isPrinterConnected(); 
-
-//     console.log(isConnected);
-//   }
-
-//   connect();
-
-  
-

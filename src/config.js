@@ -7,6 +7,7 @@ let scale = null;
 let scaleAlphabet = null;
 let autoUpdate = null;
 let arabiVisaCom = null;
+let systemCurrency = null;
 
 let query = new URLSearchParams(global.location.search);
 
@@ -38,6 +39,10 @@ if (query.get("arabiVisaCom")) {
     arabiVisaCom = query.get("arabiVisaCom");
 }
 
+if (query.get("systemCurrency")) {
+    systemCurrency = query.get("systemCurrency");
+}
+
 
 const config = {
     deviceId:  deviceId ? deviceId : 'test',
@@ -46,7 +51,7 @@ const config = {
     scale: scale ? scale : false,
     scaleAlphabet: scaleAlphabet ? scaleAlphabet : false,
     autoUpdate: autoUpdate ? autoUpdate : false,
-    visa: '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639',
+    visa: 'Visa',
     visaArabi: 'VISA_AB',
     jawwalPay: 'JawwalPay',
     voucher: 'Voucher',
@@ -54,7 +59,8 @@ const config = {
     cashBack: 'CashBack',
     employeeExtra: 'EmployeeExtra',
     cashDroEnabled: false,
-    arabiVisaCom: arabiVisaCom ? arabiVisaCom : false
+    arabiVisaCom: arabiVisaCom ? arabiVisaCom : false,
+    systemCurrency: systemCurrency ? systemCurrency : 'NIS'
 }; 
 
 console.log(config);

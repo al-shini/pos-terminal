@@ -166,7 +166,7 @@ const Login = (props) => {
                         fontFamily: 'monospace'
                     }}>Dazzle POS <span style={{ fontSize: '50%' }}>v{process.env.REACT_APP_VERSION}</span>
                         <br />
-                        <span style={{ fontSize: '70%' }}>Today is: {new Date().toDateString()}</span>
+                        <span style={{ fontSize: '70%' }}> {config.systemCurrency} Today is: {new Date().toDateString()}</span>
                     </h3> </Grid>
                 <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
                     {/* <img src={DazzleLogo} style={{ display: 'block', margin: 'auto', maxWidth: '60%' }} /> */}

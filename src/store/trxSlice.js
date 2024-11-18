@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { showLoading, hideLoading, notify } from './uiSlice'
-import { fetchSuspendedForTill, resetCustomer, setCustomer, setManagerMode, setManagerUser, setTrxMode, triggerErrorSound } from './terminalSlice';
+import { fetchSuspendedForTill, resetCustomer, setCustomer, setManagerMode, setManagerUser, setTrxMode, triggerErrorSound, unlockTill } from './terminalSlice';
 import { reset } from './terminalSlice'
 import config from '../config';
 import axios from '../axios';
@@ -97,7 +97,7 @@ export const scanNewTransaction = createAsyncThunk(
                 }
             }).catch((error) => {
                 console.log(error);
-            thunkAPI.dispatch(triggerErrorSound());
+                thunkAPI.dispatch(triggerErrorSound());
                 if (error.response) {
                     if (error.response.status === 401) {
 
@@ -455,6 +455,49 @@ export const suspendTrx = createAsyncThunk(
     }
 )
 
+export const fullTrxTaxExempt = createAsyncThunk(
+    'fullTrxTaxExempt',
+    async (payload, thunkAPI) => {
+
+        return axios({
+            method: 'post',
+            url: '/trx/fullTrxTaxExempt',
+            headers: {
+                trxKey: thunkAPI.getState().trx.trx.key
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(notify({ msg: 'TRX tax exempted', sev: 'info' }));
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            console.log(error);
+            if (error.response) {
+                if (error.response.status === 401) {
+
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                } else if (error.response.status === 499) {
+
+                    thunkAPI.dispatch(notify({ msg: error.response.data, sev: 'warning' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                } else {
+
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+            }
+
+        });
+    }
+)
+
+
 export const voidPayment = createAsyncThunk(
     'voidPayment',
     async (payload, thunkAPI) => {
@@ -631,6 +674,21 @@ export const checkOperationQrAuth = createAsyncThunk(
                         }
                         case 'Refund': {
                             thunkAPI.dispatch(setTrxMode('Refund'));
+                            thunkAPI.dispatch(holdQrAuthCheck());
+                            break;
+                        }
+                        case 'UnlockTill': {
+                            thunkAPI.dispatch(unlockTill());
+                            thunkAPI.dispatch(holdQrAuthCheck());
+                            break;
+                        }
+                        case 'QTY-Multiplier': {
+                            thunkAPI.dispatch(prepareScanMultiplier());
+                            thunkAPI.dispatch(holdQrAuthCheck());
+                            break;
+                        }
+                        case 'Full-Tax-Discount': {
+                            thunkAPI.dispatch(fullTrxTaxExempt());
                             thunkAPI.dispatch(holdQrAuthCheck());
                             break;
                         }
@@ -881,6 +939,15 @@ export const trxSlice = createSlice({
         })
 
         builder.addCase(rescanTrx.rejected, (state, action) => {
+
+        })
+
+        /* fullTrxTaxExempt thunk */
+        builder.addCase(fullTrxTaxExempt.fulfilled, (state, action) => {
+            state.trx = action.payload;
+        })
+
+        builder.addCase(fullTrxTaxExempt.rejected, (state, action) => {
 
         })
 

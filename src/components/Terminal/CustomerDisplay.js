@@ -13,6 +13,7 @@ import 'react-slideshow-image/dist/styles.css'
 import Logo from '../../assets/full-logo.png';
 import Lock from '../../assets/lock.png';
 import Ad from '../../assets/ad.png'
+import config from '../../config';
 
 
 
@@ -103,7 +104,7 @@ const Terminal = (props) => {
                                     </small>
                                     <b>
                                         <label id='Total' style={{ fontSize: '25px' }}>
-                                            {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(2)}
+                                            {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.systtemCurrency === 'NIS'  ?  2 : 3)}
                                         </label>
                                     </b>
                                 </div>
@@ -117,13 +118,13 @@ const Terminal = (props) => {
                                         Change =
                                     </small>
                                     <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
-                                        {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(2)}
+                                        {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.systtemCurrency === 'NIS'  ?  2 : 3)}
                                     </label>
                                     </b>
                                     {
                                         terminal.paymentInput === 'numpad' && trxSlice.selectedCurrency !== 'NIS' &&
                                         <small style={{ fontSize: '15px', marginLeft: '5px' }}>
-                                            ( {(Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2)} {trxSlice.selectedCurrency} )
+                                            ( {(Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systtemCurrency === 'NIS'  ?  2 : 3)} {trxSlice.selectedCurrency} )
                                         </small>
                                     }
                                 </div>

@@ -19,7 +19,8 @@ import terminalSlice, {
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
-    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx, closeTrxPayment, clearLastPaymentHistory, setPriceChangeReason, prepareScanMultiplierPreDefined
+    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx, closeTrxPayment, clearLastPaymentHistory, setPriceChangeReason, prepareScanMultiplierPreDefined,
+    fullTrxTaxExempt
 } from '../../store/trxSlice';
 import { hideLoading, notify, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -38,19 +39,29 @@ import NIS_20 from '../../assets/money-notes/20.0NIS.png';
 import NIS_50 from '../../assets/money-notes/50.0NIS.png';
 import NIS_100 from '../../assets/money-notes/100.0NIS.png';
 import NIS_200 from '../../assets/money-notes/200.0NIS.png';
+
+import JOD_005 from '../../assets/money-notes/0.05JOD.jpg';
+import JOD_010 from '../../assets/money-notes/0.10JOD.jpg';
+import JOD_025 from '../../assets/money-notes/0.25JOD.jpg';
+import JOD_05 from '../../assets/money-notes/0.5JOD.jpg';
+import JOD_1 from '../../assets/money-notes/1.0JOD.jpg';
+import JOD_5 from '../../assets/money-notes/5.0JOD.jpg';
+import JOD_10 from '../../assets/money-notes/10.0JOD.jpg';
+import JOD_20 from '../../assets/money-notes/20.0JOD.jpg';
+import JOD_50 from '../../assets/money-notes/50.0JOD.jpg';
+
 import EUR_1 from '../../assets/money-notes/1.0EUR.png';
-import JOD_1 from '../../assets/money-notes/1.0JOD.png';
-import JOD_10 from '../../assets/money-notes/10.0JOD.png';
-import JOD_20 from '../../assets/money-notes/20.0JOD.png';
-import JOD_50 from '../../assets/money-notes/50.0JOD.png';
 import EUR_10 from '../../assets/money-notes/10.0EUR.png';
+
 import USD_1 from '../../assets/money-notes/1.0USD.png';
 import USD_20 from '../../assets/money-notes/20.0USD.png';
 import USD_50 from '../../assets/money-notes/50.0USD.png';
 import USD_100 from '../../assets/money-notes/100.0USD.png';
+
 import Logo from '../../assets/full-logo.png';
 import Lock from '../../assets/lock.png';
 import { ArrowLeft, Funnel, IOs, Tmall } from '@rsuite/icons';
+import InactivityHandler from '../InactivityHandler';
 const { ipcRenderer } = window.require('electron');
 
 
@@ -87,6 +98,7 @@ const Terminal = (props) => {
     const [notesImages, setNotesImages] = useState([]);
     const [authQR, setAuthQR] = useState({});
     const [bopVisaIp, setBopVisaIp] = useState('');
+    const [passkey, setPasskey] = useState('');
     const [play] = useSound(errorBeep);
     const [groupedFastItems, setGroupedFastItems] = useState({});
     const [selectedFGroup, setSelectedFGroup] = useState(null);
@@ -155,6 +167,7 @@ const Terminal = (props) => {
 
         // initialize currency images
         let arr = [];
+        // NIS
         arr['0.5NIS'] = NIS_05;
         arr['1NIS'] = NIS_1;
         arr['2NIS'] = NIS_2;
@@ -164,16 +177,27 @@ const Terminal = (props) => {
         arr['50NIS'] = NIS_50;
         arr['100NIS'] = NIS_100;
         arr['200NIS'] = NIS_200;
+
+        // JOD
+        arr['0.05JOD'] = JOD_005;
+        arr['0.1JOD'] = JOD_010;
+        arr['0.25JOD'] = JOD_025;
+        arr['0.5JOD'] = JOD_05;
         arr['1JOD'] = JOD_1;
+        arr['5JOD'] = JOD_5;
         arr['10JOD'] = JOD_10;
         arr['20JOD'] = JOD_20;
         arr['50JOD'] = JOD_50;
+
+        // EUR
+        arr['1EUR'] = EUR_1;
         arr['10EUR'] = EUR_10;
+
+        // USD
         arr['1USD'] = USD_1;
         arr['20USD'] = USD_20;
         arr['50USD'] = USD_50;
         arr['100USD'] = USD_100;
-        arr['1EUR'] = EUR_1;
         setNotesImages(arr);
 
         // initialize fast items
@@ -326,7 +350,7 @@ const Terminal = (props) => {
                 response.data.map((obj) => {
                     rates[obj.currencyKey] = obj.rate
                 })
-                rates['NIS'] = 1;
+                rates[config.systemCurrency] = 1;
 
                 dispatch(uploadExchangeRates(rates));
             } else {
@@ -573,7 +597,7 @@ const Terminal = (props) => {
             return;
         }
 
-        if (trxSlice.selectedCurrency !== 'NIS' && !terminal.exchangeRates[trxSlice.selectedCurrency]) {
+        if (trxSlice.selectedCurrency !== config.systemCurrency && !terminal.exchangeRates[trxSlice.selectedCurrency]) {
             dispatch(notify({ msg: 'Selected currency has no exchange rate defined', sev: 'error' }));
             return;
         }
@@ -598,14 +622,14 @@ const Terminal = (props) => {
                 }
                 case 'USD': {
                     cur = 840;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2);
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3);
                     break;
                 }
             }
 
             let integerPart = Math.floor(amt);
             let decimalPart = amt - integerPart;
-            decimalPart = decimalPart.toFixed(2);
+            decimalPart = decimalPart.toFixed(config.systtemCurrency === 'NIS' ? 2 : 3);
 
             amt = integerPart * 100;
             amt += parseFloat(decimalPart) * 100;
@@ -666,7 +690,7 @@ const Terminal = (props) => {
             return;
         }
 
-        if (trxSlice.selectedCurrency !== 'NIS' && !terminal.exchangeRates[trxSlice.selectedCurrency]) {
+        if (trxSlice.selectedCurrency !== config.systemCurrency && !terminal.exchangeRates[trxSlice.selectedCurrency]) {
             dispatch(notify({ msg: 'Selected currency has no exchange rate defined', sev: 'error' }));
             return;
         }
@@ -691,14 +715,14 @@ const Terminal = (props) => {
                 }
                 case 'USD': {
                     cur = 840;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2);
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3);
                     break;
                 }
             }
 
             let integerPart = Math.floor(amt);
             let decimalPart = amt - integerPart;
-            decimalPart = decimalPart.toFixed(2);
+            decimalPart = decimalPart.toFixed(config.systtemCurrency === 'NIS' ? 2 : 3);
 
             amt = integerPart * 100;
             amt += parseFloat(decimalPart) * 100;
@@ -952,9 +976,13 @@ const Terminal = (props) => {
     }
 
     const handleManagerMode = () => {
-        if (!terminal.managerMode) {
+        if (!terminal.managerMode && passkey === 'NotBane@4994') {
             dispatch(setManagerMode(true))
-        } else {
+            setPasskey('');
+        } else if (!terminal.managerMode && passkey !== 'NotBane@4994') {
+            dispatch(setManagerMode(false))
+            alert('Wrong admin passkey, this incident has been logged.')
+        } else if (terminal.managerMode) {
             dispatch(setManagerMode(false))
         }
     }
@@ -1121,7 +1149,54 @@ const Terminal = (props) => {
         }
     }
 
-    const handleUnlockTill = () => {
+    const handleFUllTaxExempt = () => {
+        if (terminal.till) {
+            if (terminal.till.status === 'O') {
+                if (terminal.managerMode) {
+                    dispatch(fullTrxTaxExempt());
+                } else {
+                    confirm('Apply Tax Exempt?', 'This cannot be undone',
+                        () => {
+                            axios({
+                                method: 'post',
+                                url: '/utilities/generateQR',
+                                data: {
+                                    hardwareId: config.deviceId,
+                                    source: 'Full-Tax-Discount',
+                                    sourceKey: terminal.terminal.tillKey,
+                                }
+                            }).then((response) => {
+                                if (response && response.data) {
+                                    setAuthQR({
+                                        ...response.data,
+                                        source: 'Full-Tax-Discount'
+                                    });
+                                } else {
+                                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                                }
+                            }).catch((error) => {
+                                if (error.response) {
+                                    if (error.response.status === 401) {
+                                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                                    }
+                                } else {
+                                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                                }
+                            });
+                        }
+                    )
+                }
+            } else {
+                dispatch(notify({
+                    msg: 'Till cannot be locked, till not open',
+                    sev: 'warning'
+                }))
+            }
+
+        }
+    }
+
+    const _handleUnlockTill = () => {
         if (terminal.till) {
             if (terminal.till.status === 'L') {
                 dispatch(unlockTill());
@@ -1131,6 +1206,37 @@ const Terminal = (props) => {
                     sev: 'warning'
                 }))
             }
+        }
+    }
+
+    const handleUnlockTill = () => {
+        if (terminal.till.status === 'L') {
+            axios({
+                method: 'post',
+                url: '/utilities/generateQR',
+                data: {
+                    hardwareId: config.deviceId,
+                    source: 'UnlockTill',
+                    sourceKey: terminal.terminal.tillKey,
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    setAuthQR({
+                        ...response.data,
+                        source: 'UnlockTill'
+                    });
+                } else {
+                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+            });
         }
     }
 
@@ -1166,11 +1272,17 @@ const Terminal = (props) => {
                 <label>Cash</label>
             </Button>
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
-            <Button key='foregin' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('foreign', 'fixed') }}>
+            <Button key='foregin' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('foreign', 'numpad') }}>
                 <FontAwesomeIcon icon={faMoneyBillTransfer} style={{ marginRight: '5px' }} />
                 <label>Currency</label>
             </Button>
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            <Button key='visa' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
+                onClick={() => { startPayment('visa', 'numpad') }}>
+                <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
+                <label>Visa</label>
+            </Button>
+            {/* <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             <Button key='visa' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
                 style={{ background: '#b32572', color: 'white' }}
                 onClick={() => { startPayment('visa', 'numpad') }}>
@@ -1183,12 +1295,12 @@ const Terminal = (props) => {
                 onClick={() => { startPayment('visaArabi', 'numpad') }}>
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
                 <label>Visa (ARABI)</label>
-            </Button>
-            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            </Button> */}
+            {/* <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             <Button key='jawwalPay' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('jawwalPay', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>Jawwal Pay</label>
-            </Button>
+            </Button> */}
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             <Button key='voucher' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('voucher', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
@@ -1250,7 +1362,7 @@ const Terminal = (props) => {
                         tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                         paymentMethodKey: 'Cash',
-                        currency: 'NIS',
+                        currency: config.systemCurrency,
                         amount: trxSlice.trx ? trxSlice.trx.totalafterdiscount : 0,
                         sourceKey: '',
                         visaPayment: null
@@ -1258,7 +1370,7 @@ const Terminal = (props) => {
                 }}>
                     <label style={{ marginRight: '5px' }}>Refund</label>
                     <label style={{ fontFamily: 'DSDIGI', fontSize: '20px' }}>
-                        {trxSlice.trx.totalafterdiscount} ₪
+                        {trxSlice.trx.totalafterdiscount} {config.systemCurrency === 'NIS' ? '₪' : 'JD'}
                     </label>
                 </Button>
             );
@@ -1429,6 +1541,15 @@ const Terminal = (props) => {
             }
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
+                <Button key='fullTaxExempt' className={classes.MainActionButton} onClick={handleFUllTaxExempt}>
+                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                        <FontAwesomeIcon icon={faMoneyBillTransfer} style={{ marginRight: '5px' }} />
+                        <label>Full Tax Exempt</label>
+                    </div>
+                </Button>
+            }
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {
                 <Button key='settings' className={classes.MainActionButton} onClick={() => setSettingsOpen(true)}>
                     <div style={{ textAlign: 'center', fontSize: '14px', }}>
                         <FontAwesomeIcon icon={faCogs} style={{ marginRight: '5px' }} />
@@ -1462,7 +1583,7 @@ const Terminal = (props) => {
                     }} >
 
                     <div key={i + 'cbc'} style={{ textAlign: 'center', fontSize: '16px', }}>
-                        ( ₪{obj.totalafterdiscount} ) <small>Restore <FontAwesomeIcon icon={faPlay} /></small>
+                        ( {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {obj.totalafterdiscount} ) <small>Restore <FontAwesomeIcon icon={faPlay} /></small>
                     </div>
 
                 </Button>
@@ -1480,10 +1601,10 @@ const Terminal = (props) => {
             <Button key={'1'} className={classes.LongActionButton}
                 disabled style={{ color: '#004109' }}>
                 <div style={{ textAlign: 'center' }}>
-                    Balance: ₪ {terminal.customer.employeeBalance}
+                    Balance: {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {terminal.customer.employeeBalance}
                     <hr style={{ padding: '2px', margin: '2px' }} />
                     <small>
-                        (Limit: ₪ {terminal.customer.employeeBalanceLimit})
+                        (Limit: {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {terminal.customer.employeeBalanceLimit})
                     </small>
                 </div>
             </Button >
@@ -1512,7 +1633,7 @@ const Terminal = (props) => {
                             tillKey: terminal.till ? terminal.till.key : null,
                             trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                             paymentMethodKey: 'CashBack',
-                            currency: 'NIS',
+                            currency: config.systemCurrency,
                             amount: obj.amount,
                             sourceKey: obj.key,
                             visaPayment: null
@@ -1526,7 +1647,7 @@ const Terminal = (props) => {
                     }} >
                     <div key={i + 'cbc'} style={{ textAlign: 'center', fontSize: '14px', }}>
                         <div>
-                            <b style={{ fontSize: '16px' }}>{obj.amount} NIS</b>
+                            <b style={{ fontSize: '16px' }}>{obj.amount} {config.systemCurrency}</b>
                         </div>
                         <div style={{ fontSize: '11px' }}>
                             Expires: {obj.expiryDateAsString}
@@ -1674,6 +1795,7 @@ const Terminal = (props) => {
             </FlexboxGrid.Item>
 
             <FlexboxGrid.Item colspan={1} style={{ width: '1.166667%' }}>
+                <InactivityHandler setActionsMode={setActionsMode} />
 
                 {
                     terminal.blockActions && <div style={{
@@ -1724,7 +1846,7 @@ const Terminal = (props) => {
                             <span style={{ display: 'block', marginBottom: '14px' }}>[ {authQR.source} ]</span>
 
                             {authQR.source === 'PriceChange' &&
-                                <SelectPicker value={trxSlice.priceChangeReason} placeholder="Line Discount Reason" searchable={false} width={250}
+                                <SelectPicker value={trxSlice.priceChangeReason} placeholder="Price Change Reason" searchable={false} width={250}
                                     menuStyle={{ zIndex: '1000' }} data={[
                                         { label: 'Offer (Wrong Sign)', value: '1' },
                                         { label: 'Offer (Facebook & No Cash)', value: '2' },
@@ -1802,7 +1924,7 @@ const Terminal = (props) => {
                                     </small>
                                     <b>
                                         <label id='Total' style={{ fontSize: '25px' }}>
-                                            ₪ {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(2)}
+                                            {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}
                                         </label>
                                     </b>
                                 </div>
@@ -1815,18 +1937,18 @@ const Terminal = (props) => {
                                         {trxSlice.trxChange > 0 ? 'Change = ' : 'Due = '}
                                     </small>
                                     <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
-                                        ₪ {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(2)}
+                                        {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}
                                     </label>
                                     </b>
                                     {
-                                        terminal.paymentInput === 'numpad' && trxSlice.selectedCurrency !== 'NIS' &&
+                                        terminal.paymentInput === 'numpad' && trxSlice.selectedCurrency !== config.systemCurrency &&
                                         <small style={{ fontSize: '15px', marginLeft: '5px' }}>
-                                            ( {(Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(2)} {trxSlice.selectedCurrency} )
+                                            ( {(Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)} {trxSlice.selectedCurrency} )
                                         </small>
                                     }
                                     {
                                         (trxSlice.trx && trxSlice.trx.affectedByPlusTax && trxSlice.trx.totalPlusTaxAmt > 0) && <h5 style={{ fontSize: '15px', color: '#8B0000' }}>
-                                            *Required Plus Tax = <span style={{ fontFamily: 'DSDIGI' }}>₪ {trxSlice.trx.totalPlusTaxAmt}</span>
+                                            *Required Plus Tax = <span style={{ fontFamily: 'DSDIGI' }}>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {trxSlice.trx.totalPlusTaxAmt}</span>
                                         </h5>
                                     }
                                 </div>
@@ -1843,7 +1965,7 @@ const Terminal = (props) => {
                                     </small>
                                     <b>
                                         <label id='Total' style={{ fontSize: '25px' }}>
-                                            {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(2)}
+                                            {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}
                                         </label>
                                     </b>
                                     <Divider vertical />
@@ -1851,7 +1973,7 @@ const Terminal = (props) => {
                                         Change =
                                     </small>
                                     <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.lastTrxPayment.change < 0 ? 'red' : 'green' }} >
-                                        {(Math.round(trxSlice.lastTrxPayment.change * 100) / 100).toFixed(2)}
+                                        {(Math.round(trxSlice.lastTrxPayment.change * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}
                                     </label>
                                     </b>
                                 </div>
@@ -1861,7 +1983,7 @@ const Terminal = (props) => {
                 </div>
 
                 <div style={{ background: 'white', padding: '10px', position: 'absolute', bottom: '0%', width: '96.5%' }}>
-                    <Numpad incrementTrxCount={incrementTrxCount} />
+                    <Numpad setAuthQR={setAuthQR} incrementTrxCount={incrementTrxCount} />
                 </div>
 
             </FlexboxGrid.Item>
@@ -1906,7 +2028,9 @@ const Terminal = (props) => {
                             }
 
                             {
-                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'jawwalPay' &&
+                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' &&
+                                config.systemCurrency === 'NIS' &&
+                                terminal.paymentType === 'jawwalPay' &&
                                 <Button className={classes.ActionButton}
                                     appearance={'NIS' === trxSlice.selectedCurrency ? 'primary' : 'default'}
                                     onClick={() => dispatch(selectCurrency('NIS'))} >
@@ -1919,10 +2043,10 @@ const Terminal = (props) => {
                             {
                                 actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'voucher' &&
                                 <Button className={classes.ActionButton}
-                                    appearance={'NIS' === trxSlice.selectedCurrency ? 'primary' : 'default'}
-                                    onClick={() => dispatch(selectCurrency('NIS'))} >
+                                    appearance={config.systemCurrency === trxSlice.selectedCurrency ? 'primary' : 'default'}
+                                    onClick={() => dispatch(selectCurrency(config.systemCurrency))} >
                                     <div style={{ textAlign: 'center' }}>
-                                        Voucher NIS
+                                        Voucher {config.systemCurrency}
                                     </div>
                                 </Button>
                             }
@@ -1931,10 +2055,10 @@ const Terminal = (props) => {
                             {
                                 actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'onAccount' &&
                                 <Button className={classes.ActionButton}
-                                    appearance={'NIS' === trxSlice.selectedCurrency ? 'primary' : 'default'}
-                                    onClick={() => dispatch(selectCurrency('NIS'))} >
+                                    appearance={config.systemCurrency === trxSlice.selectedCurrency ? 'primary' : 'default'}
+                                    onClick={() => dispatch(selectCurrency(config.systemCurrency))} >
                                     <div style={{ textAlign: 'center' }}>
-                                        On Account NIS
+                                        On Account
                                     </div>
                                 </Button>
                             }
@@ -2048,7 +2172,7 @@ const Terminal = (props) => {
                             onClick={handlePriceChange}
                             appearance='primary' color={trxSlice.priceChangeMode ? 'orange' : 'blue'}  >
                             <FontAwesomeIcon icon={faTags} style={{ marginRight: '5px' }} />
-                            <div>{trxSlice.priceChangeMode ? 'CANCEL' : 'Line Discount'}</div>
+                            <div>{trxSlice.priceChangeMode ? 'CANCEL' : 'Change Price'}</div>
                         </Button>
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={3}>
@@ -2202,6 +2326,12 @@ const Terminal = (props) => {
                             Check for Updates
                         </Button>
                     </ButtonToolbar>
+                    <br />
+                    <Input type='password' key='adminPasskey' placeholder='Admin Passkey'
+                        style={{ width: 150, display: 'inline-block', marginRight: 5 }}
+                        value={passkey}
+                        onChange={(e) => { setPasskey(e) }} >
+                    </Input>
                 </Panel>
                 <Panel bordered header='BOP VISA Integration' style={{ margin: '10px' }}>
                     {!terminal.terminal.bopVisaIp && <Input key='bopvisasetupIp' placeholder='BOP Visa IP'
