@@ -1827,7 +1827,7 @@ const Terminal = (props) => {
                                 Manager Access Required
                             </div>
 
-                            <div style={{ margin: 'auto', borderRadius: '10px' }}>
+                            <div style={{ margin: 'auto', borderRadius: '10px', padding: 15, background: 'white' }}>
                                 {authQR.source !== 'ManagerMode' && ((authQR.source !== 'PriceChange') || (authQR.source === 'PriceChange' && trxSlice.priceChangeReason)) &&
                                     <QRCode value={JSON.stringify(authQR)} size={200} style={{ margin: '20px' }}
                                     />}
