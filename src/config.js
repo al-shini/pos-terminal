@@ -60,7 +60,7 @@ const config = {
     employeeExtra: 'EmployeeExtra',
     cashDroEnabled: false,
     arabiVisaCom: arabiVisaCom ? arabiVisaCom : false,
-    systemCurrency: systemCurrency ? systemCurrency : 'NIS'
+    systemCurrency: systemCurrency ? systemCurrency : 'JOD'
 }; 
 
 console.log(config);

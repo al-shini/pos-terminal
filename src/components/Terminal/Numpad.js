@@ -146,6 +146,7 @@ const Numpad = (props) => {
                 hardwareId: config.deviceId,
                 source: 'QTY-Multiplier',
                 sourceKey: terminal.terminal.tillKey,
+                creator: terminal.loggedInUser.key
             }
         }).then((response) => {
             if (response && response.data) {

@@ -17,7 +17,7 @@ const { SerialPort } = require('serialport')
 const printComplete = require('./printComplete');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const logger = require('./logger');
-const { ipcMain } = require('electron'); 
+const { ipcMain } = require('electron');
 
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
@@ -28,6 +28,7 @@ const config = {
     qrBaseUrl: 'http://46.43.70.210:81/process-customer-entry.xhtml'
 }
 const axiosImport = require('axios');
+const { log } = require('console');
 const axios = axiosImport.create({
     baseURL: 'http://' + localConfig.serverIp + ':8080/'
 });
@@ -90,7 +91,7 @@ function createWindow() {
     }
     if (localConfig.systemCurrency) {
         params += `&systemCurrency=${localConfig.systemCurrency}`;
-    }else{
+    } else {
         params += `&systemCurrency=NIS`;
     }
 
@@ -136,7 +137,6 @@ function createWindow() {
 
         // and load the index.html of the app.
         customerScreen.loadURL(isDev ? `http://localhost:3000/#/customer?${params}` : `file://${__dirname}/../build/index.html#/customer?${params}`);
-
         customerScreen.show();
     }
 
@@ -637,7 +637,7 @@ if (!gotTheLock) {
             res.status(500).send(e);
         }
     })
- 
+
     let port;
     let parser;
 

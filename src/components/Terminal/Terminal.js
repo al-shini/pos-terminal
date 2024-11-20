@@ -622,14 +622,14 @@ const Terminal = (props) => {
                 }
                 case 'USD': {
                     cur = 840;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3);
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3);
                     break;
                 }
             }
 
             let integerPart = Math.floor(amt);
             let decimalPart = amt - integerPart;
-            decimalPart = decimalPart.toFixed(config.systtemCurrency === 'NIS' ? 2 : 3);
+            decimalPart = decimalPart.toFixed(config.systemCurrency === 'NIS' ? 2 : 3);
 
             amt = integerPart * 100;
             amt += parseFloat(decimalPart) * 100;
@@ -715,14 +715,14 @@ const Terminal = (props) => {
                 }
                 case 'USD': {
                     cur = 840;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3);
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3);
                     break;
                 }
             }
 
             let integerPart = Math.floor(amt);
             let decimalPart = amt - integerPart;
-            decimalPart = decimalPart.toFixed(config.systtemCurrency === 'NIS' ? 2 : 3);
+            decimalPart = decimalPart.toFixed(config.systemCurrency === 'NIS' ? 2 : 3);
 
             amt = integerPart * 100;
             amt += parseFloat(decimalPart) * 100;
@@ -813,6 +813,7 @@ const Terminal = (props) => {
                                         hardwareId: config.deviceId,
                                         source: 'VoidPayment',
                                         sourceKey: trxSlice.selectedPayment.key,
+                                        creator: terminal.loggedInUser.key
                                     }
                                 }).then((response) => {
                                     if (response && response.data) {
@@ -853,6 +854,7 @@ const Terminal = (props) => {
                                         hardwareId: config.deviceId,
                                         source: 'VoidLine',
                                         sourceKey: trxSlice.selectedLine.key,
+                                        creator: terminal.loggedInUser.key
                                     }
                                 }).then((response) => {
                                     if (response && response.data) {
@@ -898,6 +900,7 @@ const Terminal = (props) => {
                         hardwareId: config.deviceId,
                         source: 'PriceChange',
                         sourceKey: trxSlice.selectedLine.key,
+                        creator: terminal.loggedInUser.key
                     }
                 }).then((response) => {
                     if (response && response.data) {
@@ -1021,6 +1024,7 @@ const Terminal = (props) => {
                                 hardwareId: config.deviceId,
                                 source: 'VoidTRX',
                                 sourceKey: trxSlice.trx.key,
+                                creator: terminal.loggedInUser.key
                             }
                         }).then((response) => {
                             if (response && response.data) {
@@ -1067,6 +1071,7 @@ const Terminal = (props) => {
                                 hardwareId: config.deviceId,
                                 source: 'SuspendTRX',
                                 sourceKey: trxSlice.trx.key,
+                                creator: terminal.loggedInUser.key
                             }
                         }).then((response) => {
                             if (response && response.data) {
@@ -1098,7 +1103,7 @@ const Terminal = (props) => {
     }
 
     const handleSwitchToRefund = () => {
-        confirm('Refund Mode?', '',
+        confirm(`Refund Mode ?`, '',
             () => {
                 if (terminal.managerMode) {
                     dispatch(setTrxMode('Refund'));
@@ -1110,6 +1115,7 @@ const Terminal = (props) => {
                             hardwareId: config.deviceId,
                             source: 'Refund',
                             sourceKey: null,
+                            creator: terminal.loggedInUser.key
                         }
                     }).then((response) => {
                         if (response && response.data) {
@@ -1164,6 +1170,7 @@ const Terminal = (props) => {
                                     hardwareId: config.deviceId,
                                     source: 'Full-Tax-Discount',
                                     sourceKey: terminal.terminal.tillKey,
+                                    creator: terminal.loggedInUser.key
                                 }
                             }).then((response) => {
                                 if (response && response.data) {
@@ -1217,7 +1224,9 @@ const Terminal = (props) => {
                 data: {
                     hardwareId: config.deviceId,
                     source: 'UnlockTill',
-                    sourceKey: terminal.terminal.tillKey,
+                    sourceKey: terminal.till.key,
+                    creator: terminal.loggedInUser.key,
+                    
                 }
             }).then((response) => {
                 if (response && response.data) {
@@ -1924,7 +1933,7 @@ const Terminal = (props) => {
                                     </small>
                                     <b>
                                         <label id='Total' style={{ fontSize: '25px' }}>
-                                            {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}
+                                            {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
                                         </label>
                                     </b>
                                 </div>
@@ -1937,13 +1946,13 @@ const Terminal = (props) => {
                                         {trxSlice.trxChange > 0 ? 'Change = ' : 'Due = '}
                                     </small>
                                     <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
-                                        {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}
+                                        {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
                                     </label>
                                     </b>
                                     {
                                         terminal.paymentInput === 'numpad' && trxSlice.selectedCurrency !== config.systemCurrency &&
                                         <small style={{ fontSize: '15px', marginLeft: '5px' }}>
-                                            ( {(Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)} {trxSlice.selectedCurrency} )
+                                            ( {(Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)} {trxSlice.selectedCurrency} )
                                         </small>
                                     }
                                     {
@@ -1965,7 +1974,7 @@ const Terminal = (props) => {
                                     </small>
                                     <b>
                                         <label id='Total' style={{ fontSize: '25px' }}>
-                                            {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}
+                                            {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
                                         </label>
                                     </b>
                                     <Divider vertical />
@@ -1973,7 +1982,7 @@ const Terminal = (props) => {
                                         Change =
                                     </small>
                                     <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.lastTrxPayment.change < 0 ? 'red' : 'green' }} >
-                                        {(Math.round(trxSlice.lastTrxPayment.change * 100) / 100).toFixed(config.systtemCurrency === 'NIS' ? 2 : 3)}
+                                        {(Math.round(trxSlice.lastTrxPayment.change * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
                                     </label>
                                     </b>
                                 </div>
