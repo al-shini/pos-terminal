@@ -59,7 +59,7 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: localConfig.admin ? false : true,
+        fullscreen: isDev ? false :localConfig.admin ? false : true,
         webPreferences: {
             nodeIntegration: true, contextIsolation: false, enableRemoteModule: true
         }

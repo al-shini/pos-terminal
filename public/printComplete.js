@@ -46,27 +46,24 @@ const printComplete = async (object) => {
     // Draw the logo
     const logoWidth = 180; // Adjust as needed
     const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
-    // page.drawImage(logoImage, {
-    //     x: 10 + (width - logoWidth) / 2,
-    //     y: height - logoHeight - 10,
-    //     width: logoWidth,
-    //     height: logoHeight,
-    // });
-
-    const logoText = "Shini Extra Supermarket";
-    const logoTextWidth = arialFont.widthOfTextAtSize(thankYouMessage, fontSize);
-    page.drawText(logoText, {
-        x: 10 + (width - logoTextWidth) / 2,
-        y: height - logoHeight - 10,
-        size: 12,
+    page.drawImage(logoImage, {
+        x: 10 + (width - logoWidth) / 2,
+        y: height - logoHeight - 5,
+        width: logoWidth,
+        height: logoHeight,
     });
 
     // Extract and draw the transaction ID above the store detail
     const transactionID = object.qr.split('_')[1];
     page.drawText(`Transaction ID: ${transactionID}`, {
         x: 20,
-        y: height - logoHeight - 30,
+        y: height - logoHeight - 15,
         size: 10,
+    });
+    page.drawText(`Tax #: 040252388`, {
+        x: 20,
+        y: height - logoHeight - 35,
+        size: 8
     });
 
     // Draw the additional details in a 2x2 grid

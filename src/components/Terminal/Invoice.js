@@ -59,7 +59,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                                 fontSize: '20px',
                                 fontFamily: 'DSDIGI'
                             }}>
-                            <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round((obj.totalprice) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
+                            <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(((obj.totalprice) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
                         </span>
                     </Typography>
                 </FlexboxGrid.Item>
@@ -96,7 +96,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                                     fontSize: '20px',
                                     fontFamily: 'DSDIGI'
                                 }}>
-                                <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round((obj.finalprice) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
+                                <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(((obj.finalprice) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
                             </span>
                         }
                     </Typography>
@@ -122,7 +122,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                                     fontSize: '20px',
                                     fontFamily: 'DSDIGI'
                                 }}>
-                                <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round((obj.cashBackAmt) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
+                                <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(((obj.cashBackAmt) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
                             </span>
                         }
                     </Typography>
@@ -258,13 +258,13 @@ const Invoice = (props) => {
                     <div style={{ textAlign: 'right', marginRight: '10px' }}>
                         <small id='NISSymbol'>{config.systemCurrency === 'NIS' ? '₪' : 'JD'}</small>
                         <label id='Total'>
-                            {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
+                            {trxSlice.trx ? ((trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
                             {trxSlice.trx && <small style={{
                                 fontSize: 15,
                                 color: trxSlice.trx.isTaxExempt ? 'red' : '',
                                 textDecoration: trxSlice.trx.isTaxExempt ? 'line-through' : ''
                             }}>
-                                Tax: {trxSlice.trx ? (Math.round((trxSlice.trx.totalTaxAmt) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
+                                Tax: {trxSlice.trx ? (((trxSlice.trx.totalTaxAmt) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
                             </small>}
                         </label>
                     </div>

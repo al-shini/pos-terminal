@@ -171,9 +171,9 @@ const ActiveTills = (props) => {
                             <h3>
                                 {
                                     backofficeSlice.selectedTill.status === 'R' &&
-                                    <span>Final Till Variance in NIS is =
+                                    <span>Final Till Variance in JOD is =
                                         <span style={{ color: backofficeSlice.selectedTill.totalNisVariance >= 0 ? '#34db16' : '#f12121', fontFamily: 'DSDIGI', marginLeft: '5px', fontSize: '40px' }}>
-                                            {backofficeSlice.selectedTill.totalNisVariance}₪
+                                            {backofficeSlice.selectedTill.totalNisVariance}JD
                                         </span>
                                     </span>
                                 }
@@ -222,7 +222,7 @@ const ActiveTills = (props) => {
                                                 <span>{bv.closingBalance + ' ' + bv.currency}</span>
                                                 <Divider vertical />
                                                 <small>
-                                                    {bv.currency !== 'NIS' && (backofficeSlice.selectedTill.status !== 'L') ? ((bv.closingBalance * bv.rate) + '').concat(' NIS') : ''}
+                                                    {bv.currency !== 'JOD' && (backofficeSlice.selectedTill.status !== 'L') ? ((bv.closingBalance * bv.rate) + '').concat(' JOD') : ''}
                                                 </small>
                                             </span>
                                         }>
@@ -243,9 +243,9 @@ const ActiveTills = (props) => {
                                                 <FlexboxGridItem colspan={22}>
                                                     <br />
                                                     <h5 style={{ textAlign: 'center' }}>Actual</h5>
-                                                    <InputNumber disabled={true}
+                                                    <InputNumber disabled={true} style={{color: 'black', opacity: '1'}}
                                                         prefix={bv.currency}
-                                                        value={(bv.currency === 'NIS' && bv.paymentMethodKey === 'Cash') ? backofficeSlice.selectedTill.actualBalance : bv.actualBalance} />
+                                                        value={(bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash') ? backofficeSlice.selectedTill.actualBalance : bv.actualBalance} />
                                                 </FlexboxGridItem>
                                             }
                                             <FlexboxGridItem colspan={1} />
@@ -256,9 +256,9 @@ const ActiveTills = (props) => {
                                                 <FlexboxGridItem colspan={22}>
                                                     <br />
                                                     <h5 style={{ textAlign: 'center' }}>Variance (Currency)</h5>
-                                                    <InputNumber disabled={true}
+                                                    <InputNumber disabled={true} style={{color: 'black', opacity: '1'}}
                                                         prefix={bv.currency}
-                                                        value={(bv.currency === 'NIS' && bv.paymentMethodKey === 'Cash') ? backofficeSlice.selectedTill.variance : bv.ogCurrencyVariance} />
+                                                        value={(bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash') ? backofficeSlice.selectedTill.variance : bv.ogCurrencyVariance} />
                                                 </FlexboxGridItem>
                                             }
                                             <FlexboxGridItem colspan={1} />
