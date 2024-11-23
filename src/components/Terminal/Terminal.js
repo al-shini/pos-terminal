@@ -14,7 +14,8 @@ import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import terminalSlice, {
     beginPayment, uploadCurrencies, abort, exitNumpadEntry, reset,
-    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer, setManagerMode, setTerminal, fetchSuspendedForTill, setManagerUser, verifyManagerMode
+    uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer, setManagerMode, setTerminal, fetchSuspendedForTill, setManagerUser, verifyManagerMode,
+    logout
 } from '../../store/terminalSlice';
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
@@ -1203,49 +1204,43 @@ const Terminal = (props) => {
         }
     }
 
-    const _handleUnlockTill = () => {
-        if (terminal.till) {
-            if (terminal.till.status === 'L') {
-                dispatch(unlockTill());
-            } else {
-                dispatch(notify({
-                    msg: 'Till cannot be unlocked',
-                    sev: 'warning'
-                }))
-            }
-        }
+    const handleLogout = () => {
+        dispatch(logout());
     }
 
     const handleUnlockTill = () => {
-        if (terminal.till.status === 'L') {
-            axios({
-                method: 'post',
-                url: '/utilities/generateQR',
-                data: {
-                    hardwareId: config.deviceId,
-                    source: 'UnlockTill',
-                    sourceKey: terminal.till.key,
-                    creator: terminal.loggedInUser.key,
-                    
-                }
-            }).then((response) => {
-                if (response && response.data) {
-                    setAuthQR({
-                        ...response.data,
-                        source: 'UnlockTill'
-                    });
-                } else {
-                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-                }
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+        if (terminal.till) {
+
+            if (terminal.till.status === 'L') {
+                axios({
+                    method: 'post',
+                    url: '/utilities/generateQR',
+                    data: {
+                        hardwareId: config.deviceId,
+                        source: 'UnlockTill',
+                        sourceKey: terminal.till.key,
+                        creator: terminal.loggedInUser.key,
+
                     }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
-                }
-            });
+                }).then((response) => {
+                    if (response && response.data) {
+                        setAuthQR({
+                            ...response.data,
+                            source: 'UnlockTill'
+                        });
+                    } else {
+                        dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                    }
+                }).catch((error) => {
+                    if (error.response) {
+                        if (error.response.status === 401) {
+                            dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                        }
+                    } else {
+                        dispatch(notify({ msg: error.message, sev: 'error' }));
+                    }
+                });
+            }
         }
     }
 
@@ -1423,17 +1418,23 @@ const Terminal = (props) => {
         let tmp = [];
 
         terminal.currencies.map((obj, i) => {
-            tmp.push(
-                <Button key={i} className={classes.ActionButton}
-                    appearance={obj.key === trxSlice.selectedCurrency ? 'primary' : 'default'}
-                    onClick={() => {
-                        dispatch(selectCurrency(obj.key));
-                    }} >
-                    <div style={{ textAlign: 'center' }}>
-                        {obj.key}
-                    </div>
-                </Button>
-            )
+            const currButton = <Button key={i} className={classes.ActionButton}
+                appearance={obj.key === trxSlice.selectedCurrency ? 'primary' : 'default'}
+                onClick={() => {
+                    dispatch(selectCurrency(obj.key));
+                }} >
+                <div style={{ textAlign: 'center' }}>
+                    {obj.key}
+                </div>
+            </Button>;
+            if (config.systemCurrency === 'JOD') {
+                if (obj === config.systemCurrency) {
+                    tmp.push(currButton);
+                }
+            } else {
+                tmp.push(currButton);
+            }
+
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.key + 'space'} > .</div>);
         });
 
@@ -1545,6 +1546,15 @@ const Terminal = (props) => {
                     <div style={{ textAlign: 'center', fontSize: '14px', }}>
                         <FontAwesomeIcon icon={faUnlock} style={{ marginRight: '5px' }} />
                         <label>Unlock Till</label>
+                    </div>
+                </Button>
+            }
+            {
+                terminal.till && terminal.till.status === 'L' &&
+                <Button key='logout' style={{ zIndex: '1000' }} className={classes.MainActionButton} onClick={handleLogout}>
+                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                        <FontAwesomeIcon icon={faUnlock} style={{ marginRight: '5px' }} />
+                        <label>Sign Out</label>
                     </div>
                 </Button>
             }
@@ -1878,7 +1888,8 @@ const Terminal = (props) => {
             <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '100vh' }}>
                 <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
                     <h6 style={{ lineHeight: '5vh', textAlign: 'left', fontSize: '95%' }}>
-                        <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '20px', marginRight: '7px' }} /> {terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</span>
+                        <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '20px', marginRight: '7px' }} /> {terminal.loggedInUser ? 
+                        terminal.loggedInUser.employeeNumber.concat(' - ').concat(terminal.loggedInUser.username) : 'No User'}</span>
                         <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
                         <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
                     </h6>

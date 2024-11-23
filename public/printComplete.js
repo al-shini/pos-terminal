@@ -81,7 +81,7 @@ const printComplete = async (object) => {
     });
 
     // Cashier name
-    page.drawText(`Cashier: ${object.cashier}`, {
+    page.drawText(`Cashier: ${object.cashier} POS ${object.terminal}`, {
         x: detailsXEnd - arialFont.widthOfTextAtSize(`Cashier: ${object.cashier}`, fontSize),
         y: detailsYStart,
     });
@@ -116,7 +116,7 @@ const printComplete = async (object) => {
 
     // Table headers
     const headers = ['الإجمالي', 'السعر', 'الكمية', 'الوصف'];
-    const headerPositions = [40, 70, 105, 200];
+    const headerPositions = [60, 90, 115, 200];
 
     headers.forEach((header, index) => {
         const textWidth = arialFont.widthOfTextAtSize(header, fontSize);

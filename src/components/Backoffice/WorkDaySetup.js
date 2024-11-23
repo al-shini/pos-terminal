@@ -109,13 +109,13 @@ const WorkDaySetup = (props) => {
                         <span className={classes.Value}>{backofficeSlice.workDay.currentSaleTrxCount}</span>
                         <Divider />
                         {/* <label className={classes.Label}><FontAwesomeIcon icon={faSackDollar} style={{ marginRight: '6px' }} />  Sales Amount: </label>
-                        <span className={classes.Value}>₪ {backofficeSlice.workDay.currentSaleTrxValue}</span>
+                        <span className={classes.Value}>JD {backofficeSlice.workDay.currentSaleTrxValue}</span>
                         <Divider /> */}
                         <label className={classes.Label}><FontAwesomeIcon icon={faHandHoldingDollar} style={{ marginRight: '6px' }} /> Refund Trx Count: </label>
                         <span className={classes.Value}>{backofficeSlice.workDay.currentRefundTrxCount}</span>
                         <Divider />
                         <label className={classes.Label}><FontAwesomeIcon icon={faHandHoldingDollar} style={{ marginRight: '6px' }} /> Refund Amount: </label>
-                        <span className={classes.Value}>₪ {backofficeSlice.workDay.currentRefundTrxValue}</span>
+                        <span className={classes.Value}>JD {backofficeSlice.workDay.currentRefundTrxValue}</span>
                     </Panel>}
             </FlexboxGridItem>
             <FlexboxGridItem colspan={6} style={{ marginRight: '10px' }}>
@@ -126,13 +126,13 @@ const WorkDaySetup = (props) => {
                         <span className={classes.Value}>{backofficeSlice.workDay.currentVoidedCount}</span>
                         <Divider />
                         <label className={classes.Label}><FontAwesomeIcon icon={faBan} style={{ marginRight: '6px' }} /> Voided Amount: </label>
-                        <span className={classes.Value}>₪ {backofficeSlice.workDay.currentVoidedValue}</span>
+                        <span className={classes.Value}>JD {backofficeSlice.workDay.currentVoidedValue}</span>
                         <Divider />
                         <label className={classes.Label}><FontAwesomeIcon icon={faPause} style={{ marginRight: '6px' }} /> Suspended Trx Count: </label>
                         <span className={classes.Value}>{backofficeSlice.workDay.currentSuspendedCount}</span>
                         <Divider />
                         <label className={classes.Label}><FontAwesomeIcon icon={faPause} style={{ marginRight: '6px' }} /> Suspended Amount: </label>
-                        <span className={classes.Value}>₪ {backofficeSlice.workDay.currentSuspendedValue}</span>
+                        <span className={classes.Value}>JD {backofficeSlice.workDay.currentSuspendedValue}</span>
                     </Panel>}
 
             </FlexboxGridItem>

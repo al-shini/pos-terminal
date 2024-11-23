@@ -424,8 +424,8 @@ if (!gotTheLock) {
                             lines: trx.printableLines,
                             totalTax: trx.totalTaxAmt,
                             payments: trx.paymentSummaryList,
-                            taxDiscount: trx.taxDiscount
-
+                            taxDiscount: trx.taxDiscount,
+                            terminal: trx.terminalKey
                         });
                     }
 

@@ -213,6 +213,14 @@ const ActiveTills = (props) => {
                     <FlexboxGrid>
                         {
                             backofficeSlice.selectedTill.balances.map((bv, i) => {
+                                if (bv.paymentMethodKey !== 'Cash') {
+                                    if (bv.currency === 'JOD') {
+                                        // do nothing
+                                    }else{
+                                        return null;
+                                    }
+                                }
+
                                 return <FlexboxGridItem key={i + 'fgi'} colspan={5} style={{ marginRight: '4%', marginBottom: '1%' }}>
                                     <Panel bordered eventKey={i + 1} key={bv.key}
                                         header={
@@ -243,7 +251,7 @@ const ActiveTills = (props) => {
                                                 <FlexboxGridItem colspan={22}>
                                                     <br />
                                                     <h5 style={{ textAlign: 'center' }}>Actual</h5>
-                                                    <InputNumber disabled={true} style={{color: 'black', opacity: '1'}}
+                                                    <InputNumber disabled={true} style={{ color: 'black', opacity: '1' }}
                                                         prefix={bv.currency}
                                                         value={(bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash') ? backofficeSlice.selectedTill.actualBalance : bv.actualBalance} />
                                                 </FlexboxGridItem>
@@ -256,7 +264,7 @@ const ActiveTills = (props) => {
                                                 <FlexboxGridItem colspan={22}>
                                                     <br />
                                                     <h5 style={{ textAlign: 'center' }}>Variance (Currency)</h5>
-                                                    <InputNumber disabled={true} style={{color: 'black', opacity: '1'}}
+                                                    <InputNumber disabled={true} style={{ color: 'black', opacity: '1' }}
                                                         prefix={bv.currency}
                                                         value={(bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash') ? backofficeSlice.selectedTill.variance : bv.ogCurrencyVariance} />
                                                 </FlexboxGridItem>
