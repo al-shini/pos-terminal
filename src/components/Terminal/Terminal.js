@@ -284,11 +284,12 @@ const Terminal = (props) => {
         }).then((response) => {
             if (response && response.data) {
                 dispatch(uploadCurrencies(response.data));
-                if (response.data.length > 0) {
-                    dispatch(selectCurrency(response.data[0].key))
-                } else {
-                    dispatch(notify({ msg: 'No currencies found', sev: 'error' }))
-                }
+                dispatch(selectCurrency(config.systemCurrency));
+                // if (response.data.length > 0) {
+                //     dispatch(selectCurrency(response.data[0].key))
+                // } else {
+                //     dispatch(notify({ msg: 'No currencies found', sev: 'error' }))
+                // }
             } else {
                 dispatch(notify({ msg: 'Incorrect /currency/list response', sev: 'error' }))
             }
@@ -796,6 +797,97 @@ const Terminal = (props) => {
 
         } // end IF
     }
+
+    const autoVisaFlowNetwork = async () => {
+
+        if (trxSlice.selectedCurrency === 'EUR') {
+            dispatch(notify({ msg: 'Auto Visa does not support Euro', sev: 'warning' }));
+            return;
+        }
+
+        if (trxSlice.selectedCurrency !== config.systemCurrency && !terminal.exchangeRates[trxSlice.selectedCurrency]) {
+            dispatch(notify({ msg: 'Selected currency has no exchange rate defined', sev: 'error' }));
+            return;
+        }
+
+        dispatch(showLoading('Connecting to Auto Visa [NETWORK]...'));
+
+        let amt = Math.abs(trxSlice.trxChange);
+
+        if (trxSlice.trx && amt > 0) {
+
+            let integerPart = Math.floor(amt);
+            let decimalPart = amt - integerPart;
+            decimalPart = decimalPart.toFixed(config.systemCurrency === 'NIS' ? 2 : 3);
+
+            amt = integerPart;
+            amt += parseFloat(decimalPart);
+
+            let trxId = trxSlice.trx.nanoId.replace('-', '');
+            // implement ARABI BANK auto visa flow
+            axios({
+                method: 'post',
+                data: {
+                    id: trxSlice.trx.key,
+                    ref: trxSlice.trx.key,
+                    amt,
+                    tid: '99000073',
+                    user: terminal.loggedInUser.employeeNumber,
+                    username: terminal.loggedInUser.username,
+                    curr: 400
+                },
+                url: `http://127.0.0.1:9600/arabiVisaSale`
+            }).then((response) => {
+                try {
+                    let makePayment = false;
+
+                    // const badFormatData = response.data;
+                    // const responseDataAsString = badFormatData.split("{")[1].split("}")[0];
+                    // const responseData = JSON.parse(response.data);
+                    const responseData = response.data;
+                    console.log(responseData, responseData.RespCode);
+                    if (responseData.isApproved) {
+                        makePayment = true;
+                    }
+
+                    if (makePayment) {
+                        dispatch(notify({ msg: responseData.description, sev: 'info' }));
+                        const transactionAmountAsString = responseData.amt;
+                        const transactionAmount = parseFloat(transactionAmountAsString);
+
+                        dispatch(submitPayment({
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            paymentMethodKey: trxSlice.selectedPaymentMethod,
+                            currency: trxSlice.selectedCurrency,
+                            amount: transactionAmount,
+                            sourceKey: 'NI-AUTOVISA-' + responseData.rrn
+                        }))
+                    } else {
+                        dispatch(notify({ msg: responseData.description, sev: 'warning' }));
+                    }
+
+                } catch (e) {
+                    console.log(e);
+                    dispatch(notify({ msg: 'could not parse response data object!', sev: 'error' }));
+                }
+                dispatch(hideLoading())
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    } else {
+                        dispatch(notify({ msg: error.response.data, sev: 'error' }));
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+                dispatch(hideLoading())
+            });
+
+        } // end IF
+    }
+
 
     const handleVoidLine = () => {
         if (trxSlice.trx) {
@@ -1428,7 +1520,7 @@ const Terminal = (props) => {
                 </div>
             </Button>;
             if (config.systemCurrency === 'JOD') {
-                if (obj === config.systemCurrency) {
+                if (obj.key === config.systemCurrency) {
                     tmp.push(currButton);
                 }
             } else {
@@ -1440,14 +1532,13 @@ const Terminal = (props) => {
 
         tmp.push(
             <Button key='autovisa' className={classes.ActionButton}
-                disabled={!terminal.terminal.bopVisaIp}
                 style={{ background: '#b32572', color: 'white' }}
                 onClick={() => {
-                    autoVisaFlow();
+                    autoVisaFlowNetwork();
                 }} >
                 <div style={{ textAlign: 'center' }}>
                     <FontAwesomeIcon icon={faChain} />
-                    <label style={{ marginLeft: '2px' }}>AUTO - BOP</label>
+                    <label style={{ marginLeft: '2px' }}>AUTO VISA</label>
                 </div>
             </Button>
         )
@@ -1888,8 +1979,8 @@ const Terminal = (props) => {
             <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '100vh' }}>
                 <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
                     <h6 style={{ lineHeight: '5vh', textAlign: 'left', fontSize: '95%' }}>
-                        <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '20px', marginRight: '7px' }} /> {terminal.loggedInUser ? 
-                        terminal.loggedInUser.employeeNumber.concat(' - ').concat(terminal.loggedInUser.username) : 'No User'}</span>
+                        <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '20px', marginRight: '7px' }} /> {terminal.loggedInUser ?
+                            terminal.loggedInUser.employeeNumber.concat(' - ').concat(terminal.loggedInUser.username) : 'No User'}</span>
                         <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
                         <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
                     </h6>
