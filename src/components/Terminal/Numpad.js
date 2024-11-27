@@ -71,7 +71,7 @@ const Numpad = (props) => {
                     console.log("INSIDE numpad")
 
                     if (!trxSlice.selectedCurrency) {
-                        dispatch(selectCurrency('NIS'))
+                        dispatch(selectCurrency(config.systemCurrency))
                     }
 
                     if (!trxSlice.numberInputValue) {
@@ -90,7 +90,7 @@ const Numpad = (props) => {
                         tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                         paymentMethodKey: trxSlice.selectedPaymentMethod,
-                        currency: trxSlice.selectedCurrency ? trxSlice.selectedCurrency : 'NIS',
+                        currency: trxSlice.selectedCurrency ? trxSlice.selectedCurrency : config.systemCurrency,
                         amount: trxSlice.numberInputValue,
                         sourceKey: '',
                         visaPayment: null

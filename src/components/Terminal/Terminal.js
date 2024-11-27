@@ -800,15 +800,7 @@ const Terminal = (props) => {
 
     const autoVisaFlowNetwork = async () => {
 
-        if (trxSlice.selectedCurrency === 'EUR') {
-            dispatch(notify({ msg: 'Auto Visa does not support Euro', sev: 'warning' }));
-            return;
-        }
-
-        if (trxSlice.selectedCurrency !== config.systemCurrency && !terminal.exchangeRates[trxSlice.selectedCurrency]) {
-            dispatch(notify({ msg: 'Selected currency has no exchange rate defined', sev: 'error' }));
-            return;
-        }
+        // this is fixed to JOD only
 
         dispatch(showLoading('Connecting to Auto Visa [NETWORK]...'));
 
@@ -818,20 +810,16 @@ const Terminal = (props) => {
 
             let integerPart = Math.floor(amt);
             let decimalPart = amt - integerPart;
-            decimalPart = decimalPart.toFixed(config.systemCurrency === 'NIS' ? 2 : 3);
+            decimalPart = 3;
 
             amt = integerPart;
             amt += parseFloat(decimalPart);
-
-            let trxId = trxSlice.trx.nanoId.replace('-', '');
-            // implement ARABI BANK auto visa flow
             axios({
                 method: 'post',
                 data: {
                     id: trxSlice.trx.key,
                     ref: trxSlice.trx.key,
                     amt,
-                    tid: '99000073',
                     user: terminal.loggedInUser.employeeNumber,
                     username: terminal.loggedInUser.username,
                     curr: 400
@@ -839,34 +827,36 @@ const Terminal = (props) => {
                 url: `http://127.0.0.1:9600/arabiVisaSale`
             }).then((response) => {
                 try {
-                    let makePayment = false;
+                    if (response && response.data) {
+                        let makePayment = false;
 
-                    // const badFormatData = response.data;
-                    // const responseDataAsString = badFormatData.split("{")[1].split("}")[0];
-                    // const responseData = JSON.parse(response.data);
-                    const responseData = response.data;
-                    console.log(responseData, responseData.RespCode);
-                    if (responseData.isApproved) {
-                        makePayment = true;
+                        const responseData = response.data;
+                        console.log(responseData, responseData.RespCode);
+                        if (responseData.isApproved) {
+                            makePayment = true;
+                        }
+
+                        if (makePayment) {
+                            dispatch(notify({ msg: responseData.description, sev: 'info' }));
+                            const transactionAmountAsString = responseData.amt;
+                            const transactionAmount = parseFloat(transactionAmountAsString);
+
+                            dispatch(submitPayment({
+                                tillKey: terminal.till ? terminal.till.key : null,
+                                trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                                paymentMethodKey: trxSlice.selectedPaymentMethod,
+                                currency: trxSlice.selectedCurrency,
+                                amount: transactionAmount,
+                                sourceKey: 'NI-AUTOVISA-' + responseData.rrn
+                            }))
+                        } else {
+                            if (responseData.description) {
+                                dispatch(notify({ msg: responseData.description, sev: 'warning' }));
+                            } else {
+                                dispatch(notify({ msg: 'payment failed, please try again', sev: 'error' }));
+                            }
+                        }
                     }
-
-                    if (makePayment) {
-                        dispatch(notify({ msg: responseData.description, sev: 'info' }));
-                        const transactionAmountAsString = responseData.amt;
-                        const transactionAmount = parseFloat(transactionAmountAsString);
-
-                        dispatch(submitPayment({
-                            tillKey: terminal.till ? terminal.till.key : null,
-                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                            paymentMethodKey: trxSlice.selectedPaymentMethod,
-                            currency: trxSlice.selectedCurrency,
-                            amount: transactionAmount,
-                            sourceKey: 'NI-AUTOVISA-' + responseData.rrn
-                        }))
-                    } else {
-                        dispatch(notify({ msg: responseData.description, sev: 'warning' }));
-                    }
-
                 } catch (e) {
                     console.log(e);
                     dispatch(notify({ msg: 'could not parse response data object!', sev: 'error' }));

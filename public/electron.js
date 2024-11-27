@@ -70,7 +70,9 @@ function createWindow() {
     ipcMain.on('show-dev-tools', (event, arg) => {
         win.webContents.openDevTools();
     });
+    
     // win.webContents.openDevTools();
+
 
 
     fs.promises.writeFile(logFilePath, '');
@@ -101,7 +103,7 @@ function createWindow() {
     // and load the index.html of the app.
     win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
 
-    win.show();
+        win.show();
 
     // customer screen options 
     if (localConfig.showCustomerScreen) {

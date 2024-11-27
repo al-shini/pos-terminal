@@ -9,7 +9,8 @@ import { Drawer, FlexboxGrid, Button, Table, Panel, InputNumber, Dropdown } from
 import { notify } from '../../store/uiSlice';
 import { setTills, setSelectedTill, updateBalance, submitTillCounts, closeTill } from '../../store/backofficeSlice';
 import confirm from '../../components/UI/ConfirmDlg';
-import { Carousel } from 'rsuite';
+
+const { Column, HeaderCell, Cell } = Table;
 
 const ActiveTills = (props) => {
     const dispatch = useDispatch();
@@ -18,6 +19,31 @@ const ActiveTills = (props) => {
     const terminalSlice = useSelector((state) => state.terminal);
 
     const [closeMode, setCloseMode] = useState(false);
+
+    const data =  (backofficeSlice.selectedTill && backofficeSlice.selectedTill.balances) ? backofficeSlice.selectedTill.balances.map((bv, i) => ({
+        key: i + 'fgi',
+        paymentMethod: bv.paymentMethodDescription,
+        closingBalance: bv.closingBalance + ' ' + bv.currency,
+        counted: {
+            value: bv.closingBalance,
+            editable: backofficeSlice.selectedTill.status !== 'C',
+            currency: bv.currency,
+        },
+        actual: {
+            value:
+                bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash'
+                    ? backofficeSlice.selectedTill.actualBalance
+                    : bv.actualBalance,
+            editable: false,
+        },
+        variance: {
+            value:
+                bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash'
+                    ? backofficeSlice.selectedTill.variance
+                    : bv.ogCurrencyVariance,
+            editable: false,
+        },
+    })) : [];
 
     const handleChange = (e, i) => {
         dispatch(updateBalance({ i: i, balance: e }));
@@ -209,74 +235,69 @@ const ActiveTills = (props) => {
                     }
                 </div>
                 <hr />
-                {backofficeSlice.selectedTill && backofficeSlice.selectedTill.balances && <div style={{ height: '65vh', overflowY: 'auto' }} >
-                    <FlexboxGrid>
-                        {
-                            backofficeSlice.selectedTill.balances.map((bv, i) => {
-                                if (bv.paymentMethodKey !== 'Cash') {
-                                    if (bv.currency === 'JOD') {
-                                        // do nothing
-                                    }else{
-                                        return null;
-                                    }
-                                }
+                {backofficeSlice.selectedTill && backofficeSlice.selectedTill.balances && <div style={{height:'70vh', overflowY: 'auto' }} >
+                    <Table data={data} bordered rowHeight={60} fillHeight >
+                        {/* Payment Method Column */}
+                        {/* <Column flexGrow={1} align="center">
+                            <HeaderCell>Payment Method</HeaderCell>
+                            <Cell dataKey="paymentMethod" />
+                        </Column> */}
 
-                                return <FlexboxGridItem key={i + 'fgi'} colspan={5} style={{ marginRight: '4%', marginBottom: '1%' }}>
-                                    <Panel bordered eventKey={i + 1} key={bv.key}
-                                        header={
-                                            <span>
-                                                <b>{bv.paymentMethodDescription}</b>
-                                                <Divider vertical />
-                                                <span>{bv.closingBalance + ' ' + bv.currency}</span>
-                                                <Divider vertical />
-                                                <small>
-                                                    {bv.currency !== 'JOD' && (backofficeSlice.selectedTill.status !== 'L') ? ((bv.closingBalance * bv.rate) + '').concat(' JOD') : ''}
-                                                </small>
-                                            </span>
-                                        }>
-                                        <FlexboxGrid>
-                                            <FlexboxGridItem colspan={1} />
-                                            <FlexboxGridItem colspan={22}>
-                                                <h5 style={{ textAlign: 'center' }}>Counted</h5>
-                                                <InputNumber disabled={backofficeSlice.selectedTill.status === 'C'}
-                                                    prefix={bv.currency}
-                                                    value={bv.closingBalance}
-                                                    onChange={(e) => handleChange(e, i)} />
-                                            </FlexboxGridItem>
-                                            <FlexboxGridItem colspan={1} />
+                        {/* Closing Balance Column */}
+                        {/* <Column flexGrow={1} align="center">
+                            <HeaderCell>Closing Balance</HeaderCell>
+                            <Cell dataKey="closingBalance" />
+                        </Column> */}
 
-                                            <FlexboxGridItem colspan={1} />
-                                            {
-                                                backofficeSlice.selectedTill.status === 'R' &&
-                                                <FlexboxGridItem colspan={22}>
-                                                    <br />
-                                                    <h5 style={{ textAlign: 'center' }}>Actual</h5>
-                                                    <InputNumber disabled={true} style={{ color: 'black', opacity: '1' }}
-                                                        prefix={bv.currency}
-                                                        value={(bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash') ? backofficeSlice.selectedTill.actualBalance : bv.actualBalance} />
-                                                </FlexboxGridItem>
-                                            }
-                                            <FlexboxGridItem colspan={1} />
+                        {/* Counted Column */}
+                        <Column flexGrow={2} align="center">
+                            <HeaderCell>Counted</HeaderCell>
+                            <Cell>
+                                {rowData => (
+                                    <InputNumber
+                                        disabled={!rowData.counted.editable}
+                                        prefix={<span><b>[ {rowData.paymentMethod} ]</b>  <span>{rowData.counted.currency}</span></span>}
+                                        value={rowData.counted.value}
+                                        onChange={value => handleChange(value, rowData.key)}
+                                    />
+                                )}
+                            </Cell>
+                        </Column>
 
-                                            <FlexboxGridItem colspan={1} />
-                                            {
-                                                backofficeSlice.selectedTill.status === 'R' &&
-                                                <FlexboxGridItem colspan={22}>
-                                                    <br />
-                                                    <h5 style={{ textAlign: 'center' }}>Variance (Currency)</h5>
-                                                    <InputNumber disabled={true} style={{ color: 'black', opacity: '1' }}
-                                                        prefix={bv.currency}
-                                                        value={(bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash') ? backofficeSlice.selectedTill.variance : bv.ogCurrencyVariance} />
-                                                </FlexboxGridItem>
-                                            }
-                                            <FlexboxGridItem colspan={1} />
+                        {/* Actual Column */}
+                        {backofficeSlice.selectedTill.status === 'R' && (
+                            <Column flexGrow={2} align="center">
+                                <HeaderCell>Actual</HeaderCell>
+                                <Cell>
+                                    {rowData => (
+                                        <InputNumber
+                                            disabled={!rowData.actual.editable}
+                                            style={{ color: 'black', opacity: '1' }}
+                                            prefix={rowData.counted.currency}
+                                            value={rowData.actual.value}
+                                        />
+                                    )}
+                                </Cell>
+                            </Column>
+                        )}
 
-                                        </FlexboxGrid>
-                                    </Panel>
-                                </FlexboxGridItem>
-                            })
-                        }
-                    </FlexboxGrid>
+                        {/* Variance Column */}
+                        {backofficeSlice.selectedTill.status === 'R' && (
+                            <Column flexGrow={2} align="center">
+                                <HeaderCell>Variance (Currency)</HeaderCell>
+                                <Cell>
+                                    {rowData => (
+                                        <InputNumber
+                                            disabled={!rowData.variance.editable}
+                                            style={{ color: 'black', opacity: '1' }}
+                                            prefix={rowData.counted.currency}
+                                            value={rowData.variance.value}
+                                        />
+                                    )}
+                                </Cell>
+                            </Column>
+                        )}
+                    </Table>
                 </div>}
             </div>}
         </React.Fragment>
