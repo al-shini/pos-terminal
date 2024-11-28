@@ -807,13 +807,6 @@ const Terminal = (props) => {
         let amt = Math.abs(trxSlice.trxChange);
 
         if (trxSlice.trx && amt > 0) {
-
-            let integerPart = Math.floor(amt);
-            let decimalPart = amt - integerPart;
-            decimalPart = 3;
-
-            amt = integerPart;
-            amt += parseFloat(decimalPart);
             axios({
                 method: 'post',
                 data: {
