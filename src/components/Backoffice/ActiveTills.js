@@ -19,9 +19,9 @@ const ActiveTills = (props) => {
     const terminalSlice = useSelector((state) => state.terminal);
 
     const [closeMode, setCloseMode] = useState(false);
-
-    const data =  (backofficeSlice.selectedTill && backofficeSlice.selectedTill.balances) ? backofficeSlice.selectedTill.balances.map((bv, i) => ({
-        key: i + 'fgi',
+const data = (backofficeSlice.selectedTill && backofficeSlice.selectedTill.balances)
+    ? backofficeSlice.selectedTill.balances.map((bv, i) => ({
+        key: i, // Use index as key
         paymentMethod: bv.paymentMethodDescription,
         closingBalance: bv.closingBalance + ' ' + bv.currency,
         counted: {
@@ -43,7 +43,8 @@ const ActiveTills = (props) => {
                     : bv.ogCurrencyVariance,
             editable: false,
         },
-    })) : [];
+    }))
+    : [];
 
     const handleChange = (e, i) => {
         dispatch(updateBalance({ i: i, balance: e }));
@@ -252,6 +253,7 @@ const ActiveTills = (props) => {
                         {/* Counted Column */}
                         <Column flexGrow={2} align="center">
                             <HeaderCell>Counted</HeaderCell>
+                    
                             <Cell>
                                 {rowData => (
                                     <InputNumber
