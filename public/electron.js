@@ -32,6 +32,9 @@ const { log } = require('console');
 const axios = axiosImport.create({
     baseURL: 'http://' + localConfig.serverIp + ':8080/'
 });
+const oposServiceAxios = axiosImport.create({
+    baseURL: 'http://localhost:6666/'
+});
 
 
 // Conditionally include the dev tools installer to load React Dev Tools
@@ -401,18 +404,7 @@ if (!gotTheLock) {
                             type: trx.type
                         });
                     } else if (localConfig.printTemplate === 'complete') {
-                        logger.info({
-                            qr: qrUrl,
-                            total: trx.totalafterdiscount,
-                            discount: trx.totaldiscount,
-                            paid: trx.paidamt,
-                            change: trx.customerchange,
-                            date,
-                            store: trx.branch,
-                            cashier: trx.username,
-                            type: trx.type,
-                            lines: trx.printableLines
-                        });
+                      
                         printComplete({
                             qr: qrUrl,
                             total: trx.totalafterdiscount,
@@ -428,6 +420,19 @@ if (!gotTheLock) {
                             payments: trx.paymentSummaryList,
                             taxDiscount: trx.taxDiscount,
                             terminal: trx.terminalKey
+                        });
+                    }else if (localConfig.printTemplate === 'opos') {
+                        oposServiceAxios({
+                            method: 'post',
+                            url: '/opos-print',
+                            data: trx,  
+                            headers: {
+                                'Content-Type': 'application/json',
+                            }
+                        }).then((_res) => {
+                                console.log(_res);
+                        }).catch((_error) => {
+                            throw _error;
                         });
                     }
 
