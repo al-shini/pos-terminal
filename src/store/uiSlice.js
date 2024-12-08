@@ -9,6 +9,8 @@ const initialState = {
     loadingMessage: 'Loading, please wait',
     loadingTimeout: 90000, // defaults to 90 seconds
     loadingTimestamp: 0,
+    itemScanError: false,
+    itemScanErrorMessage: ''
 }
 
 /**
@@ -55,9 +57,17 @@ export const uiSlice = createSlice({
         },
         hideToast: (state) => {
             state.toastOpen = false; 
+        },
+        showItemScanError: (state, action) => {
+            state.itemScanError = true; 
+            state.itemScanErrorMessage = action.payload;
+        },
+        hideItemScanError: (state) => {
+            state.itemScanError = false; 
+            state.itemScanErrorMessage = '';
         }
     }
 })
 
-export const { showLoading, hideLoading, hideToast } = uiSlice.actions
+export const { showLoading, hideLoading, hideToast, showItemScanError, hideItemScanError } = uiSlice.actions
 export default uiSlice.reducer

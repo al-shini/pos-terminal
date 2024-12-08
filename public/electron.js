@@ -62,7 +62,7 @@ function createWindow() {
         height: 768,
         resizable: true,
         show: true,
-        fullscreen: isDev ? false :localConfig.admin ? false : true,
+        fullscreen: isDev ? false : localConfig.admin ? false : true,
         webPreferences: {
             nodeIntegration: true, contextIsolation: false, enableRemoteModule: true
         }
@@ -73,8 +73,9 @@ function createWindow() {
     ipcMain.on('show-dev-tools', (event, arg) => {
         win.webContents.openDevTools();
     });
-    
-    // win.webContents.openDevTools();
+    if (isDev) {
+        win.webContents.openDevTools();
+    }
 
 
 
@@ -106,7 +107,7 @@ function createWindow() {
     // and load the index.html of the app.
     win.loadURL(isDev ? `http://localhost:3000?${params}` : `file://${__dirname}/../build/index.html?${params}`);
 
-        win.show();
+    win.show();
 
     // customer screen options 
     if (localConfig.showCustomerScreen) {
@@ -404,7 +405,7 @@ if (!gotTheLock) {
                             type: trx.type
                         });
                     } else if (localConfig.printTemplate === 'complete') {
-                      
+
                         printComplete({
                             qr: qrUrl,
                             total: trx.totalafterdiscount,
@@ -421,19 +422,33 @@ if (!gotTheLock) {
                             taxDiscount: trx.taxDiscount,
                             terminal: trx.terminalKey
                         });
-                    }else if (localConfig.printTemplate === 'opos') {
+                    } else if (localConfig.printTemplate === 'opos') {
+
+                        if (!req.query.ignoreDrawer) {
+                            oposServiceAxios({
+                                method: 'get',
+                                url: '/open-drawer'
+                            }).then((_res) => {
+                                console.log(_res);
+                            }).catch((_error) => {
+                                throw _error;
+                            });
+                        }
+
                         oposServiceAxios({
                             method: 'post',
                             url: '/opos-print',
-                            data: trx,  
+                            data: trx,
                             headers: {
                                 'Content-Type': 'application/json',
                             }
                         }).then((_res) => {
-                                console.log(_res);
+                            console.log(_res);
                         }).catch((_error) => {
                             throw _error;
                         });
+
+
                     }
 
                     if (trx.campaignList) {

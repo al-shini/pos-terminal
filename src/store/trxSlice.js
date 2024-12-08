@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { showLoading, hideLoading, notify } from './uiSlice'
+import { showLoading, hideLoading, notify, showItemScanError } from './uiSlice'
 import { fetchSuspendedForTill, resetCustomer, setCustomer, setManagerMode, setManagerUser, setTrxMode, triggerErrorSound, unlockTill } from './terminalSlice';
 import { reset } from './terminalSlice'
 import config from '../config';
@@ -155,6 +155,7 @@ export const scanBarcode = createAsyncThunk(
                     return thunkAPI.rejectWithValue('Un-authorized');
                 } else {
                     thunkAPI.dispatch(notify({ msg: 'Error: ' + error.response.data?.message ?? JSON.stringify(error.response), sev: 'error' }));
+                    thunkAPI.dispatch(showItemScanError(error.response.data?.message ?? JSON.stringify(error.response)));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
@@ -352,6 +353,24 @@ export const closeTrxPayment = createAsyncThunk(
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
             }
 
+        });
+    }
+)
+
+export const printTrx = createAsyncThunk(
+    'printTrx',
+    async (payload, thunkAPI) => {
+        axios({
+            method: 'get',
+            url: `http://localhost:${config.printServicePort ?
+                 config.printServicePort : 
+                 config.expressPort ? config.expressPort : 
+                 '3001'}/printTrx?trxKey=${payload}&ignoreDrawer=true`,
+        }).then((response) => {
+            thunkAPI.dispatch(hideLoading());
+        }).catch((error) => {
+            console.log(error.response, error.message);
+            thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
         });
     }
 )

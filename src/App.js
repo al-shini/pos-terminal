@@ -12,7 +12,7 @@ import Dashboard from "./components/Dashboard/Dashboard";
 import Backdrop from '@mui/material/Backdrop';
 import CircularProgress from '@mui/material/CircularProgress';
 import Admin from './components/Backoffice/Admin';
-import { hideLoading, hideToast } from './store/uiSlice';
+import { hideItemScanError, hideLoading, hideToast } from './store/uiSlice';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from "@mui/material/Alert";
 
@@ -53,6 +53,27 @@ const App = () => {
             ({((uiSlice.loadingTimeout - (timestamp - uiSlice.loadingTimestamp)) / 1000).toFixed(0)})
           </b>}
         </Button>
+      </Backdrop>
+
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        open={uiSlice.itemScanError}
+      >
+        <div style={{ textAlign: 'center' }}>
+
+          <h3 style={{background: 'white', padding: 20, borderRadius: 50,
+            color: 'black'}}>{uiSlice.itemScanErrorMessage} </h3>
+          <br />
+          <h3>
+            <Button appearance='primary'
+              size='lg'
+              style={{ fontSize: '35px', padding: 20 }}
+              color='green' onClick={() => {
+                dispatch(hideItemScanError());
+              }}> OK
+            </Button>
+          </h3>
+        </div>
       </Backdrop>
 
       <Snackbar

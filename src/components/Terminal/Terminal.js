@@ -21,7 +21,8 @@ import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
     checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx, closeTrxPayment, clearLastPaymentHistory, setPriceChangeReason, prepareScanMultiplierPreDefined,
-    fullTrxTaxExempt
+    fullTrxTaxExempt,
+    printTrx
 } from '../../store/trxSlice';
 import { hideLoading, notify, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -110,6 +111,8 @@ const Terminal = (props) => {
     const [produceItems, setProduceItems] = useState([]);
     const [alphabtet, setAlphabet] = useState('ا');
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [lastTrxOpen, setLastTrxOpen] = useState(false);
+    const [lastTrxList, setLastTrxList] = useState([]);
 
     const [trxCounter, setTrxCounter] = useState(0);
 
@@ -155,6 +158,25 @@ const Terminal = (props) => {
             });
         }
     }, [])
+
+    const handleLastTrxList = () => {
+        axios({
+            method: 'get',
+            url: '/trx/last-10-trx/',
+            headers: {
+                TillKey: terminal.till.key
+            }
+        }).then((response) => {
+            if (response) {
+                console.log(response.data);
+
+                setLastTrxList(response.data);
+                setLastTrxOpen(true);
+            }
+        }).catch((error) => {
+            dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+        });
+    }
 
 
 
@@ -1649,6 +1671,15 @@ const Terminal = (props) => {
                         <label>Settings</label>
                     </div>
                 </Button>
+            }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {
+                <Button key='lastTrxList' className={classes.MainActionButton}
+                    onClick={handleLastTrxList}>
+                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                        <FontAwesomeIcon icon={faList} style={{ marginRight: '5px' }} />
+                        <label>Print Last TRX</label>
+                    </div>
+                </Button>
             }
         </React.Fragment >;
     }
@@ -2419,6 +2450,12 @@ const Terminal = (props) => {
                         }} >
                             Check for Updates
                         </Button>
+                        <Button appearance='primary' onClick={() => {
+                            dispatch(printTrx(trxSlice.trx.key));
+                        }} >
+                            Print
+                        </Button>
+
                     </ButtonToolbar>
                     <br />
                     <Input type='password' key='adminPasskey' placeholder='Admin Passkey'
@@ -2446,6 +2483,32 @@ const Terminal = (props) => {
                         <FontAwesomeIcon icon={faCheck} /> Already Linked @ {terminal.terminal.bopVisaIp}
                     </div>}
                     <br />
+                </Panel>
+            </Modal>
+
+            <Modal open={lastTrxOpen} onClose={() => { setLastTrxOpen(false) }}  >
+                <h4 style={{ padding: '0px', margin: '0px' }}>
+                    Print Last 10 Transactions
+                </h4>
+                <Divider style={{ margin: '5px' }} />
+                <Panel bordered style={{ margin: '10px' }}>
+                    {lastTrxList && <ButtonToolbar >
+                        {lastTrxList.map((trx, i) => {
+                            return (<Button
+                                style={{
+                                    display: 'inline-block', margin: 7, width: '45%'
+                                }}
+                                appearance='ghost' color='cyan' onClick={() => {
+                                    dispatch(showLoading())
+                                    dispatch(printTrx(trx.key));
+                                    setLastTrxOpen(false);
+                                }} >
+                                <p style={{ textAlign: 'left' }}>
+                                    #{(i + 1)}  PRINT ( {trx.totalafterdiscount} {config.systemCurrency} )
+                                </p>
+                            </Button>)
+                        })}
+                    </ButtonToolbar>}
                 </Panel>
             </Modal>
 
