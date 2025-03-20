@@ -36,6 +36,14 @@ export const scanNewTransaction = createAsyncThunk(
     'scanNewTransaction',
     async (payload, thunkAPI) => {
         // 
+
+        if (thunkAPI.getState().terminal.paymentMode) {
+            console.log('in payment mode');
+            return thunkAPI.rejectWithValue('Cannot scan item when in payment mode');
+        } else {
+            console.log('seems like I am not in payment mode');
+        }
+
         if (payload.barcode.includes('SUS-')) {
             return axios({
                 method: 'post',
@@ -121,6 +129,15 @@ export const scanNewTransaction = createAsyncThunk(
 export const scanBarcode = createAsyncThunk(
     'scanBarcode',
     async (payload, thunkAPI) => {
+
+        if (thunkAPI.getState().terminal.paymentMode) {
+            console.log('in payment mode');
+            thunkAPI.dispatch(notify({ msg: 'Cannot scan item when in payment mode ', sev: 'error' }));
+            return thunkAPI.rejectWithValue('Cannot scan item when in payment mode');
+        } else {
+            console.log('seems like I am not in payment mode');
+        }
+
         // 
         if (!payload.trxKey) {
             thunkAPI.dispatch(notify({ msg: 'No valid transaction ', sev: 'error' }));
@@ -363,9 +380,9 @@ export const printTrx = createAsyncThunk(
         axios({
             method: 'get',
             url: `http://localhost:${config.printServicePort ?
-                 config.printServicePort : 
-                 config.expressPort ? config.expressPort : 
-                 '3001'}/printTrx?trxKey=${payload}&ignoreDrawer=true`,
+                config.printServicePort :
+                config.expressPort ? config.expressPort :
+                    '3001'}/printTrx?trxKey=${payload}&ignoreDrawer=true`,
         }).then((response) => {
             thunkAPI.dispatch(hideLoading());
         }).catch((error) => {
@@ -783,12 +800,15 @@ export const trxSlice = createSlice({
             state.priceChangeReason = ''
         },
         prepareScanMultiplier: (state) => {
-            if (!state.numberInputValue || state.numberInputValue === '')
+            const numValue = parseFloat(state.numberInputValue);
+            
+            if (!state.numberInputValue || isNaN(numValue) || numValue < 1) {
                 state.multiplier = '1';
-            else {
+            } else {
                 state.multiplier = state.numberInputValue;
-                state.numberInputValue = '';
             }
+            
+            state.numberInputValue = '';
         },
         prepareScanMultiplierPreDefined: (state, action) => {
             if (action.payload) {

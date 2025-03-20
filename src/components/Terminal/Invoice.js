@@ -24,7 +24,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
         >
             <FlexboxGrid style={{ paddingLeft: '10px' }}>
                 {/* First row */}
-                <FlexboxGrid.Item colspan={3}>
+                <FlexboxGrid.Item colspan={4}>
                     <Typography variant='subtitle1'>
                         <span
                             style={{
@@ -38,7 +38,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                         </span>
                     </Typography>
                 </FlexboxGrid.Item>
-                <FlexboxGrid.Item colspan={16}>
+                <FlexboxGrid.Item colspan={15}>
                     <span
                         style={{
                             textDecoration: obj.voided ? 'line-through' : '',

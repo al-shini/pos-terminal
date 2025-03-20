@@ -64,6 +64,7 @@ import Logo from '../../assets/full-logo.png';
 import Lock from '../../assets/lock.png';
 import { ArrowLeft, Funnel, IOs, Tmall } from '@rsuite/icons';
 import InactivityHandler from '../InactivityHandler';
+import VirtualKeyboardInput from '../UI/VirtualKeyboardInput';
 const { ipcRenderer } = window.require('electron');
 
 
@@ -1077,11 +1078,12 @@ const Terminal = (props) => {
     }
 
     const handleManagerMode = () => {
-        if (!terminal.managerMode && passkey === 'NotBane@4994') {
+        if (!terminal.managerMode && passkey === 'shini#1@all&notsoeasy.4994') {
             dispatch(setManagerMode(true))
             setPasskey('');
-        } else if (!terminal.managerMode && passkey !== 'NotBane@4994') {
+        } else if (!terminal.managerMode) {
             dispatch(setManagerMode(false))
+            setPasskey('');
             alert('Wrong admin passkey, this incident has been logged.')
         } else if (terminal.managerMode) {
             dispatch(setManagerMode(false))
@@ -1448,7 +1450,7 @@ const Terminal = (props) => {
                             visaPayment: null
                         }));
                     }}
-                        style={{ backgroundColor: '#f7f7fa', display: 'block' }}
+                        style={{ backgroundColor: '#f7f7fa', display: 'block', width: '90%', position: 'relative', left: '15px' }}
 
                     >
                         <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: obj.amount > 10 ? '90%' : 'auto', height: '60px' }} />
@@ -1499,7 +1501,7 @@ const Terminal = (props) => {
                         sourceKey: '',
                         visaPayment: null
                     }))
-                }} style={{ backgroundColor: '#f7f7fa', display: 'block' }} >
+                }}  style={{ backgroundColor: '#f7f7fa', display: 'block', width: '90%', position: 'relative', left: '15px' }} >
                     <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: '90%', height: '57px' }} />
                 </a>
             )
@@ -1592,7 +1594,7 @@ const Terminal = (props) => {
     const buildOperationsButtons = () => {
         return <React.Fragment>
             <Button key='suspend' className={classes.MainActionButton} onClick={handleSuspendTrx}>
-                <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                <div style={{ fontSize: '12px', }}>
                     <FontAwesomeIcon icon={faPause} style={{ marginRight: '5px' }} />
                     <label>Suspend Trx</label>
                 </div>
@@ -1601,7 +1603,7 @@ const Terminal = (props) => {
             <Button key='voidTrx' className={classes.MainActionButton}
                 onClick={handleVoidTrx}
                 disabled={terminal.paymentMode} >
-                <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                <div style={{ fontSize: '12px', }}>
                     <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
                     <label>Void TRX </label>
                 </div>
@@ -1610,7 +1612,7 @@ const Terminal = (props) => {
             {
                 terminal.trxMode === 'Sale' &&
                 <Button disabled={trxSlice.trx !== null} key='refund' className={classes.MainActionButton} onClick={handleSwitchToRefund}>
-                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <div style={{ fontSize: '12px', }}>
                         <FontAwesomeIcon icon={faRotateLeft} style={{ marginRight: '5px' }} />
                         <label>Refund</label>
                     </div>
@@ -1619,7 +1621,7 @@ const Terminal = (props) => {
             {
                 terminal.trxMode === 'Refund' &&
                 <Button disabled={trxSlice.trx !== null} key='sale' className={classes.MainActionButton} onClick={() => { dispatch(setTrxMode('Sale')) }}>
-                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <div style={{ fontSize: '12px', }}>
                         <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                         <label>Sale</label>
                     </div>
@@ -1629,7 +1631,7 @@ const Terminal = (props) => {
             {
                 (terminal.till && terminal.till.status === 'O') &&
                 <Button disabled={trxSlice.trx !== null} key='lock' className={classes.MainActionButton} onClick={handleLockTill}>
-                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <div style={{ fontSize: '12px', }}>
                         <FontAwesomeIcon icon={faLock} style={{ marginRight: '5px' }} />
                         <label>Lock Till</label>
                     </div>
@@ -1639,7 +1641,7 @@ const Terminal = (props) => {
             {
                 terminal.till && terminal.till.status === 'L' &&
                 <Button key='unlock' style={{ zIndex: '1000' }} className={classes.MainActionButton} onClick={handleUnlockTill}>
-                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <div style={{ fontSize: '12px', }}>
                         <FontAwesomeIcon icon={faUnlock} style={{ marginRight: '5px' }} />
                         <label>Unlock Till</label>
                     </div>
@@ -1648,7 +1650,7 @@ const Terminal = (props) => {
             {
                 terminal.till && terminal.till.status === 'L' &&
                 <Button key='logout' style={{ zIndex: '1000' }} className={classes.MainActionButton} onClick={handleLogout}>
-                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <div style={{ fontSize: '12px', }}>
                         <FontAwesomeIcon icon={faUnlock} style={{ marginRight: '5px' }} />
                         <label>Sign Out</label>
                     </div>
@@ -1657,7 +1659,7 @@ const Terminal = (props) => {
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
                 <Button key='fullTaxExempt' className={classes.MainActionButton} onClick={handleFUllTaxExempt}>
-                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <div style={{ fontSize: '12px', }}>
                         <FontAwesomeIcon icon={faMoneyBillTransfer} style={{ marginRight: '5px' }} />
                         <label>Full Tax Exempt</label>
                     </div>
@@ -1666,16 +1668,16 @@ const Terminal = (props) => {
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
                 <Button key='settings' className={classes.MainActionButton} onClick={() => setSettingsOpen(true)}>
-                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <div style={{ fontSize: '12px', }}>
                         <FontAwesomeIcon icon={faCogs} style={{ marginRight: '5px' }} />
                         <label>Settings</label>
                     </div>
                 </Button>
             }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
-                <Button key='lastTrxList' className={classes.MainActionButton}
+                <Button disabled={config.systemCurrency === 'NIS'} key='lastTrxList' className={classes.MainActionButton}
                     onClick={handleLastTrxList}>
-                    <div style={{ textAlign: 'center', fontSize: '14px', }}>
+                    <div style={{ fontSize: '12px', }}>
                         <FontAwesomeIcon icon={faList} style={{ marginRight: '5px' }} />
                         <label>Print Last TRX</label>
                     </div>
@@ -1794,13 +1796,11 @@ const Terminal = (props) => {
 
         Object.keys(groupedFastItems).map((key, i) => {
             tmp.push(
-                <Button key={i} className={classes.ActionButton}
+                <Button key={i} className={classes.MainActionButton}
                     onClick={() => {
                         setSelectedFGroup(key);
                     }} >
-                    <div key={key + 'di'} style={{ textAlign: 'center', fontSize: '14px', }}>
-                        {key}
-                    </div>
+                    {key}
                 </Button>
             )
             tmp.push(<div key={key + 'div'} style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>);
@@ -1994,7 +1994,7 @@ const Terminal = (props) => {
                 <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
                     <h6 style={{ lineHeight: '5vh', textAlign: 'left', fontSize: '95%' }}>
                         <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '20px', marginRight: '7px' }} /> {terminal.loggedInUser ?
-                            terminal.loggedInUser.employeeNumber.concat(' - ').concat(terminal.loggedInUser.username) : 'No User'}</span>
+                            (terminal.loggedInUser.employeeNumber ? terminal.loggedInUser.employeeNumber.concat(' - ') : '').concat(terminal.loggedInUser.username) : 'No User'}</span>
                         <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
                         <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
                     </h6>
@@ -2126,7 +2126,7 @@ const Terminal = (props) => {
                         marginLeft: '10px'
                     }}>
 
-                        <FlexboxGrid.Item colspan={24}>
+                        <FlexboxGrid.Item colspan={24} style={{ overflow: 'hidden' }}>
                             {
                                 actionsMode === 'payment' && terminal.paymentType === 'none' &&
                                 buildPaymentTypesButtons()
@@ -2243,7 +2243,7 @@ const Terminal = (props) => {
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton}
+                        <Button className={classes.POSButton} disabled={terminal.paymentMode}
                             appearance={actionsMode === 'fastItems' ? 'primary' : 'default'}
                             color='green'
                             onClick={() => setActionsMode('fastItems')} >
@@ -2253,7 +2253,7 @@ const Terminal = (props) => {
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton}
+                        <Button className={classes.POSButton} disabled={terminal.paymentMode}
                             appearance={actionsMode === 'operations' ? 'primary' : 'default'}
                             color='green'
                             onClick={() => setActionsMode('operations')} >
@@ -2263,7 +2263,7 @@ const Terminal = (props) => {
                     </FlexboxGrid.Item>
 
                     <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton}
+                        <Button className={classes.POSButton} disabled={terminal.paymentMode}
                             appearance={actionsMode === 'suspended' ? 'primary' : 'default'}
                             color='green'
                             onClick={() => setActionsMode('suspended')} >
@@ -2284,7 +2284,7 @@ const Terminal = (props) => {
                         {!terminal.paymentMode &&
                             <Button className={classes.POSButton}
                                 onClick={handleVoidLine}
-                                disabled={!trxSlice.selectedLine || !trxSlice.selectedLine.key}
+                                disabled={terminal.paymentMode || !trxSlice.selectedLine || !trxSlice.selectedLine.key}
                                 appearance='primary' color='blue'>
                                 <FontAwesomeIcon icon={faEraser} style={{ marginRight: '5px' }} />
                                 <div>Void Line</div>
@@ -2450,19 +2450,20 @@ const Terminal = (props) => {
                         }} >
                             Check for Updates
                         </Button>
-                        <Button appearance='primary' onClick={() => {
+                        {/* <Button appearance='primary' onClick={() => {
                             dispatch(printTrx(trxSlice.trx.key));
                         }} >
                             Print
-                        </Button>
+                        </Button> */}
 
                     </ButtonToolbar>
                     <br />
-                    <Input type='password' key='adminPasskey' placeholder='Admin Passkey'
+                    {/* <Input type='password' key='adminPasskey' placeholder='Admin Passkey'
                         style={{ width: 150, display: 'inline-block', marginRight: 5 }}
                         value={passkey}
                         onChange={(e) => { setPasskey(e) }} >
-                    </Input>
+                    </Input> */}
+                    <VirtualKeyboardInput key='adminPasskey' input={passkey} setInput={setPasskey} /> 
                 </Panel>
                 <Panel bordered header='BOP VISA Integration' style={{ margin: '10px' }}>
                     {!terminal.terminal.bopVisaIp && <Input key='bopvisasetupIp' placeholder='BOP Visa IP'

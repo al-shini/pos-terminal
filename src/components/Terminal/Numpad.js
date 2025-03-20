@@ -309,7 +309,7 @@ const Numpad = (props) => {
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={24}>
                         <IconButton onClick={() => {dispatch(prepareScanMultiplier())}} className={styles.NumpadButton}
-                            disabled={trxSlice.priceChangeMode}
+                            disabled={trxSlice.priceChangeMode || config.systemCurrency === 'JOD'}
                             icon={<FontAwesomeIcon icon={faTimes} />}
                             appearance='primary' color='blue' />
                     </FlexboxGrid.Item>

@@ -18,7 +18,7 @@ const printComplete = require('./printComplete');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const logger = require('./logger');
 const { ipcMain } = require('electron');
-
+const https = require('https');
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 // let localConfigFile = fs.readFileSync('/etc/pos/posconfig.json');
@@ -270,10 +270,10 @@ if (!gotTheLock) {
             doc.image(logo, 55, 15 + g, { width: 100, height: 25 });
             doc.image(qrFileName, 110, 40 + g, { width: 100, height: 100 });
             doc.font('C:\\pos\\VT323.ttf');
-            doc.text('Total: ' + object.total + ' ILS', 15, 50 + g);
-            doc.text('Discount: ' + object.discount + ' ILS', 15, 65 + g);
-            doc.text('Paid: ' + object.paid + ' ILS', 15, 80 + g);
-            doc.text('Change: ' + object.change + ' ILS', 15, 95 + g);
+            doc.text('Total: ' + object.total + '', 15, 50 + g);
+            doc.text('Discount: ' + object.discount + '', 15, 65 + g);
+            doc.text('Paid: ' + object.paid + '', 15, 80 + g);
+            doc.text('Change: ' + object.change + '', 15, 95 + g);
             doc.text('Type: ' + object.type, 15, 110 + g);
 
             doc.fontSize(13)
@@ -405,7 +405,6 @@ if (!gotTheLock) {
                             type: trx.type
                         });
                     } else if (localConfig.printTemplate === 'complete') {
-
                         printComplete({
                             qr: qrUrl,
                             total: trx.totalafterdiscount,
@@ -452,10 +451,21 @@ if (!gotTheLock) {
                     }
 
                     if (trx.campaignList) {
-                        // custom campaign, remove when over
-                        print('C:\\slip.pdf', {});
+                        const pdfUrl = 'https://image.shini.ps/slip.pdf';
+                        const localPdfPath = 'C:/pos/slip.pdf';
+                        https.get(pdfUrl, (response) => {
+                            const file = fs.createWriteStream(localPdfPath);
+                            response.pipe(file);
+                            file.on('finish', () => {
+                                file.close();
+                                console.log('Download complete. Sending to printer...');
+                                // Print the PDF
+                                print(localPdfPath);
+                            });
+                        }).on('error', (err) => {
+                            console.error('Error downloading the PDF:', err);
+                        });
                     }
-
 
                     res.send(trx);
                 }

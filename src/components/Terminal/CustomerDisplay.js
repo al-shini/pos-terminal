@@ -7,41 +7,19 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 
 import Invoice from './Invoice';
-import { Slide } from 'react-slideshow-image';
 import 'react-slideshow-image/dist/styles.css'
 
 import Logo from '../../assets/full-logo.png';
 import Lock from '../../assets/lock.png';
 import Ad from '../../assets/ad.png'
 import config from '../../config';
+import ImageSlider from './ImageSlider';
 
 
 
 const Terminal = (props) => {
     const terminal = useSelector((state) => state.terminal);
     const trxSlice = useSelector((state) => state.trx);
-
-
-    const divStyle = {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundSize: 'cover',
-        height: '400px'
-    }
-
-    const spanStyle = {
-        padding: '20px',
-        background: '#efefef',
-        color: '#000000'
-    }
-
-    // const slideImages = [
-    //     'http://46.43.70.210:9000/pos-ads/ad-01.png',
-    //     'http://46.43.70.210:9000/pos-ads/ad-02.png',
-    //     'http://46.43.70.210:9000/pos-ads/ad-03.png'
-    // ];
-
 
     return (
         <FlexboxGrid  >
@@ -133,14 +111,7 @@ const Terminal = (props) => {
                     }
                     <br />
                     <div className="slide-container">
-                    <img src={Ad} width='100%' style={{ maxHeight: '450px' }} alt=' Error loading Ad image' />
-                        {/* <Slide arrows={false}>
-                            {slideImages.map((slideImage, index) => (
-                                <div key={index} style={{ margin: '5px' }}>
-                                    <img src={slideImage} width='100%' style={{ maxHeight: '450px' }} alt=' Error loading Ad image' />
-                                </div>
-                            ))}
-                        </Slide> */}
+                        <ImageSlider config={config} />
                     </div>
                 </div>
             </FlexboxGrid.Item>
