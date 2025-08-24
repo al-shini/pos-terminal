@@ -19,6 +19,7 @@ const { ReadlineParser } = require('@serialport/parser-readline');
 const logger = require('./logger');
 const { ipcMain } = require('electron');
 const https = require('https');
+const os = require('os');
 
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 // let localConfigFile = fs.readFileSync('/etc/pos/posconfig.json');
@@ -391,7 +392,6 @@ if (!gotTheLock) {
                 }
             }).then((response) => {
                 if (response && response.data) {
-
                     const trx = response.data;
 
                     console.log('somesing trx');
@@ -433,14 +433,14 @@ if (!gotTheLock) {
                         });
                     } else if (localConfig.printTemplate === 'opos') {
 
-                            oposServiceAxios({
-                                method: 'get',
-                                url: '/open-drawer'
-                            }).then((_res) => {
-                                console.log(_res);
-                            }).catch((_error) => {
-                                throw _error;
-                            });
+                        oposServiceAxios({
+                            method: 'get',
+                            url: '/open-drawer'
+                        }).then((_res) => {
+                            console.log(_res);
+                        }).catch((_error) => {
+                            throw _error;
+                        });
 
                         oposServiceAxios({
                             method: 'post',
@@ -461,12 +461,12 @@ if (!gotTheLock) {
                     if (trx.campaignList && Array.isArray(trx.campaignList)) {
                         trx.campaignList.forEach((campaign, index) => {
                             console.log(campaign);
-                            const pdfUrl = campaign.qr_code;
+                            const pdfUrl = campaign.qrCode;
                             if (!pdfUrl) {
                                 console.warn(`No QR code URL found for campaign at index ${index}`);
                                 return;
                             }
-
+                            console.log(index)
                             const localPdfPath = path.join(os.tmpdir(), `slip_${index}.pdf`);
 
                             https.get(pdfUrl, (response) => {
@@ -582,7 +582,7 @@ if (!gotTheLock) {
                     if (trx.campaignList && Array.isArray(trx.campaignList)) {
                         trx.campaignList.forEach((campaign, index) => {
                             console.log(campaign);
-                            const pdfUrl = campaign.qr_code;
+                            const pdfUrl = campaign.qrCode;
                             if (!pdfUrl) {
                                 console.warn(`No QR code URL found for campaign at index ${index}`);
                                 return;
