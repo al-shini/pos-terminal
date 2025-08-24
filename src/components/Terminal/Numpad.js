@@ -83,9 +83,6 @@ const Numpad = (props) => {
 
                     }
 
-                    if (trxSlice.selectedPaymentMethod === 'CashBack') {
-                        return;
-                    }
                     dispatch(submitPayment({
                         tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
@@ -109,7 +106,8 @@ const Numpad = (props) => {
                             trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                             trxMode: terminal.trxMode,
                             tillKey: terminal.till ? terminal.till.key : null,
-                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1',
+                            manualEntry: true
                         }))
                     } else {
 
@@ -119,7 +117,8 @@ const Numpad = (props) => {
                             trxKey: null,
                             trxMode: terminal.trxMode,
                             tillKey: terminal.till ? terminal.till.key : null,
-                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+                            multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1',
+                            manualEntry: true
                         }))
                     }
 
@@ -181,7 +180,7 @@ const Numpad = (props) => {
                                 {
                                     !trxSlice.priceChangeMode &&
                                     <Input value={trxSlice.multiplier ? ('' + trxSlice.multiplier).concat(' X') : '-'}
-                                        disabled
+                                        
                                         placeholder={'X'}
                                         style={{ borderRadius: 0, boxShadow: 'none', textAlign: 'center', color: '#404040' }} />
                                 }
@@ -279,7 +278,7 @@ const Numpad = (props) => {
                         <Button
                             disabled={terminal.paymentMode && terminal.paymentInput === 'fixed'}
                             onClick={() => dispatch(handleNumberInputEntry({ value: '0', paymentMode: terminal.paymentMode }))} className={styles.NumpadButton} >
-                            <span style={{ fontSize: '20px' }}>0</span>
+                            <span style={{ fontSize: '20.01px' }}>0</span>
                         </Button>
                     </FlexboxGrid.Item>
 

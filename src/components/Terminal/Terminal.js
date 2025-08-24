@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown, faCogs,
-    faCarrot, faToolbox, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck
+    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -22,9 +22,10 @@ import {
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
     checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx, closeTrxPayment, clearLastPaymentHistory, setPriceChangeReason, prepareScanMultiplierPreDefined,
     fullTrxTaxExempt,
-    printTrx
+    printTrx, clearOriginalTrxReference, setOriginalTrxReference, setCustomCustomerName,
+    printTrxNoDrawer
 } from '../../store/trxSlice';
-import { hideLoading, notify, showLoading } from '../../store/uiSlice';
+import { hideLoading, notify, showHardNotification, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import confirm from '../UI/ConfirmDlg';
 import config from '../../config';
@@ -65,6 +66,8 @@ import Lock from '../../assets/lock.png';
 import { ArrowLeft, Funnel, IOs, Tmall } from '@rsuite/icons';
 import InactivityHandler from '../InactivityHandler';
 import VirtualKeyboardInput from '../UI/VirtualKeyboardInput';
+import RefundReferenceDialog from './RefundReferenceDialog';
+import CustomCustomerNameDialog from './CustomCustomerNameDialog';
 const { ipcRenderer } = window.require('electron');
 
 
@@ -114,6 +117,8 @@ const Terminal = (props) => {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [lastTrxOpen, setLastTrxOpen] = useState(false);
     const [lastTrxList, setLastTrxList] = useState([]);
+    const [refundReferenceDialogOpen, setRefundReferenceDialogOpen] = useState(false);
+    const [customCustomerNameDialogOpen, setCustomCustomerNameDialogOpen] = useState(false);
 
     const [trxCounter, setTrxCounter] = useState(0);
 
@@ -159,6 +164,12 @@ const Terminal = (props) => {
             });
         }
     }, [])
+
+    useEffect(() => {
+        // if (!trxSlice.trx || (trxSlice.trx && !trxSlice.trx.key)) {
+        //     dispatch(showHardNotification("Ask for Shini Me Loyalty Card"));
+        // }
+    }, [trxSlice.trx])
 
     const handleLastTrxList = () => {
         axios({
@@ -1078,13 +1089,12 @@ const Terminal = (props) => {
     }
 
     const handleManagerMode = () => {
-        if (!terminal.managerMode && passkey === 'shini#1@all&notsoeasy.4994') {
+        if (!terminal.managerMode && passkey === 'bane@4994') {
             dispatch(setManagerMode(true))
             setPasskey('');
         } else if (!terminal.managerMode) {
             dispatch(setManagerMode(false))
-            setPasskey('');
-            alert('Wrong admin passkey, this incident has been logged.')
+            setPasskey(''); 
         } else if (terminal.managerMode) {
             dispatch(setManagerMode(false))
         }
@@ -1205,6 +1215,8 @@ const Terminal = (props) => {
     const handleSwitchToRefund = () => {
         confirm(`Refund Mode ?`, '',
             () => {
+                // First, show the refund reference dialog
+                // setRefundReferenceDialogOpen(true);
                 if (terminal.managerMode) {
                     dispatch(setTrxMode('Refund'));
                 } else {
@@ -1238,6 +1250,50 @@ const Terminal = (props) => {
                 }
             }
         )
+    }
+
+    const handleRefundReferenceValidated = (originalTransaction) => {
+        // Store the original transaction reference in Redux state
+        dispatch(setOriginalTrxReference(originalTransaction));
+        
+        // After successful validation, proceed with QR auth if needed
+        if (terminal.managerMode) {
+            dispatch(setTrxMode('Refund'));
+        } else {
+            axios({
+                method: 'post',
+                url: '/utilities/generateQR',
+                data: {
+                    hardwareId: config.deviceId,
+                    source: 'Refund',
+                    sourceKey: null,
+                    creator: terminal.loggedInUser.key
+                }
+            }).then((response) => {
+                if (response && response.data) {
+                    setAuthQR({
+                        ...response.data,
+                        source: 'Refund'
+                    });
+                } else {
+                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+            });
+        }
+    }
+
+    const handleRefundReferenceDialogClose = () => {
+        setRefundReferenceDialogOpen(false);
+        // Clear any stored reference when dialog is closed without validation
+        // dispatch(clearOriginalTrxReference());
     }
 
     const handleLockTill = () => {
@@ -1385,6 +1441,12 @@ const Terminal = (props) => {
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
                 <label>Visa</label>
             </Button>
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            <Button key='mobicash' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
+                onClick={() => { startPayment('mobiCash', 'numpad') }}>
+                <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
+                <label>MobiCash</label>
+            </Button>
             {/* <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             <Button key='visa' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
                 style={{ background: '#b32572', color: 'white' }}
@@ -1419,7 +1481,7 @@ const Terminal = (props) => {
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {terminal.customer && terminal.store && <Button key='cashBack'
                 disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection || !trxSlice.trx}
-                className={classes.MainActionButton} onClick={() => { startPayment('cashBack', 'fixed') }}>
+                className={classes.MainActionButton} onClick={() => { startPayment('cashBack', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>Cash Back</label>
             </Button>}
@@ -1501,7 +1563,7 @@ const Terminal = (props) => {
                         sourceKey: '',
                         visaPayment: null
                     }))
-                }}  style={{ backgroundColor: '#f7f7fa', display: 'block', width: '90%', position: 'relative', left: '15px' }} >
+                }} style={{ backgroundColor: '#f7f7fa', display: 'block', width: '90%', position: 'relative', left: '15px' }} >
                     <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: '90%', height: '57px' }} />
                 </a>
             )
@@ -1510,6 +1572,32 @@ const Terminal = (props) => {
 
         tmp.push(<div key='fs' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
 
+        return tmp;
+    }
+
+    const buildMobiCashButtons = () => {
+        let tmp = [];
+
+        terminal.currencies.map((obj, i) => {
+            const currButton = <Button key={i} className={classes.ActionButton}
+                appearance={obj.key === trxSlice.selectedCurrency ? 'primary' : 'default'}
+                onClick={() => {
+                    dispatch(selectCurrency(obj.key));
+                }} >
+                <div style={{ textAlign: 'center' }}>
+                    {obj.key}
+                </div>
+            </Button>;
+            if (config.systemCurrency === 'JOD') {
+                if (obj.key === config.systemCurrency) {
+                    tmp.push(currButton);
+                }
+            } else {
+                tmp.push(currButton);
+            }
+
+            tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.key + 'space'} > .</div>);
+        });
         return tmp;
     }
 
@@ -1604,7 +1692,7 @@ const Terminal = (props) => {
                 onClick={handleVoidTrx}
                 disabled={terminal.paymentMode} >
                 <div style={{ fontSize: '12px', }}>
-                    <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
+                    <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '5px' }} />
                     <label>Void TRX </label>
                 </div>
             </Button>
@@ -1675,6 +1763,16 @@ const Terminal = (props) => {
                 </Button>
             }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
+                <Button key='customerName' className={classes.MainActionButton} 
+                    disabled={!trxSlice.trx} 
+                    onClick={() => setCustomCustomerNameDialogOpen(true)}>
+                    <div style={{ fontSize: '12px', }}>
+                        <FontAwesomeIcon icon={faUser} style={{ marginRight: '5px' }} />
+                        <label>Customer Name</label>
+                    </div>
+                </Button>
+            }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {
                 <Button disabled={config.systemCurrency === 'NIS'} key='lastTrxList' className={classes.MainActionButton}
                     onClick={handleLastTrxList}>
                     <div style={{ fontSize: '12px', }}>
@@ -1740,6 +1838,28 @@ const Terminal = (props) => {
         return tmp;
     }
 
+    const buildCashBackButtons = () => {
+        let tmp = [];
+
+        tmp.push(
+            <Button key={'1'}
+                disabled style={{ left: 20, width: '80%', backgroundColor: 'yellow', color: 'black' }}>
+                <div>
+                    <i style={{ fontSize: 12 }}>Cashback Balance</i>
+                    <br />
+                    <div style={{ margin: 'auto' }}>
+                        <b>{terminal.customer.cashbackBalance} <small>{config.systemCurrency === 'NIS' ? '₪' : 'JD'}</small></b>
+                    </div>
+                </div>
+            </Button >
+        )
+        tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={'empExtraSpace'} > .</div>);
+
+        return tmp;
+    }
+
+
+
     const buildCashBackCouponButtons = () => {
         let tmp = [];
 
@@ -1758,7 +1878,7 @@ const Terminal = (props) => {
                         dispatch(submitPayment({
                             tillKey: terminal.till ? terminal.till.key : null,
                             trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                            paymentMethodKey: 'CashBack',
+                            paymentMethodKey: 'Cashback',
                             currency: config.systemCurrency,
                             amount: obj.amount,
                             sourceKey: obj.key,
@@ -2019,6 +2139,7 @@ const Terminal = (props) => {
                         <span style={{ color: '#fa8900' }}>
                             <FontAwesomeIcon icon={faStar} style={{ marginLeft: '7px', marginRight: '7px' }} /> Club
                             {terminal.customer && terminal.customer.employee && <span style={{ color: 'rgb(227,37,33)' }}> <b> (E)</b></span>}
+                            {terminal.customer.cashbackBalance && <b>  ({terminal.customer.cashbackBalance} <small>{config.systemCurrency === 'NIS' ? '₪' : 'JD'}</small>)</b>}
                         </span>}
 
                     {terminal.managerMode && <Divider vertical /> &&
@@ -2148,6 +2269,11 @@ const Terminal = (props) => {
                             }
 
                             {
+                                actionsMode === 'payment' && terminal.paymentType === 'mobiCash' &&
+                                buildMobiCashButtons()
+                            }
+
+                            {
                                 actionsMode === 'payment' && terminal.paymentType === 'visaArabi' &&
                                 buildVisaButtonsArabi()
                             }
@@ -2188,9 +2314,14 @@ const Terminal = (props) => {
                                 </Button>
                             }
 
-                            {
+                            {/* {
                                 actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'cashBack' &&
                                 buildCashBackCouponButtons()
+                            } */}
+
+                            {
+                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'cashBack' &&
+                                buildCashBackButtons()
                             }
 
                             {
@@ -2257,7 +2388,7 @@ const Terminal = (props) => {
                             appearance={actionsMode === 'operations' ? 'primary' : 'default'}
                             color='green'
                             onClick={() => setActionsMode('operations')} >
-                            <FontAwesomeIcon icon={faToolbox} style={{ marginRight: '5px' }} />
+                            <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '5px' }} />
                             <div>Operations</div>
                         </Button>
                     </FlexboxGrid.Item>
@@ -2463,7 +2594,7 @@ const Terminal = (props) => {
                         value={passkey}
                         onChange={(e) => { setPasskey(e) }} >
                     </Input> */}
-                    <VirtualKeyboardInput key='adminPasskey' input={passkey} setInput={setPasskey} /> 
+                    <VirtualKeyboardInput key='adminPasskey' input={passkey} setInput={setPasskey} />
                 </Panel>
                 <Panel bordered header='BOP VISA Integration' style={{ margin: '10px' }}>
                     {!terminal.terminal.bopVisaIp && <Input key='bopvisasetupIp' placeholder='BOP Visa IP'
@@ -2501,7 +2632,7 @@ const Terminal = (props) => {
                                 }}
                                 appearance='ghost' color='cyan' onClick={() => {
                                     dispatch(showLoading())
-                                    dispatch(printTrx(trx.key));
+                                    dispatch(printTrxNoDrawer(trx.key));
                                     setLastTrxOpen(false);
                                 }} >
                                 <p style={{ textAlign: 'left' }}>
@@ -2512,6 +2643,17 @@ const Terminal = (props) => {
                     </ButtonToolbar>}
                 </Panel>
             </Modal>
+
+            <RefundReferenceDialog
+                open={refundReferenceDialogOpen}
+                onClose={handleRefundReferenceDialogClose}
+                onValidated={handleRefundReferenceValidated}
+            />
+
+            <CustomCustomerNameDialog
+                open={customCustomerNameDialogOpen}
+                onClose={() => setCustomCustomerNameDialogOpen(false)}
+            />
 
         </FlexboxGrid >
     );

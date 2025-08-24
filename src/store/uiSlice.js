@@ -10,7 +10,9 @@ const initialState = {
     loadingTimeout: 90000, // defaults to 90 seconds
     loadingTimestamp: 0,
     itemScanError: false,
-    itemScanErrorMessage: ''
+    itemScanErrorMessage: '',
+    hardNotification: false,
+    hardNotificationMessage: ''
 }
 
 /**
@@ -65,9 +67,17 @@ export const uiSlice = createSlice({
         hideItemScanError: (state) => {
             state.itemScanError = false; 
             state.itemScanErrorMessage = '';
+        },
+        showHardNotification: (state, action) => {
+            state.hardNotification = true; 
+            state.hardNotificationMessage = action.payload;
+        },
+        hideHardNotification: (state) => {
+            state.hardNotification = false; 
+            state.hardNotificationMessage = '';
         }
     }
 })
 
-export const { showLoading, hideLoading, hideToast, showItemScanError, hideItemScanError } = uiSlice.actions
+export const { showLoading, hideLoading, hideToast, showItemScanError, hideItemScanError, showHardNotification, hideHardNotification } = uiSlice.actions
 export default uiSlice.reducer

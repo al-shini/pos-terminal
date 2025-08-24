@@ -28,30 +28,9 @@ const VirtualKeyboardInput = ({input, setInput}) => {
             <input
                 type="password"
                 value={input}
-                onFocus={() => setShowKeyboard(true)}
-                onChange={handleChange}
-                placeholder="Tap to type..."
+                 onChange={handleChange} 
                 style={{ width: "100%", fontSize: "12px", padding: "10px" }}
-            />
-
-            {/* Virtual Keyboard (Shows Only When Input is Focused) */}
-            {showKeyboard && (
-                <div style={{ position: "absolute", bottom: "0px", width: "100%", height: '200px' }}>
-                    <Keyboard
-                        onKeyPress={onKeyPress}
-                        layout={{
-                            default: [
-                                "! @ # $ % ^ & * ( )",
-                                "1 2 3 4 5 6 7 8 9 0",
-                                "q w e r t y u i o p [ ]",
-                                "a s d f g h j k l ; '",
-                                "z x c v b n m , . ?",
-                                "{bksp} {enter}"
-                            ]
-                        }}
-                    />
-                </div>
-            )}
+            /> 
         </div>
     );
 };

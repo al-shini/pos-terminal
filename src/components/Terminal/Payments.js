@@ -35,7 +35,7 @@ const Invoice = (props) => {
                 if (response.data.payments) {
                     let usedCoupons = {};
                     response.data.payments.map((payment) => {
-                        if (!payment.voided && payment.paymentMethodKey === 'CashBack') {
+                        if (!payment.voided && payment.paymentMethodKey === 'Cashback') {
                             usedCoupons[payment.sourceKey] = true;
                         }
                     })
@@ -165,8 +165,7 @@ const Invoice = (props) => {
                             {trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
                         </span>
                         <span style={{ color: 'grey' }}>
-                            Item(s)
-                        </span>
+                            Item(s) / Cashback:    {trxSlice.trx ? ((trxSlice.trx.totalcashbackamt * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}                         </span>
                     </div>
                     <div style={{ textAlign: 'right', marginRight: '10px' }}>
                         {/* <span style={{ color: 'grey', fontFamily: 'monospace' }}>
@@ -180,7 +179,7 @@ const Invoice = (props) => {
                         <Divider vertical /> */}
                         <small id='NISSymbol'>₪</small>
                         <label id='Total'>
-                            {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.systemCurrency === 'NIS'  ?  2 : 3) : '0.00'}
+                            {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
                         </label>
                     </div>
 

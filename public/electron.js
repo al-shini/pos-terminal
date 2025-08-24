@@ -73,6 +73,7 @@ function createWindow() {
     ipcMain.on('show-dev-tools', (event, arg) => {
         win.webContents.openDevTools();
     });
+
     if (isDev) {
         win.webContents.openDevTools();
     }
@@ -139,7 +140,13 @@ function createWindow() {
 
         customerScreen.setMenu(null);
 
-        // customerScreen.webContents.openDevTools();
+        ipcMain.on('show-dev-tools', (event, arg) => {
+            customerScreen.webContents.openDevTools();
+        });
+
+        if (isDev) {
+            customerScreen.webContents.openDevTools();
+        }
 
         // and load the index.html of the app.
         customerScreen.loadURL(isDev ? `http://localhost:3000/#/customer?${params}` : `file://${__dirname}/../build/index.html#/customer?${params}`);
@@ -387,6 +394,9 @@ if (!gotTheLock) {
 
                     const trx = response.data;
 
+                    console.log('somesing trx');
+                    console.log(trx);
+
                     // const qrUrl = config.qrBaseUrl + '?sptr=' + trx.key + '_' + trx.nanoId;
                     const qrUrl = 'https://plus.shini.ps/invoice?sptr=' + trx.key + '_' + trx.nanoId;
 
@@ -423,7 +433,6 @@ if (!gotTheLock) {
                         });
                     } else if (localConfig.printTemplate === 'opos') {
 
-                        if (!req.query.ignoreDrawer) {
                             oposServiceAxios({
                                 method: 'get',
                                 url: '/open-drawer'
@@ -432,7 +441,6 @@ if (!gotTheLock) {
                             }).catch((_error) => {
                                 throw _error;
                             });
-                        }
 
                         oposServiceAxios({
                             method: 'post',
@@ -450,22 +458,40 @@ if (!gotTheLock) {
 
                     }
 
-                    if (trx.campaignList) {
-                        const pdfUrl = 'https://image.shini.ps/slip.pdf';
-                        const localPdfPath = 'C:/pos/slip.pdf';
-                        https.get(pdfUrl, (response) => {
-                            const file = fs.createWriteStream(localPdfPath);
-                            response.pipe(file);
-                            file.on('finish', () => {
-                                file.close();
-                                console.log('Download complete. Sending to printer...');
-                                // Print the PDF
-                                print(localPdfPath);
+                    if (trx.campaignList && Array.isArray(trx.campaignList)) {
+                        trx.campaignList.forEach((campaign, index) => {
+                            console.log(campaign);
+                            const pdfUrl = campaign.qr_code;
+                            if (!pdfUrl) {
+                                console.warn(`No QR code URL found for campaign at index ${index}`);
+                                return;
+                            }
+
+                            const localPdfPath = path.join(os.tmpdir(), `slip_${index}.pdf`);
+
+                            https.get(pdfUrl, (response) => {
+                                const file = fs.createWriteStream(localPdfPath);
+                                response.pipe(file);
+                                file.on('finish', () => {
+                                    file.close();
+                                    console.log(`Downloaded PDF for campaign ${index + 1}. Sending to printer...`);
+                                    print(localPdfPath)
+                                        .then(() => {
+                                            console.log(`Printed campaign ${index + 1} successfully.`);
+                                            fs.unlink(localPdfPath, (err) => {
+                                                if (err) console.error(`Error deleting file ${localPdfPath}:`, err);
+                                            });
+                                        })
+                                        .catch((err) => {
+                                            console.error(`Print failed for campaign ${index + 1}:`, err);
+                                        });
+                                });
+                            }).on('error', (err) => {
+                                console.error(`Error downloading PDF for campaign ${index + 1}:`, err);
                             });
-                        }).on('error', (err) => {
-                            console.error('Error downloading the PDF:', err);
                         });
                     }
+
 
                     res.send(trx);
                 }
@@ -485,6 +511,128 @@ if (!gotTheLock) {
             res.send(e);
         }
     })
+
+    expressApp.get('/printTrxNoDrawer', async (req, res) => {
+        try {
+            axios({
+                method: 'post',
+                url: '/trx/fetchTrx',
+                headers: {
+                    'trxKey': req.query.trxKey
+                }
+            }).then((response) => {
+                if (response && response.data) {
+
+                    const trx = response.data;
+
+                    console.log('somesing trx');
+                    console.log(trx);
+
+                    // const qrUrl = config.qrBaseUrl + '?sptr=' + trx.key + '_' + trx.nanoId;
+                    const qrUrl = 'https://plus.shini.ps/invoice?sptr=' + trx.key + '_' + trx.nanoId;
+
+                    let date = trx.dateAsString;
+
+                    if (!localConfig.printTemplate || localConfig.printTemplate === 'qr') {
+                        printWithQR({
+                            qr: qrUrl,
+                            total: trx.totalafterdiscount,
+                            discount: trx.totaldiscount,
+                            paid: trx.paidamt,
+                            change: trx.customerchange,
+                            date,
+                            store: trx.branch,
+                            cashier: trx.username,
+                            type: trx.type
+                        });
+                    } else if (localConfig.printTemplate === 'complete') {
+                        printComplete({
+                            qr: qrUrl,
+                            total: trx.totalafterdiscount,
+                            discount: trx.totaldiscount,
+                            paid: trx.paidamt,
+                            change: trx.customerchange,
+                            date,
+                            store: trx.branch,
+                            cashier: trx.username,
+                            type: trx.type,
+                            lines: trx.printableLines,
+                            totalTax: trx.totalTaxAmt,
+                            payments: trx.paymentSummaryList,
+                            taxDiscount: trx.taxDiscount,
+                            terminal: trx.terminalKey
+                        });
+                    } else if (localConfig.printTemplate === 'opos') {
+
+                        oposServiceAxios({
+                            method: 'post',
+                            url: '/opos-print',
+                            data: trx,
+                            headers: {
+                                'Content-Type': 'application/json',
+                            }
+                        }).then((_res) => {
+                            console.log(_res);
+                        }).catch((_error) => {
+                            throw _error;
+                        });
+
+                    }
+
+                    if (trx.campaignList && Array.isArray(trx.campaignList)) {
+                        trx.campaignList.forEach((campaign, index) => {
+                            console.log(campaign);
+                            const pdfUrl = campaign.qr_code;
+                            if (!pdfUrl) {
+                                console.warn(`No QR code URL found for campaign at index ${index}`);
+                                return;
+                            }
+
+                            const localPdfPath = path.join(os.tmpdir(), `slip_${index}.pdf`);
+
+                            https.get(pdfUrl, (response) => {
+                                const file = fs.createWriteStream(localPdfPath);
+                                response.pipe(file);
+                                file.on('finish', () => {
+                                    file.close();
+                                    console.log(`Downloaded PDF for campaign ${index + 1}. Sending to printer...`);
+                                    print(localPdfPath)
+                                        .then(() => {
+                                            console.log(`Printed campaign ${index + 1} successfully.`);
+                                            fs.unlink(localPdfPath, (err) => {
+                                                if (err) console.error(`Error deleting file ${localPdfPath}:`, err);
+                                            });
+                                        })
+                                        .catch((err) => {
+                                            console.error(`Print failed for campaign ${index + 1}:`, err);
+                                        });
+                                });
+                            }).on('error', (err) => {
+                                console.error(`Error downloading PDF for campaign ${index + 1}:`, err);
+                            });
+                        });
+                    }
+
+
+                    res.send(trx);
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    dialog.showErrorBox('Error', 'Un-Authorized')
+                } else {
+                    dialog.showErrorBox('Error', error.message)
+                }
+                res.send('error');
+            });
+
+
+        } catch (e) {
+            logger.info(e);
+            dialog.showErrorBox('Error', e)
+            res.send(e);
+        }
+    })
+
 
     expressApp.post('/linkTerminalWithBopVisa', async (req, res) => {
         const terminalKey = req.body.terminalKey;

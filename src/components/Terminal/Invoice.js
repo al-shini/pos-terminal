@@ -20,7 +20,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
         <div
             onClick={() => handleItemClick(obj)}
             className={(obj.key === selectedLine.key) ? classes.SelectedRowBG : (isEven(index + 1) ? classes.EvenRow : classes.OddRow)}
-            style={{ ...style, minHeight: '50px', paddingTop: 10 }}
+            style={{ ...style, paddingTop: 10 }}
         >
             <FlexboxGrid style={{ paddingLeft: '10px' }}>
                 {/* First row */}
@@ -30,7 +30,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                             style={{
                                 textDecoration: obj.voided ? 'line-through' : '',
                                 color: obj.voided ? '#db0000' : '',
-                                fontSize: '18px',
+                                fontSize: '15px',
                                 marginLeft: '5px',
                                 fontFamily: 'DSDIGI'
                             }}>
@@ -43,7 +43,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                         style={{
                             textDecoration: obj.voided ? 'line-through' : '',
                             color: obj.voided ? '#db0000' : '',
-                            fontSize: '18px',
+                            fontSize: '15px',
                             fontFamily: 'Janna'
                         }}
                         className={(obj.key === selectedLine.key) ? classes.SelectedRow : null}>
@@ -65,24 +65,33 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                 </FlexboxGrid.Item>
 
                 {/* Promotion row */}
-                <FlexboxGrid.Item colspan={3} />
-                <FlexboxGrid.Item colspan={16}>
+                <FlexboxGrid.Item colspan={19}>
+                    {(obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club) &&
+                        <span style={{ color: 'rgb(70 163 235)', position: 'relative', fontSize: '14px', bottom: '3px', marginRight: 8 }}>
+                            <b style={{marginRight: 8}}>Cashback: </b>
+                            {(obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club) &&
+                                <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(((obj.cashBackAmt) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
+                            }
+
+                            <i style={{marginLeft: 8}}>|</i>
+                        </span>
+
+                    }
                     {(obj.finalprice < obj.totalprice) &&
-                        <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '18px', top: '5px', display: 'inline-block' }}>
-                            <FontAwesomeIcon icon={faTag} style={{ marginRight: '7px' }} />
-                            <b>خصم</b>
+                        <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '14px', bottom: '3px', display: 'inline-block' }}>
+                            <b>Discount</b>
                         </span>
                     }
                     {(obj.finalprice > obj.totalprice) &&
-                        <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '18px', top: '5px', display: 'inline-block' }}>
+                        <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '14px', bottom: '3px', display: 'inline-block' }}>
                             <FontAwesomeIcon icon={faTag} style={{ marginRight: '7px' }} />
-                            <b>خصم عكسي</b>
+                            <b>Negative Discount</b>
                         </span>
                     }
                     {(obj.finalprice !== obj.totalprice) && obj.priceOverride &&
-                        <span style={{ color: '#fa8900', position: 'relative', fontSize: '18px', top: '5px', display: 'inline-block' }}>
+                        <span style={{ color: '#fa8900', position: 'relative', fontSize: '14px', bottom: '3px', display: 'inline-block' }}>
                             <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginLeft: '12px', marginRight: '7px' }} />
-                            <b>نعديل سعر</b>
+                            <b>Price Change</b>
                         </span>
                     }
                 </FlexboxGrid.Item>
@@ -93,8 +102,10 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                                 style={{
                                     textDecoration: obj.voided ? 'line-through' : '',
                                     color: obj.voided ? '#db0000' : 'rgb(225,42,42)',
-                                    fontSize: '20px',
-                                    fontFamily: 'DSDIGI'
+                                    fontSize: '18px',
+                                    fontFamily: 'DSDIGI',
+                                    position: 'relative',
+                                    bottom: 10
                                 }}>
                                 <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(((obj.finalprice) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
                             </span>
@@ -102,31 +113,7 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
                     </Typography>
                 </FlexboxGrid.Item>
 
-                {/* Cashback row */}
-                <FlexboxGrid.Item colspan={3} />
-                <FlexboxGrid.Item colspan={16}>
-                    {(obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club) &&
-                        <span style={{ color: 'rgb(96 44 181)', position: 'relative', fontSize: '18px', top: '5px' }}>
-                            <FontAwesomeIcon icon={faGift} style={{ marginRight: '7px' }} />
-                            <b>كاش باك</b>
-                        </span>
-                    }
-                </FlexboxGrid.Item>
-                <FlexboxGrid.Item colspan={5}>
-                    <Typography variant='subtitle1'>
-                        {(obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club) &&
-                            <span
-                                style={{
-                                    textDecoration: obj.voided ? 'line-through' : '',
-                                    color: obj.voided ? '#db0000' : 'rgb(96 44 181)',
-                                    fontSize: '20px',
-                                    fontFamily: 'DSDIGI'
-                                }}>
-                                <b>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(((obj.cashBackAmt) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
-                            </span>
-                        }
-                    </Typography>
-                </FlexboxGrid.Item>
+
             </FlexboxGrid>
         </div>
     );
@@ -211,13 +198,26 @@ const Invoice = (props) => {
                 <h4 id='trxModeHeader' style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
                     {terminal.trxMode === 'Sale' && <span>{terminal.trxMode}</span>}
                     {terminal.trxMode === 'Refund' && <span style={{ color: 'rgb(255 60 80)' }}>{terminal.trxMode}</span>}
+                    {trxSlice.trx && trxSlice.trx.customCustomerName && (
+                        <span style={{ 
+                            color: '#4CAF50', 
+                            marginLeft: '20px', 
+                            fontSize: '14px',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            border: '1px solid #4CAF50'
+                        }}>
+                            Customer: {trxSlice.trx.customCustomerName}
+                        </span>
+                    )}
                 </h4>
             </div>
 
             <List
                 height={580}
                 itemCount={trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
-                itemSize={85}
+                itemSize={60}
                 width={'100%'}
                 itemData={data}
                 ref={listRef}
@@ -251,8 +251,8 @@ const Invoice = (props) => {
                         <span style={{ color: '#000000', marginRight: '10px', fontFamily: 'monospace' }}>
                             {trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
                         </span>
-                        <span style={{ color: 'grey', fontFamily: 'monospace' }}>
-                            Item(s)
+                        <span style={{ color: 'grey', fontFamily: 'monospace', fontSize: 20 }}>
+                            Item(s) / Cashback:    {trxSlice.trx ? ((trxSlice.trx.totalcashbackamt * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
                         </span>
                     </div>
                     <div style={{ textAlign: 'right', marginRight: '10px' }}>

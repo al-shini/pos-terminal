@@ -25,7 +25,9 @@ const initialState = {
     cashBackCoupons: [],
     usedCoupons: {},
     priceChangeReason: '',
-    scrollAction: 'none'
+    scrollAction: 'none',
+    // refund reference
+    originalTrxReference: null
 }
 
 /**
@@ -78,24 +80,41 @@ export const scanNewTransaction = createAsyncThunk(
                 thunkAPI.dispatch(hideLoading());
             });;
         } else {
+            // Add sellTrxKeyRef for refund transactions
+            const payloadData = { ...payload };
+            const trxState = thunkAPI.getState().trx;
+            if (thunkAPI.getState().terminal.trxMode === 'Refund' && trxState.originalTrxReference) {
+                payloadData.sellTrxKeyRef = trxState.originalTrxReference.key;
+                console.log('scanNewTransaction: Adding sellTrxKeyRef:', payloadData.sellTrxKeyRef);
+            } else if (thunkAPI.getState().terminal.trxMode === 'Refund') {
+                console.log('scanNewTransaction: Refund mode but no originalTrxReference found');
+            }
+            
             return axios({
                 method: 'post',
                 url: '/trx/scanNew',
-                data: payload
+                data: payloadData
             }).then((response) => {
                 if (response && response.data) {
 
                     if (!payload.barcode.includes('C-')) {
-                        thunkAPI.dispatch(scanBarcode(
-                            {
-                                customerKey: thunkAPI.getState().terminal.customer ? thunkAPI.getState().terminal.customer.key : null,
-                                barcode: payload.barcode,
-                                trxKey: response.data.trx.key,
-                                trxMode: thunkAPI.getState().terminal.trxMode,
-                                tillKey: thunkAPI.getState().terminal.till ? thunkAPI.getState().terminal.till.key : null,
-                                multiplier: payload.multiplier ? payload.multiplier : '1'
-                            }
-                        ));
+                        const scanPayload = {
+                            customerKey: thunkAPI.getState().terminal.customer ? thunkAPI.getState().terminal.customer.key : null,
+                            barcode: payload.barcode,
+                            trxKey: response.data.trx.key,
+                            trxMode: thunkAPI.getState().terminal.trxMode,
+                            tillKey: thunkAPI.getState().terminal.till ? thunkAPI.getState().terminal.till.key : null,
+                            multiplier: payload.multiplier ? payload.multiplier : '1'
+                        };
+                        
+                        // Add sellTrxKeyRef to scan payload for refunds
+                        const currentTrxState = thunkAPI.getState().trx;
+                        if (thunkAPI.getState().terminal.trxMode === 'Refund' && currentTrxState.originalTrxReference) {
+                            scanPayload.sellTrxKeyRef = currentTrxState.originalTrxReference.key;
+                            console.log('scanNewTransaction: Adding sellTrxKeyRef to scanPayload:', scanPayload.sellTrxKeyRef);
+                        }
+                        
+                        thunkAPI.dispatch(scanBarcode(scanPayload));
                     } else {
                         thunkAPI.dispatch(setCustomer(response.data.customer))
                     }
@@ -146,6 +165,19 @@ export const scanBarcode = createAsyncThunk(
 
         if (payload.barcode.includes('LC-')) {
             thunkAPI.dispatch(showLoading());
+        }
+
+        if (!payload.manualEntry) {
+            payload.manualEntry = false;
+        }
+
+        // Add sellTrxKeyRef for refund transactions
+        const trxState = thunkAPI.getState().trx;
+        if (thunkAPI.getState().terminal.trxMode === 'Refund' && trxState.originalTrxReference && !payload.sellTrxKeyRef) {
+            payload.sellTrxKeyRef = trxState.originalTrxReference.key;
+            console.log('scanBarcode: Adding sellTrxKeyRef:', payload.sellTrxKeyRef);
+        } else if (thunkAPI.getState().terminal.trxMode === 'Refund' && !payload.sellTrxKeyRef) {
+            console.log('scanBarcode: Refund mode but no originalTrxReference found');
         }
 
         return axios({
@@ -332,13 +364,7 @@ export const closeTrxPayment = createAsyncThunk(
                         thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
                     });
                 } else {
-                    axios({
-                        method: 'get',
-                        url: `http://localhost:${config.printServicePort ? config.printServicePort : config.expressPort ? config.expressPort : '3001'}/printTrx?trxKey=` + response.data.key,
-                    }).catch((error) => {
-                        console.log(error.response, error.message);
-                        thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
-                    });
+                    thunkAPI.dispatch(printTrx(response.data.key));
                 }
 
                 thunkAPI.dispatch(setManagerMode(false));
@@ -377,12 +403,32 @@ export const closeTrxPayment = createAsyncThunk(
 export const printTrx = createAsyncThunk(
     'printTrx',
     async (payload, thunkAPI) => {
+        console.log('trying to print TRX', payload);
         axios({
             method: 'get',
             url: `http://localhost:${config.printServicePort ?
                 config.printServicePort :
                 config.expressPort ? config.expressPort :
-                    '3001'}/printTrx?trxKey=${payload}&ignoreDrawer=true`,
+                    '3001'}/printTrx?trxKey=${payload}`,
+        }).then((response) => {
+            thunkAPI.dispatch(hideLoading());
+        }).catch((error) => {
+            console.log(error.response, error.message);
+            thunkAPI.dispatch(notify({ msg: 'could not print receipt - ' + (error.response ? error.response : error.message), sev: 'error' }));
+        });
+    }
+)
+
+export const printTrxNoDrawer = createAsyncThunk(
+    'printTrx',
+    async (payload, thunkAPI) => {
+        console.log('trying to print TRX', payload);
+        axios({
+            method: 'get',
+            url: `http://localhost:${config.printServicePort ?
+                config.printServicePort :
+                config.expressPort ? config.expressPort :
+                    '3001'}/printTrxNoDrawer?trxKey=${payload}`,
         }).then((response) => {
             thunkAPI.dispatch(hideLoading());
         }).catch((error) => {
@@ -760,6 +806,79 @@ export const checkOperationQrAuth = createAsyncThunk(
     }
 )
 
+export const validateRefundReference = createAsyncThunk(
+    'validateRefundReference',
+    async (payload, thunkAPI) => {
+        return axios({
+            method: 'post',
+            url: '/trx/validateRefundReference',
+            data: {
+                serialNumber: payload.serialNumber,
+                tillKey: thunkAPI.getState().terminal.till ? thunkAPI.getState().terminal.till.key : null
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                } else {
+                    thunkAPI.dispatch(notify({ msg: error.response.data.message || 'Validation failed', sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
+            }
+        });
+    }
+)
+
+export const setCustomCustomerName = createAsyncThunk(
+    'setCustomCustomerName',
+    async (payload, thunkAPI) => {
+        return axios({
+            method: 'post',
+            url: '/trx/setCustomCustomerName',
+            data: {
+                trxKey: payload.trxKey,
+                customerName: payload.customerName
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(notify({ 
+                    msg: 'Customer name updated successfully', 
+                    sev: 'success' 
+                }));
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                } else {
+                    thunkAPI.dispatch(notify({ 
+                        msg: error.response.data.message || 'Failed to update customer name', 
+                        sev: 'error' 
+                    }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
+            }
+        });
+    }
+)
+
 /**
  * reducer
  */
@@ -801,13 +920,14 @@ export const trxSlice = createSlice({
         },
         prepareScanMultiplier: (state) => {
             const numValue = parseFloat(state.numberInputValue);
-            
-            if (!state.numberInputValue || isNaN(numValue) || numValue < 1) {
-                state.multiplier = '1';
-            } else {
-                state.multiplier = state.numberInputValue;
-            }
-            
+            state.multiplier = state.numberInputValue;
+
+            // if (!state.numberInputValue || isNaN(numValue) || numValue < 1) {
+            //     state.multiplier = '1';
+            // } else {
+            //     state.multiplier = state.numberInputValue;
+            // }
+
             state.numberInputValue = '';
         },
         prepareScanMultiplierPreDefined: (state, action) => {
@@ -827,9 +947,6 @@ export const trxSlice = createSlice({
 
             console.log(action.payload.paymentMode);
 
-            if (state.selectedPaymentMethod === 'CashBack') {
-                return;
-            }
 
             if (action.payload.paymentMode) {
                 if (state.selectedPaymentMethod === 'Voucher') {
@@ -922,6 +1039,12 @@ export const trxSlice = createSlice({
         },
         resetScrollAction: (state) => {
             state.scrollAction = 'none'
+        },
+        setOriginalTrxReference: (state, action) => {
+            state.originalTrxReference = action.payload;
+        },
+        clearOriginalTrxReference: (state) => {
+            state.originalTrxReference = null;
         }
     },
     extraReducers: (builder) => {
@@ -939,6 +1062,7 @@ export const trxSlice = createSlice({
 
         /* scanNewTransaction thunk */
         builder.addCase(scanNewTransaction.fulfilled, (state, action) => {
+            console.log(action);
             state.trx = action.payload.trx;
             state.scannedItems = action.payload.trxLines;
             state.numberInputValue = '';
@@ -1023,6 +1147,7 @@ export const trxSlice = createSlice({
             state.selectedPayment = {};
             state.trxPaid = 0;
             state.trxChange = 0;
+            state.originalTrxReference = null;
         })
 
         builder.addCase(closeTrxPayment.rejected, (state, action) => {
@@ -1073,6 +1198,7 @@ export const trxSlice = createSlice({
             state.selectedPayment = {};
             state.trxPaid = 0;
             state.trxChange = 0;
+            state.originalTrxReference = null;
         })
 
         builder.addCase(voidTrx.rejected, (state, action) => {
@@ -1093,6 +1219,7 @@ export const trxSlice = createSlice({
             state.selectedPayment = {};
             state.trxPaid = 0;
             state.trxChange = 0;
+            state.originalTrxReference = null;
         })
 
         builder.addCase(suspendTrx.rejected, (state, action) => {
@@ -1116,6 +1243,29 @@ export const trxSlice = createSlice({
 
         })
 
+        /* validateRefundReference thunk */
+        builder.addCase(validateRefundReference.fulfilled, (state, action) => {
+            // Store the validated original transaction reference
+            state.originalTrxReference = action.payload.originalTransaction;
+        })
+
+        builder.addCase(validateRefundReference.rejected, (state, action) => {
+            // Clear any existing reference on validation failure
+            state.originalTrxReference = null;
+        })
+
+        /* setCustomCustomerName thunk */
+        builder.addCase(setCustomCustomerName.fulfilled, (state, action) => {
+            // Update the transaction with the custom customer name
+            if (state.trx && action.payload) {
+                state.trx.customCustomerName = action.payload.customCustomerName;
+            }
+        })
+
+        builder.addCase(setCustomCustomerName.rejected, (state, action) => {
+            // Handle error case if needed
+        })
+
     },
 })
 
@@ -1123,6 +1273,7 @@ export const trxSlice = createSlice({
 
 export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx, enablePriceChange, disablePriceChange, scroll,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory,
-    uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason, scrollDown, scrollUp, resetScrollAction, prepareScanMultiplierPreDefined, scrollBottom
+    uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason, scrollDown, scrollUp, resetScrollAction, prepareScanMultiplierPreDefined, scrollBottom,
+    setOriginalTrxReference, clearOriginalTrxReference
 } = trxSlice.actions
 export default trxSlice.reducer
