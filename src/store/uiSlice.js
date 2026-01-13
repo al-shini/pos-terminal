@@ -53,7 +53,12 @@ export const uiSlice = createSlice({
             state.loadingTimeout = 90000;
         },
         showToast: (state, action) => {
-            state.toastMsg = action.payload.msg ? action.payload.msg : action.payload;
+            // Ensure msg is always a string - handle cases where msg might be an object
+            let msg = action.payload.msg ? action.payload.msg : action.payload;
+            if (typeof msg === 'object') {
+                msg = msg.msg || msg.message || JSON.stringify(msg);
+            }
+            state.toastMsg = msg;
             state.toastType = action.payload.sev ? action.payload.sev : 'info';
             state.toastOpen = true;
         },

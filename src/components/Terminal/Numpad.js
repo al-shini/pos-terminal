@@ -13,7 +13,7 @@ import { changePrice, clearLastPaymentHistory, handleNumberInputChange, prepareS
 import { notify, showLoading } from '../../store/uiSlice';
 
 import { clearNumberInput, handleNumberInputEntry, reverseNumberInputEntry, prepareScanMultiplier, closeTrxPayment } from '../../store/trxSlice';
-import { fetchSuspendedForTill, setManagerMode, submitOpeningBalance } from '../../store/terminalSlice';
+import { fetchSuspendedForTill, setManagerMode } from '../../store/terminalSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 
 import axios from '../../axios';
@@ -125,14 +125,11 @@ const Numpad = (props) => {
                 }
 
             }
-        } else if (terminal.till && trxSlice.numberInputValue) {
-            dispatch(submitOpeningBalance(trxSlice.numberInputValue));
-            dispatch(clearNumberInput());
-
         } else {
+            // Till not initialized - BalanceSetup component handles initialization
             dispatch(notify({
-                msg: 'Invalid Opening Balance Value',
-                sev: 'error'
+                msg: 'Please initialize the till first',
+                sev: 'warning'
             }))
         }
     }
@@ -308,7 +305,7 @@ const Numpad = (props) => {
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={24}>
                         <IconButton onClick={() => {dispatch(prepareScanMultiplier())}} className={styles.NumpadButton}
-                            disabled={trxSlice.priceChangeMode || config.systemCurrency === 'JOD'}
+                            disabled={trxSlice.priceChangeMode}
                             icon={<FontAwesomeIcon icon={faTimes} />}
                             appearance='primary' color='blue' />
                     </FlexboxGrid.Item>

@@ -40,10 +40,11 @@ if (query.get("arabiVisaCom")) {
 }
 
 if (query.get("systemCurrency")) {
-    systemCurrency = query.get("systemCurrency");
+    systemCurrency = 'NIS';//query.get("systemCurrency");
 }
 
     const _visa = '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639';
+    // const _visa = 'Visa';
 
 
 const config = {
@@ -55,13 +56,14 @@ const config = {
     autoUpdate: autoUpdate ? autoUpdate : false,
     visa: _visa,
     mobiCash: 'MobiCash',
+    wfp: 'WFP',
     visaArabi: 'VISA_AB',
     jawwalPay: 'JawwalPay',
     voucher: 'Voucher',
     onAccount: 'OnAccount',
     cashBack: 'Cashback',
     employeeExtra: 'EmployeeExtra',
-    cashDroEnabled: false,
+    cashDroEnabled: true,
     arabiVisaCom: arabiVisaCom ? arabiVisaCom : false,
     systemCurrency: systemCurrency ? systemCurrency : 'NIS'
 }; 

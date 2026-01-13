@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import axios from '../../axios';
 import { Button, FlexboxGrid, Divider, Input, SelectPicker, Drawer, ButtonGroup, IconButton, ButtonToolbar, Grid, Row, Col, Panel, Modal } from 'rsuite';
@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown, faCogs,
-    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck
+    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck, faShoppingBag
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -63,7 +63,7 @@ import USD_100 from '../../assets/money-notes/100.0USD.png';
 
 import Logo from '../../assets/full-logo.png';
 import Lock from '../../assets/lock.png';
-import { ArrowLeft, Funnel, IOs, Tmall } from '@rsuite/icons';
+import { ArrowLeft, Funnel, IOs, Global } from '@rsuite/icons';
 import InactivityHandler from '../InactivityHandler';
 import VirtualKeyboardInput from '../UI/VirtualKeyboardInput';
 import RefundReferenceDialog from './RefundReferenceDialog';
@@ -85,7 +85,9 @@ const matchProduceCategory = (selectedScaleCategory, itemCategory) => {
 
     const normalizedCategory = itemCategory.toLowerCase();
 
-    if (selectedScaleCategory === 'fruit') {
+    if (selectedScaleCategory === 'all') {
+        return /fruit/i.test(normalizedCategory) || /vegetable/i.test(normalizedCategory);
+    } else if (selectedScaleCategory === 'fruit') {
         return /fruit/i.test(normalizedCategory);
     } else if (selectedScaleCategory === 'vegetable') {
         return /vegetable/i.test(normalizedCategory);
@@ -111,7 +113,7 @@ const Terminal = (props) => {
     const [hasEshiniConnection, setHasEshiniConnection] = useState(true);
     const [scaleItemsOpen, setScaleItemsOpen] = useState(false);
     const [scaleConnected, setScaleConnected] = useState(false);
-    const [selectedScaleCategory, setSelectedScaleCategory] = useState('vegetable');
+    const [selectedScaleCategory, setSelectedScaleCategory] = useState('all');
     const [produceItems, setProduceItems] = useState([]);
     const [alphabtet, setAlphabet] = useState('ا');
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -119,6 +121,13 @@ const Terminal = (props) => {
     const [lastTrxList, setLastTrxList] = useState([]);
     const [refundReferenceDialogOpen, setRefundReferenceDialogOpen] = useState(false);
     const [customCustomerNameDialogOpen, setCustomCustomerNameDialogOpen] = useState(false);
+    const [cashDroModalOpen, setCashDroModalOpen] = useState(false);
+    const [cashDroStatus, setCashDroStatus] = useState({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
+    const [cashDroPollingRef, setCashDroPollingRef] = useState(null);
+    
+    // Secret manager mode activation: tap logo 3x when numpad has "4994"
+    const [logoTapCount, setLogoTapCount] = useState(0);
+    const [logoTapTimer, setLogoTapTimer] = useState(null);
 
     const [trxCounter, setTrxCounter] = useState(0);
 
@@ -194,6 +203,37 @@ const Terminal = (props) => {
 
 
     const dispatch = useDispatch();
+
+    // Memoized filtered produce items to ensure fresh filtering on each alphabet/category change
+    const filteredProduceItems = useMemo(() => {
+        if (!produceItems || produceItems.length === 0) {
+            return [];
+        }
+
+        const normalizedAlphabet = alphabtet.toString().trim();
+
+        // First filter by criteria, then remove duplicates by barcode
+        const filtered = produceItems.filter((item) => {
+            // Improved filtering with better Arabic text handling
+            const itemDescAr = item.descriptionAr || '';
+            const normalizedItemDesc = itemDescAr.toString().trim();
+
+            return normalizedItemDesc &&
+                normalizedItemDesc.startsWith(normalizedAlphabet) &&
+                matchProduceCategory(selectedScaleCategory, item.category);
+        });
+
+        // Remove duplicates by barcode to prevent React key conflicts
+        const uniqueItems = filtered.reduce((acc, current) => {
+            const existingItem = acc.find(item => item.barcode === current.barcode);
+            if (!existingItem) {
+                acc.push(current);
+            }
+            return acc;
+        }, []);
+
+        return uniqueItems;
+    }, [produceItems, alphabtet, selectedScaleCategory]);
 
     /**  
      * basic/setup data initialization
@@ -465,7 +505,14 @@ const Terminal = (props) => {
                 dispatch(notify({ msg: 'Scale port opened', sev: 'info' }));
                 setScaleConnected(true);
             }).catch((error) => {
-                dispatch(notify({ msg: 'Could not open scale port', sev: 'error' }));
+                console.error('Scale port opening error:', error);
+                let errorMessage = 'Could not open scale port';
+
+                if (error.response && error.response.data) {
+                    errorMessage = error.response.data;
+                }
+
+                dispatch(notify({ msg: errorMessage, sev: 'error' }));
                 setScaleConnected(false);
             }).finally(() => {
                 dispatch(hideLoading());
@@ -483,7 +530,13 @@ const Terminal = (props) => {
                 setScaleConnected(false);
                 setScaleItemsOpen(false);
             }).catch((error) => {
-                dispatch(notify({ msg: 'Could not close scale port', sev: 'error' }));
+                console.error('Scale port closing error:', error);
+                let errorMessage = 'Could not close scale port';
+
+                if (error.response && error.response.data) {
+                    errorMessage = error.response.data;
+                }
+                dispatch(notify({ msg: errorMessage, sev: 'error' }));
             }).finally(() => {
                 dispatch(hideLoading());
             })
@@ -543,7 +596,7 @@ const Terminal = (props) => {
     }
 
     const scanWeightableItem = (item) => {
-        dispatch(showLoading({ msg: 'Fetching weight from scale' }));
+        dispatch(showLoading({ msg: 'Reading weight from scale (may retry if unstable)...' }));
         let barcode = item.barcode;
 
         if (item.isScalePiece) {
@@ -602,7 +655,41 @@ const Terminal = (props) => {
                 }
             }).catch((error) => {
                 console.error(error);
-                dispatch(notify({ msg: 'could not fetch weight from scale', sev: 'error' }));
+
+                // Handle enhanced error responses from the new scale system
+                let errorMessage = 'Could not fetch weight from scale';
+                let severity = 'error';
+
+                if (error.response) {
+                    const status = error.response.status;
+                    const responseMessage = error.response.data;
+
+                    switch (status) {
+                        case 408: // Request timeout - unstable weight
+                            errorMessage = 'Weight is unstable. Please place items steadily on the scale and try again.';
+                            severity = 'warning';
+                            break;
+                        case 409: // Conflict - scale busy
+                            errorMessage = 'Scale is busy. Please wait and try again.';
+                            severity = 'info';
+                            break;
+                        case 500: // Server error
+                            if (responseMessage && responseMessage.includes('not open')) {
+                                errorMessage = 'Scale not connected. Please check scale connection.';
+                            } else {
+                                errorMessage = responseMessage || 'Scale communication error';
+                            }
+                            break;
+                        default:
+                            errorMessage = responseMessage || errorMessage;
+                    }
+                } else if (error.request) {
+                    errorMessage = 'Cannot communicate with scale service';
+                } else {
+                    errorMessage = error.message || errorMessage;
+                }
+
+                dispatch(notify({ msg: errorMessage, sev: severity }));
             }).finally(() => {
                 dispatch(hideLoading());
             })
@@ -905,6 +992,146 @@ const Terminal = (props) => {
         } // end IF
     }
 
+    /* CashDro Payment Flow */
+    const handleCashDroPayment = async () => {
+        if (!trxSlice.trx) {
+            dispatch(notify({ msg: 'No transaction open', sev: 'warning' }));
+            return;
+        }
+
+        if (terminal.trxMode === 'Refund') {
+            dispatch(notify({ msg: 'CashDro does not support refunds', sev: 'warning' }));
+            return;
+        }
+
+        // Enter payment mode if not already in it
+        if (!terminal.paymentMode) {
+            dispatch(clearNumberInput());
+            dispatch(beginPayment());
+            dispatch(setPaymentType({ type: 'cash', inputType: 'fixed' }));
+        }
+
+        // Calculate remaining amount - use transaction total if no payments yet
+        const totalDue = trxSlice.trx.totalafterdiscount || 0;
+        const totalPaid = trxSlice.trxPaid || 0;
+        const remainingAmount = totalDue - totalPaid;
+        
+        if (remainingAmount <= 0) {
+            dispatch(notify({ msg: 'No remaining amount to pay', sev: 'warning' }));
+            return;
+        }
+
+        setCashDroStatus({ message: 'Starting CashDro...', state: 'STARTING', totalIn: 0, changeNotAvailable: 0 });
+        setCashDroModalOpen(true);
+
+        try {
+            // 1. Link transaction to CashDro (starts the machine)
+            const linkResponse = await axios({
+                method: 'post',
+                url: '/trx/linkTrxToCashDro',
+                headers: { trxKey: trxSlice.trx.key }
+            });
+
+            if (!linkResponse.data || !linkResponse.data.cashdroId) {
+                throw new Error('Failed to start CashDro operation');
+            }
+
+            setCashDroStatus({ 
+                message: `Insert ${remainingAmount.toFixed(2)} ${config.systemCurrency} into CashDro machine...`, 
+                state: 'PENDING', 
+                totalIn: 0, 
+                changeNotAvailable: 0 
+            });
+
+            // 2. Start polling for completion
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusResponse = await axios({
+                        method: 'post',
+                        url: '/trx/checkTrxCashDroStatus',
+                        headers: { trxKey: trxSlice.trx.key }
+                    });
+
+                    const droState = statusResponse.data;
+                    
+                    if (droState.state === 'F') { // Finished
+                        clearInterval(pollInterval);
+                        setCashDroPollingRef(null);
+                        setCashDroModalOpen(false);
+
+                        // CashDro returns amounts in cents, convert to currency
+                        const cashReceived = droState.totalIn / 100;
+                        const changeDispensed = droState.totalOut / 100;
+                        const changeNotAvailable = droState.changeNotAvailable / 100;
+                        
+                        // Submit as Cash payment
+                        dispatch(submitPayment({
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            paymentMethodKey: 'Cash',
+                            currency: config.systemCurrency,
+                            amount: cashReceived,
+                            sourceKey: 'CASHDRO-' + linkResponse.data.cashdroId,
+                            visaPayment: null
+                        }));
+
+                        dispatch(notify({ 
+                            msg: `CashDro: Received ${cashReceived.toFixed(2)}, Change ${changeDispensed.toFixed(2)}`, 
+                            sev: 'info' 
+                        }));
+
+                        // Warn if machine couldn't dispense all change
+                        if (changeNotAvailable > 0) {
+                            dispatch(notify({ 
+                                msg: `Manual change needed: ${changeNotAvailable.toFixed(2)} ${config.systemCurrency}`, 
+                                sev: 'warning' 
+                            }));
+                        }
+                    } else {
+                        // Update status with current amounts
+                        setCashDroStatus(prev => ({ 
+                            ...prev, 
+                            totalIn: droState.totalIn / 100,
+                            message: `Waiting for customer... Inserted: ${(droState.totalIn / 100).toFixed(2)} ${config.systemCurrency}`
+                        }));
+                    }
+                } catch (pollError) {
+                    console.error('CashDro poll error:', pollError);
+                }
+            }, 2000); // Poll every 2 seconds
+
+            setCashDroPollingRef(pollInterval);
+
+            // 3. Timeout after 5 minutes
+            setTimeout(() => {
+                if (cashDroPollingRef) {
+                    clearInterval(cashDroPollingRef);
+                    setCashDroPollingRef(null);
+                    setCashDroModalOpen(false);
+                    setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
+                    dispatch(notify({ msg: 'CashDro timeout - payment not completed', sev: 'error' }));
+                }
+            }, 5 * 60 * 1000);
+
+        } catch (error) {
+            setCashDroModalOpen(false);
+            setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
+            dispatch(notify({ 
+                msg: 'CashDro error: ' + (error.response?.data || error.message), 
+                sev: 'error' 
+            }));
+        }
+    };
+
+    const handleCancelCashDro = () => {
+        if (cashDroPollingRef) {
+            clearInterval(cashDroPollingRef);
+            setCashDroPollingRef(null);
+        }
+        setCashDroModalOpen(false);
+        setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
+        dispatch(notify({ msg: 'CashDro payment cancelled', sev: 'warning' }));
+    };
 
     const handleVoidLine = () => {
         if (trxSlice.trx) {
@@ -1094,10 +1321,38 @@ const Terminal = (props) => {
             setPasskey('');
         } else if (!terminal.managerMode) {
             dispatch(setManagerMode(false))
-            setPasskey(''); 
+            setPasskey('');
         } else if (terminal.managerMode) {
             dispatch(setManagerMode(false))
         }
+    }
+
+    // Secret pattern: tap logo 3x when numpad has "4994" to enable manager mode
+    const handleLogoTap = () => {
+        if (terminal.managerMode) return; // Already in manager mode
+        
+        // Clear previous timer
+        if (logoTapTimer) {
+            clearTimeout(logoTapTimer);
+        }
+        
+        const newCount = logoTapCount + 1;
+        setLogoTapCount(newCount);
+        
+        // Check if secret pattern is complete: 3 taps + numpad has "4994"
+        if (newCount >= 3 && trxSlice.numberInputValue === '4994') {
+            dispatch(setManagerMode(true));
+            dispatch(clearNumberInput());
+            setLogoTapCount(0);
+            dispatch(notify({ msg: '🔓 Manager Mode Activated', sev: 'info' }));
+            return;
+        }
+        
+        // Reset tap count after 2 seconds of no tapping
+        const timer = setTimeout(() => {
+            setLogoTapCount(0);
+        }, 2000);
+        setLogoTapTimer(timer);
     }
 
     useEffect(() => {
@@ -1216,38 +1471,7 @@ const Terminal = (props) => {
         confirm(`Refund Mode ?`, '',
             () => {
                 // First, show the refund reference dialog
-                // setRefundReferenceDialogOpen(true);
-                if (terminal.managerMode) {
-                    dispatch(setTrxMode('Refund'));
-                } else {
-                    axios({
-                        method: 'post',
-                        url: '/utilities/generateQR',
-                        data: {
-                            hardwareId: config.deviceId,
-                            source: 'Refund',
-                            sourceKey: null,
-                            creator: terminal.loggedInUser.key
-                        }
-                    }).then((response) => {
-                        if (response && response.data) {
-                            setAuthQR({
-                                ...response.data,
-                                source: 'Refund'
-                            });
-                        } else {
-                            dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-                        }
-                    }).catch((error) => {
-                        if (error.response) {
-                            if (error.response.status === 401) {
-                                dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                            }
-                        } else {
-                            dispatch(notify({ msg: error.message, sev: 'error' }));
-                        }
-                    });
-                }
+                setRefundReferenceDialogOpen(true);
             }
         )
     }
@@ -1255,7 +1479,7 @@ const Terminal = (props) => {
     const handleRefundReferenceValidated = (originalTransaction) => {
         // Store the original transaction reference in Redux state
         dispatch(setOriginalTrxReference(originalTransaction));
-        
+
         // After successful validation, proceed with QR auth if needed
         if (terminal.managerMode) {
             dispatch(setTrxMode('Refund'));
@@ -1431,6 +1655,22 @@ const Terminal = (props) => {
                 <label>Cash</label>
             </Button>
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {/* CashDro - only show if terminal has CashDro configured */}
+            {terminal.terminal && terminal.terminal.cashDroIp && (
+                <React.Fragment>
+                    <Button 
+                        key='cashdro' 
+                        disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} 
+                        className={classes.MainActionButton}
+                        style={{ background: '#2e7d32', color: 'white' }}
+                        onClick={handleCashDroPayment}
+                    >
+                        <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '5px' }} />
+                        <label>CashDro</label>
+                    </Button>
+                    <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+                </React.Fragment>
+            )}
             <Button key='foregin' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('foreign', 'numpad') }}>
                 <FontAwesomeIcon icon={faMoneyBillTransfer} style={{ marginRight: '5px' }} />
                 <label>Currency</label>
@@ -1447,6 +1687,12 @@ const Terminal = (props) => {
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
                 <label>MobiCash</label>
             </Button>
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {config.systemCurrency === 'NIS' && <Button key='wfp' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
+                onClick={() => { startPayment('wfp', 'numpad') }}>
+                <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
+                <label>WFP</label>
+            </Button>}
             {/* <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             <Button key='visa' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
                 style={{ background: '#b32572', color: 'white' }}
@@ -1763,8 +2009,8 @@ const Terminal = (props) => {
                 </Button>
             }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
-                <Button key='customerName' className={classes.MainActionButton} 
-                    disabled={!trxSlice.trx} 
+                <Button key='customerName' className={classes.MainActionButton}
+                    disabled={!trxSlice.trx}
                     onClick={() => setCustomCustomerNameDialogOpen(true)}>
                     <div style={{ fontSize: '12px', }}>
                         <FontAwesomeIcon icon={faUser} style={{ marginRight: '5px' }} />
@@ -2036,6 +2282,7 @@ const Terminal = (props) => {
             <FlexboxGrid.Item colspan={11} style={{ background: 'white', position: 'relative', left: '6px', width: '48.83333333%' }}  >
                 {terminal.display === 'ready' && <Invoice authQR={authQR} />}
                 {terminal.display === 'payment' && <Payments />}
+                {terminal.display === 'balance-setup' && <BalanceSetup />}
             </FlexboxGrid.Item>
 
             <FlexboxGrid.Item colspan={1} style={{ width: '1.166667%' }}>
@@ -2118,7 +2365,7 @@ const Terminal = (props) => {
                         <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
                         <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
                     </h6>
-                    <img src={Logo} style={{ position: 'fixed', right: '1vw', top: '0', zIndex: 1000, height: 'inherit' }} />
+                    <img src={Logo} onClick={handleLogoTap} style={{ position: 'fixed', right: '1vw', top: '0', zIndex: 1000, height: 'inherit', cursor: 'pointer' }} />
                 </div>
 
                 <div id='rightPosPanel' style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', }}>
@@ -2152,6 +2399,30 @@ const Terminal = (props) => {
                         <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginRight: '7px' }} />
                         <b>WARNING:</b> NO CONNECTION TO E-SHINI
                     </span>}
+                    
+                    {/* Expected Bags Display */}
+                    {trxSlice.trx && (
+                        <div style={{ 
+                            background: '#f0f7f0', 
+                            border: '2px solid #2e7d32', 
+                            borderRadius: '8px', 
+                            padding: '12px 20px', 
+                            margin: '10px 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '10px'
+                        }}>
+                            <FontAwesomeIcon icon={faShoppingBag} style={{ fontSize: '28px', color: '#2e7d32' }} />
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '14px', color: '#666', marginBottom: '2px' }}>Expected Bags</div>
+                                <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#2e7d32', fontFamily: 'DSDIGI' }}>
+                                    {trxSlice.scannedItems ? Math.ceil(trxSlice.scannedItems.filter(item => !item.voided && Number.isInteger(item.qty)).reduce((sum, item) => sum + item.qty, 0) / 7) : 0}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     {
                         !terminal.paymentMode && config.scale &&
                         (<h4 style={{ textAlign: 'center', cursor: 'pointer', }}>
@@ -2462,33 +2733,25 @@ const Terminal = (props) => {
                         <Col xs={24}>
                             <div style={{ height: '72.5vh', overflowX: 'hidden', overflowY: 'auto' }}>
                                 <ButtonToolbar style={{ textAlign: 'center', width: '100%' }}>
-                                    {produceItems.map((item) => {
-                                        if (typeof item.descriptionAr === 'string' && item.descriptionAr.startsWith(alphabtet)
-                                            && matchProduceCategory(selectedScaleCategory, item.category)) {
+                                    {filteredProduceItems.map((item) => {
+                                        const imgSrc = images[`${item.barcode}.png`] || images[`PLU_${item.barcode}.jpg`] || images['nophoto.jpg'];
 
-                                            const imgSrc = images[`PLU_${item.barcode}.jpg`] || images['nophoto.jpg'];
-
-
-                                            return (
-                                                <Button key={item.barcode} appearance='ghost' color='cyan' style={{ width: '22%', margin: '5px' }}
-                                                    onClick={() => { scanWeightableItem(item); }}>
-                                                    <img
-                                                        src={imgSrc}
-                                                        onError={(e) => {
-                                                            e.target.src = images['nophoto.jpg'];
-                                                        }}
-
-                                                        height={100} width={100}
-                                                    />
-                                                    <br />
-                                                    <b style={{ color: 'black' }}>
-                                                        {item.descriptionAr} {item.isScalePiece && <FontAwesomeIcon icon={faTag} />}
-                                                    </b>
-                                                </Button>
-                                            );
-                                        } else {
-                                            return null;
-                                        }
+                                        return (
+                                            <Button key={item.barcode} appearance='ghost' color='cyan' style={{ width: '22%', margin: '5px' }}
+                                                onClick={() => { scanWeightableItem(item); }}>
+                                                <img
+                                                    src={imgSrc}
+                                                    onError={(e) => {
+                                                        e.target.src = images['nophoto.jpg'];
+                                                    }}
+                                                    height={100} width={100}
+                                                />
+                                                <br />
+                                                <b style={{ color: 'black' }}>
+                                                    {item.descriptionAr} {item.isScalePiece && <FontAwesomeIcon icon={faTag} />}
+                                                </b>
+                                            </Button>
+                                        );
                                     })}
                                 </ButtonToolbar>
                             </div>
@@ -2503,30 +2766,49 @@ const Terminal = (props) => {
                                 <IconButton icon={<ArrowLeft />} onClick={() => { setScaleItemsOpen(false) }}>
                                     Go Back
                                 </IconButton>
-                                <IconButton style={{ width: '100px' }}
-                                    disabled={!scaleConnected}
-                                    icon={<Tmall />} appearance='primary'
-                                    color='blue'
-                                    onClick={zeroScale} >
-                                    ZERO
-                                </IconButton>
+
                             </ButtonToolbar>
                         </Col>
                         <Col xs={5}>
                         </Col>
                         <Col xs={12}>
                             <ButtonToolbar style={{ textAlign: 'right' }} >
-                                <IconButton style={{ width: '150px' }}
-                                    disabled={selectedScaleCategory === 'fruit'}
-                                    icon={<IOs />} appearance={selectedScaleCategory === 'fruit' ? 'default' : 'primary'}
-                                    color='cyan'
+                                <IconButton
+                                    style={{
+                                        width: '120px',
+                                        backgroundColor: selectedScaleCategory === 'all' ? '#34c759' : 'transparent',
+                                        color: selectedScaleCategory === 'all' ? 'white' : '#007acc',
+                                        border: selectedScaleCategory === 'all' ? '2px solid #34c759' : '2px solid #007acc',
+                                        fontWeight: selectedScaleCategory === 'all' ? 'bold' : 'normal'
+                                    }}
+                                    icon={<Global />}
+                                    appearance={selectedScaleCategory === 'all' ? 'primary' : 'ghost'}
+                                    onClick={() => { setSelectedScaleCategory('all') }} >
+                                    All Items
+                                </IconButton>
+                                <IconButton
+                                    style={{
+                                        width: '120px',
+                                        backgroundColor: selectedScaleCategory === 'fruit' ? '#ff9500' : 'transparent',
+                                        color: selectedScaleCategory === 'fruit' ? 'white' : '#ff9500',
+                                        border: selectedScaleCategory === 'fruit' ? '2px solid #ff9500' : '2px solid #ff9500',
+                                        fontWeight: selectedScaleCategory === 'fruit' ? 'bold' : 'normal'
+                                    }}
+                                    icon={<IOs />}
+                                    appearance={selectedScaleCategory === 'fruit' ? 'primary' : 'ghost'}
                                     onClick={() => { setSelectedScaleCategory('fruit') }} >
                                     Fruits
                                 </IconButton>
-                                <IconButton style={{ width: '150px' }} icon={<Funnel />}
-                                    disabled={selectedScaleCategory === 'vegetable'}
-                                    appearance={selectedScaleCategory === 'vegetable' ? 'default' : 'primary'}
-                                    color='cyan'
+                                <IconButton
+                                    style={{
+                                        width: '120px',
+                                        backgroundColor: selectedScaleCategory === 'vegetable' ? '#30d158' : 'transparent',
+                                        color: selectedScaleCategory === 'vegetable' ? 'white' : '#30d158',
+                                        border: selectedScaleCategory === 'vegetable' ? '2px solid #30d158' : '2px solid #30d158',
+                                        fontWeight: selectedScaleCategory === 'vegetable' ? 'bold' : 'normal'
+                                    }}
+                                    icon={<Funnel />}
+                                    appearance={selectedScaleCategory === 'vegetable' ? 'primary' : 'ghost'}
                                     onClick={() => { setSelectedScaleCategory('vegetable') }}>
                                     Vegetables
                                 </IconButton>
@@ -2642,6 +2924,47 @@ const Terminal = (props) => {
                         })}
                     </ButtonToolbar>}
                 </Panel>
+            </Modal>
+
+            {/* CashDro Payment Modal */}
+            <Modal open={cashDroModalOpen} backdrop="static" keyboard={false} size="sm">
+                <Modal.Header closeButton={false}>
+                    <Modal.Title>
+                        <FontAwesomeIcon icon={faMoneyBill} style={{ marginRight: '10px', color: '#2e7d32' }} />
+                        CashDro Payment
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body style={{ textAlign: 'center', padding: '30px' }}>
+                    <div style={{ fontSize: '18px', marginBottom: '20px' }}>
+                        {cashDroStatus.message}
+                    </div>
+                    {cashDroStatus.state === 'PENDING' && (
+                        <div style={{ 
+                            fontSize: '28px', 
+                            fontWeight: 'bold', 
+                            color: '#2e7d32',
+                            marginBottom: '20px' 
+                        }}>
+                            Inserted: {cashDroStatus.totalIn.toFixed(2)} {config.systemCurrency}
+                        </div>
+                    )}
+                    {cashDroStatus.state === 'PENDING' && (
+                        <div style={{ color: '#666', fontSize: '14px' }}>
+                            Waiting for customer to complete payment...
+                        </div>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button 
+                        onClick={handleCancelCashDro} 
+                        appearance="primary" 
+                        color="red"
+                        style={{ width: '100%' }}
+                    >
+                        <FontAwesomeIcon icon={faBan} style={{ marginRight: '5px' }} />
+                        Cancel Payment
+                    </Button>
+                </Modal.Footer>
             </Modal>
 
             <RefundReferenceDialog

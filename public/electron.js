@@ -13,7 +13,7 @@ const crypto = require('crypto');
 const net = require('net');
 const { autoUpdater } = require("electron-updater")
 const { print } = require("pdf-to-printer");
-const { SerialPort } = require('serialport')
+const { SerialPort, ByteLengthParser } = require('serialport')
 const printComplete = require('./printComplete');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const logger = require('./logger');
@@ -818,121 +818,334 @@ if (!gotTheLock) {
         }
     })
 
-    let port;
-    let parser;
-
-    expressApp.get('/openScalePort', (req, res) => {
-        port = new SerialPort({
-            path: localConfig.scaleCOM || 'COM1',
-            baudRate: localConfig.baudRate || 9600,
-            autoOpen: false // Prevent auto-opening, we'll open it manually
-        });
-
-        parser = port.pipe(new ReadlineParser({ delimiter: '\n' })); // LF as delimiter
-
-        port.open((err) => {
-            if (err) {
-                logger.error('Error opening serial port: ', err.message);
-                return res.status(500).send('Error opening serial port: '.concat(err.message));
-            } else {
-                return res.status(200).send('Serial Port Opened');
-            }
-        });
+    // Enhanced scale handling with stability management
+    let scaleHandler = null;
+    
+    // Scale configuration from local config
+    const getScaleConfig = () => ({
+        port: localConfig.scaleCOM || 'COM1',
+        baudRate: localConfig.baudRate || 9600,
+        maxRetries: localConfig.scaleMaxRetries || 6,
+        retryDelay: localConfig.scaleRetryDelay || 500,
+        responseTimeout: localConfig.scaleResponseTimeout || 3000,
+        weightCommand: localConfig.scaleWeightCommand || '$',
+        zeroCommand: localConfig.scaleZeroCommand || 'Z',
+        restartCommand: localConfig.scaleRestartCommand || 'Z'
     });
 
-    expressApp.get('/closeScalePort', (req, res) => {
-        if (!port.isOpen) {
-            return res.status(500).send('Serial port not open to close');
-        } else {
-            port.close();
-            port.on('close', () => {
-                return res.status(200).send('Port closed');
+    // Enhanced Scale Handler Class for TEM EGE-TB
+    class EnhancedScaleHandler {
+        constructor(config) {
+            this.config = config;
+            this.serialPort = null;
+            this.parser = null;
+            this.isConnected = false;
+            this.isWaitingForWeight = false;
+            this.currentWeightPromise = null;
+            this.weightTimeout = null;
+            this.retryCount = 0;
+        }
+
+        async connect() {
+            return new Promise((resolve, reject) => {
+                try {
+                    this.serialPort = new SerialPort({
+                        path: this.config.port,
+                        baudRate: this.config.baudRate,
+                        autoOpen: false
+                    });
+
+                    // Use ReadlineParser with Carriage Return as delimiter for TEM EGE-TB
+                    this.parser = this.serialPort.pipe(new ReadlineParser({ delimiter: '\r' }));
+
+                    this.serialPort.on('error', (err) => {
+                        logger.error('Scale Serial Port Error:', err.message);
+                        this.isConnected = false;
+                        reject(err);
+                    });
+
+                    this.serialPort.on('open', () => {
+                        logger.info('Enhanced Scale Handler connected successfully');
+                        this.isConnected = true;
+                        resolve();
+                    });
+
+                    this.serialPort.on('close', () => {
+                        logger.info('Enhanced Scale Handler disconnected');
+                        this.isConnected = false;
+                    });
+
+                    // Listen for weight data
+                    this.parser.on('data', (data) => {
+                        this.handleWeightData(data);
+                    });
+
+                    this.serialPort.open();
+                } catch (error) {
+                    reject(error);
+                }
             });
-            port.on('error', (err) => {
-                logger.info('Serial Port closing error: ', err.message);
-                return res.status(200).send('Port closing error');
+        }
+
+        async disconnect() {
+            return new Promise((resolve) => {
+                if (this.serialPort && this.serialPort.isOpen) {
+                    this.serialPort.close(() => {
+                        this.isConnected = false;
+                        resolve();
+                    });
+                } else {
+                    resolve();
+                }
             });
+        }
+
+        async getWeight() {
+            if (!this.isConnected) {
+                throw new Error('Scale not connected');
+            }
+
+            if (this.isWaitingForWeight) {
+                throw new Error('Weight reading already in progress');
+            }
+
+            return new Promise((resolve, reject) => {
+                this.currentWeightPromise = { resolve, reject };
+                this.retryCount = 0;
+                this.attemptWeightReading();
+            });
+        }
+
+        async sendCommand(command) {
+            if (!this.isConnected) {
+                throw new Error('Scale not connected');
+            }
+
+            return new Promise((resolve, reject) => {
+                this.serialPort.write(command, (err) => {
+                    if (err) {
+                        reject(new Error(`Failed to send command: ${err.message}`));
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        attemptWeightReading() {
+            if (this.retryCount >= this.config.maxRetries) {
+                this.handleWeightError('Weight unstable after maximum retries. Please ensure scale is stable.');
+                return;
+            }
+
+            logger.info(`Attempting weight reading (${this.retryCount + 1}/${this.config.maxRetries + 1})`);
+            this.isWaitingForWeight = true;
+
+            // Set timeout for response
+            this.weightTimeout = setTimeout(() => {
+                this.handleNoResponse();
+            }, this.config.responseTimeout);
+
+            // Send weight command
+            this.serialPort.write(this.config.weightCommand, (err) => {
+                if (err) {
+                    this.handleWeightError(`Failed to send weight command: ${err.message}`);
+                }
+            });
+        }
+
+        handleWeightData(data) {
+            // Clear timeout since we got a response
+            if (this.weightTimeout) {
+                clearTimeout(this.weightTimeout);
+                this.weightTimeout = null;
+            }
+
+            this.isWaitingForWeight = false;
+
+            // Clean and parse the weight data
+            const cleanWeight = data.replace(/[^\d.]/g, '');
+            const weightValue = parseFloat(cleanWeight);
+
+            if (!isNaN(weightValue)) {
+                logger.info(`Weight reading successful: ${weightValue}`);
+                this.retryCount = 0;
+                
+                if (this.currentWeightPromise) {
+                    this.currentWeightPromise.resolve(weightValue);
+                    this.currentWeightPromise = null;
+                }
+            } else {
+                this.handleWeightError('Invalid weight data format received');
+            }
+        }
+
+        handleNoResponse() {
+            this.isWaitingForWeight = false;
+            this.retryCount++;
+
+            logger.info(`No response from scale (attempt ${this.retryCount}/${this.config.maxRetries + 1}) - weight may be unstable`);
+
+            if (this.retryCount <= this.config.maxRetries) {
+                logger.info(`Retrying in ${this.config.retryDelay}ms...`);
+                setTimeout(() => {
+                    this.attemptWeightReading();
+                }, this.config.retryDelay);
+            } else {
+                this.handleWeightError('Weight reading failed: Scale indicates unstable weight');
+            }
+        }
+
+        handleWeightError(errorMessage) {
+            this.isWaitingForWeight = false;
+            this.retryCount = 0;
+
+            if (this.weightTimeout) {
+                clearTimeout(this.weightTimeout);
+                this.weightTimeout = null;
+            }
+
+            logger.error('Weight reading error:', errorMessage);
+
+            if (this.currentWeightPromise) {
+                this.currentWeightPromise.reject(new Error(errorMessage));
+                this.currentWeightPromise = null;
+            }
+        }
+
+        isReady() {
+            return this.isConnected && !this.isWaitingForWeight;
+        }
+    }
+
+    expressApp.get('/openScalePort', async (req, res) => {
+        try {
+            if (scaleHandler && scaleHandler.isConnected) {
+                return res.status(200).send('Scale port already open');
+            }
+
+            const config = getScaleConfig();
+            scaleHandler = new EnhancedScaleHandler(config);
+            
+            await scaleHandler.connect();
+            logger.info('Scale port opened with enhanced stability handling');
+            return res.status(200).send('Serial Port Opened');
+        } catch (error) {
+            logger.error('Error opening scale port:', error.message);
+            return res.status(500).send('Error opening serial port: ' + error.message);
+        }
+    });
+
+    expressApp.get('/closeScalePort', async (req, res) => {
+        try {
+            if (!scaleHandler || !scaleHandler.isConnected) {
+                return res.status(500).send('Serial port not open to close');
+            }
+
+            await scaleHandler.disconnect();
+            scaleHandler = null;
+            logger.info('Scale port closed successfully');
+            return res.status(200).send('Port closed');
+        } catch (error) {
+            logger.error('Error closing scale port:', error.message);
+            return res.status(500).send('Port closing error: ' + error.message);
         }
     });
 
     expressApp.get('/isScaleConnected', (req, res) => {
-        if (port && port.isOpen) {
+        if (scaleHandler && scaleHandler.isConnected) {
             return res.status(200).send('OK');
         } else {
             return res.status(500).send('Serial port not open');
         }
     });
 
-    expressApp.get('/weightScale', (req, res) => {
-        if (!port.isOpen) {
-            return res.status(500).send('Serial port not open');
+    expressApp.get('/weightScale', async (req, res) => {
+        try {
+            if (!scaleHandler || !scaleHandler.isConnected) {
+                return res.status(500).send('Serial port not open');
+            }
+
+            if (!scaleHandler.isReady()) {
+                return res.status(409).send('Scale is busy processing another request');
+            }
+
+            logger.info('Starting enhanced weight reading with stability handling');
+            const weight = await scaleHandler.getWeight();
+            
+            logger.info(`Weight reading completed: ${weight}`);
+            res.send(weight.toString());
+        } catch (error) {
+            logger.error('Weight reading error:', error.message);
+            
+            // Provide specific error messages for different scenarios
+            if (error.message.includes('unstable')) {
+                res.status(408).send('Weight unstable - please ensure items are placed steadily on scale');
+            } else if (error.message.includes('already in progress')) {
+                res.status(409).send('Weight reading already in progress');
+            } else {
+                res.status(500).send('Error reading weight: ' + error.message);
+            }
         }
-        let responded = false;
+    });
 
-        parser.once('data', (data) => {
-            logger.info(data);
-            const buffer = Buffer.from(data, 'utf-8');
-            const valueAsString = buffer.toString('utf-8');
-            logger.info(valueAsString);
+    expressApp.get('/zeroScale', async (req, res) => {
+        try {
+            if (!scaleHandler || !scaleHandler.isConnected) {
+                return res.status(500).send('Serial port not open');
+            }
 
-            const digitsOnly = valueAsString.replace(/[^\d.]/g, '');
-            logger.info('scale data: '.concat(digitsOnly));
-            responded = true;
-            res.send(digitsOnly);
-        });
+            logger.info('Zeroing scale...');
+            await scaleHandler.sendCommand(scaleHandler.config.zeroCommand);
+            
+            logger.info('Scale zeroed successfully');
+            res.send('Scale zeroed successfully');
+        } catch (error) {
+            logger.error('Error zeroing scale:', error.message);
+            res.status(500).send('Error zeroing scale: ' + error.message);
+        }
+    });
 
-        port.write(localConfig.scaleWeightCommand || '$', (err) => {
-            logger.info('sent command '.concat(localConfig.scaleWeightCommand || '$'));
-            if (err) {
-                logger.error(err);
-                logger.error('error writing weightScale command?');
-                responded = true;
-                res.status(500).send('error writing weightScale command ');
+    expressApp.get('/restartScale', async (req, res) => {
+        try {
+            if (!scaleHandler || !scaleHandler.isConnected) {
+                return res.status(500).send('Serial port not open');
+            }
+
+            logger.info('Restarting scale...');
+            await scaleHandler.sendCommand(scaleHandler.config.restartCommand);
+            
+            logger.info('Scale restart command sent successfully');
+            res.send('Scale restart command sent successfully');
+        } catch (error) {
+            logger.error('Error restarting scale:', error.message);
+            res.status(500).send('Error restarting scale: ' + error.message);
+        }
+    });
+
+    // New endpoint to get enhanced scale status
+    expressApp.get('/scaleStatus', (req, res) => {
+        if (!scaleHandler) {
+            return res.json({
+                connected: false,
+                ready: false,
+                message: 'Scale handler not initialized'
+            });
+        }
+
+        res.json({
+            connected: scaleHandler.isConnected,
+            ready: scaleHandler.isReady(),
+            waiting: scaleHandler.isWaitingForWeight,
+            config: {
+                port: scaleHandler.config.port,
+                baudRate: scaleHandler.config.baudRate,
+                maxRetries: scaleHandler.config.maxRetries,
+                retryDelay: scaleHandler.config.retryDelay,
+                responseTimeout: scaleHandler.config.responseTimeout
             }
         });
     });
-
-    expressApp.get('/zeroScale', (req, res) => {
-        if (!port.isOpen) {
-            return res.status(500).send('Serial port not open');
-        }
-
-        parser.once('data', (data) => {
-            const buffer = Buffer.from(data, 'utf-8');
-            const valueAsString = buffer.toString('utf-8');
-            res.send(valueAsString);
-        });
-
-        port.write(localConfig.scaleZeroCommand || 'Z', (err) => {
-            if (err) {
-                logger.error(err);
-                logger.info('error writing scale command ');
-                res.status(500).send('error writing zeroScale command ');
-            }
-        });
-    });
-
-    expressApp.get('/restartScale', (req, res) => {
-        if (!port.isOpen) {
-            return res.status(500).send('Serial port not open');
-        }
-
-        parser.once('data', (data) => {
-            AAAAAAAAAAA
-            const buffer = Buffer.from(data, 'utf-8');
-            const valueAsString = buffer.toString('utf-8');
-            res.send(valueAsString);
-        });
-
-        port.write(localConfig.scaleRestartCommand || 'Z', (err) => {
-            if (err) {
-                logger.error(err);
-                logger.error('error writing restartScale command ');
-                res.status(500).send('error writing restartScale command ');
-            }
-        });
-    });
-
 
     function restartApp() {
         app.relaunch();

@@ -252,7 +252,7 @@ const Invoice = (props) => {
                             {trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
                         </span>
                         <span style={{ color: 'grey', fontFamily: 'monospace', fontSize: 20 }}>
-                            Item(s) / Cashback:    {trxSlice.trx ? ((trxSlice.trx.totalcashbackamt * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
+                            Item(s) / Cashback: {trxSlice.trx ? ((trxSlice.trx.totalcashbackamt * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
                         </span>
                     </div>
                     <div style={{ textAlign: 'right', marginRight: '10px' }}>

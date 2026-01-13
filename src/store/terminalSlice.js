@@ -267,7 +267,7 @@ export const unlockTill = createAsyncThunk(
 export const submitOpeningBalance = createAsyncThunk(
     'submitOpeningBalance',
     async (payload, thunkAPI) => {
-
+        // payload is now { balance: number, startingBags: number }
         return axios({
             method: 'post',
             url: '/actions/initializeTill',
@@ -275,12 +275,12 @@ export const submitOpeningBalance = createAsyncThunk(
                 tillKey: thunkAPI.getState().terminal.till.key
             },
             data: {
-                balance: payload
+                balance: payload.balance || 1000,
+                startingBags: payload.startingBags || 200
             }
         }).then((response) => {
             if (response && response.data) {
-
-                thunkAPI.dispatch(notify('Openinig Balance Variance Updated!'));
+                thunkAPI.dispatch(notify('Till initialized successfully!'));
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
                 return thunkAPI.rejectWithValue('Incorrect server response');
@@ -288,21 +288,17 @@ export const submitOpeningBalance = createAsyncThunk(
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
-
                     thunkAPI.dispatch(notify({ msg: 'Un-authorized', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 }
                 else {
-
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
                 return thunkAPI.rejectWithValue(error.message);
             }
-
         });
     }
 )
