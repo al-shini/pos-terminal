@@ -1,6 +1,6 @@
 {
   "name": "pos",
-  "version": "4.3.5",
+  "version": "4.3.6",
   "main": "public/electron.js",
   "author": {
     "name": "Al Shini Supermarket",

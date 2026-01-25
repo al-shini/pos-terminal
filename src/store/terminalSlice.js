@@ -267,7 +267,7 @@ export const unlockTill = createAsyncThunk(
 export const submitOpeningBalance = createAsyncThunk(
     'submitOpeningBalance',
     async (payload, thunkAPI) => {
-        // payload is now { balance: number, startingBags: number }
+        // payload is now { balance: number }
         return axios({
             method: 'post',
             url: '/actions/initializeTill',
@@ -275,8 +275,7 @@ export const submitOpeningBalance = createAsyncThunk(
                 tillKey: thunkAPI.getState().terminal.till.key
             },
             data: {
-                balance: payload.balance || 1000,
-                startingBags: payload.startingBags || 200
+                balance: payload.balance || 1000
             }
         }).then((response) => {
             if (response && response.data) {

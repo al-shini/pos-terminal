@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown, faCogs,
-    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck, faShoppingBag
+    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -1781,7 +1781,7 @@ const Terminal = (props) => {
                 }}>
                     <label style={{ marginRight: '5px' }}>Refund</label>
                     <label style={{ fontFamily: 'DSDIGI', fontSize: '20px' }}>
-                        {trxSlice.trx.totalafterdiscount} {config.systemCurrency === 'NIS' ? '₪' : 'JD'}
+                        {trxSlice.trx.totalafterdiscount} {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
                     </label>
                 </Button>
             );
@@ -2053,7 +2053,7 @@ const Terminal = (props) => {
                     }} >
 
                     <div key={i + 'cbc'} style={{ textAlign: 'center', fontSize: '16px', }}>
-                        ( {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {obj.totalafterdiscount} ) <small>Restore <FontAwesomeIcon icon={faPlay} /></small>
+                        ( {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {obj.totalafterdiscount} ) <small>Restore <FontAwesomeIcon icon={faPlay} /></small>
                     </div>
 
                 </Button>
@@ -2071,10 +2071,10 @@ const Terminal = (props) => {
             <Button key={'1'} className={classes.LongActionButton}
                 disabled style={{ color: '#004109' }}>
                 <div style={{ textAlign: 'center' }}>
-                    Balance: {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {terminal.customer.employeeBalance}
+                    Balance: {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {terminal.customer.employeeBalance}
                     <hr style={{ padding: '2px', margin: '2px' }} />
                     <small>
-                        (Limit: {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {terminal.customer.employeeBalanceLimit})
+                        (Limit: {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {terminal.customer.employeeBalanceLimit})
                     </small>
                 </div>
             </Button >
@@ -2094,7 +2094,7 @@ const Terminal = (props) => {
                     <i style={{ fontSize: 12 }}>Cashback Balance</i>
                     <br />
                     <div style={{ margin: 'auto' }}>
-                        <b>{terminal.customer.cashbackBalance} <small>{config.systemCurrency === 'NIS' ? '₪' : 'JD'}</small></b>
+                        <b>{terminal.customer.cashbackBalance} <small>{config.systemCurrency === 'NIS' ? 'JD' : 'JD'}</small></b>
                     </div>
                 </div>
             </Button >
@@ -2386,7 +2386,7 @@ const Terminal = (props) => {
                         <span style={{ color: '#fa8900' }}>
                             <FontAwesomeIcon icon={faStar} style={{ marginLeft: '7px', marginRight: '7px' }} /> Club
                             {terminal.customer && terminal.customer.employee && <span style={{ color: 'rgb(227,37,33)' }}> <b> (E)</b></span>}
-                            {terminal.customer.cashbackBalance && <b>  ({terminal.customer.cashbackBalance} <small>{config.systemCurrency === 'NIS' ? '₪' : 'JD'}</small>)</b>}
+                            {terminal.customer.cashbackBalance && <b>  ({terminal.customer.cashbackBalance} <small>{config.systemCurrency === 'NIS' ? 'JD' : 'JD'}</small>)</b>}
                         </span>}
 
                     {terminal.managerMode && <Divider vertical /> &&
@@ -2399,29 +2399,6 @@ const Terminal = (props) => {
                         <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginRight: '7px' }} />
                         <b>WARNING:</b> NO CONNECTION TO E-SHINI
                     </span>}
-                    
-                    {/* Expected Bags Display */}
-                    {trxSlice.trx && (
-                        <div style={{ 
-                            background: '#f0f7f0', 
-                            border: '2px solid #2e7d32', 
-                            borderRadius: '8px', 
-                            padding: '12px 20px', 
-                            margin: '10px 0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '10px'
-                        }}>
-                            <FontAwesomeIcon icon={faShoppingBag} style={{ fontSize: '28px', color: '#2e7d32' }} />
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: '14px', color: '#666', marginBottom: '2px' }}>Expected Bags</div>
-                                <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#2e7d32', fontFamily: 'DSDIGI' }}>
-                                    {trxSlice.scannedItems ? Math.ceil(trxSlice.scannedItems.filter(item => !item.voided && Number.isInteger(item.qty)).reduce((sum, item) => sum + item.qty, 0) / 7) : 0}
-                                </div>
-                            </div>
-                        </div>
-                    )}
                     
                     {
                         !terminal.paymentMode && config.scale &&
@@ -2441,7 +2418,7 @@ const Terminal = (props) => {
                                     </small>
                                     <b>
                                         <label id='Total' style={{ fontSize: '25px' }}>
-                                            {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                            {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
                                         </label>
                                     </b>
                                 </div>
@@ -2454,7 +2431,7 @@ const Terminal = (props) => {
                                         {trxSlice.trxChange > 0 ? 'Change = ' : 'Due = '}
                                     </small>
                                     <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
-                                        {config.systemCurrency === 'NIS' ? '₪' : 'JD'} {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                        {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
                                     </label>
                                     </b>
                                     {
@@ -2465,7 +2442,7 @@ const Terminal = (props) => {
                                     }
                                     {
                                         (trxSlice.trx && trxSlice.trx.affectedByPlusTax && trxSlice.trx.totalPlusTaxAmt > 0) && <h5 style={{ fontSize: '15px', color: '#8B0000' }}>
-                                            *Required Plus Tax = <span style={{ fontFamily: 'DSDIGI' }}>{config.systemCurrency === 'NIS' ? '₪' : 'JD'} {trxSlice.trx.totalPlusTaxAmt}</span>
+                                            *Required Plus Tax = <span style={{ fontFamily: 'DSDIGI' }}>{config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {trxSlice.trx.totalPlusTaxAmt}</span>
                                         </h5>
                                     }
                                 </div>

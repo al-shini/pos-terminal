@@ -170,14 +170,14 @@ const Invoice = (props) => {
                     <div style={{ textAlign: 'right', marginRight: '10px' }}>
                         {/* <span style={{ color: 'grey', fontFamily: 'monospace' }}>
                             Tax:
-                            <small id='NISSymbolTax'>₪</small>
+                            <small id='NISSymbolTax'>JD</small>
                             <small id='TotalTax'>
                                 {trxSlice.trx ? (Math.round((trxSlice.trx.totalafterdiscount - trxSlice.trx.totalAfterDiscountBeforeTax) * 100) / 100).toFixed(config.systemCurrency === 'NIS'  ?  2 : 3) : '0.00'}
                             </small>
                         </span>
 
                         <Divider vertical /> */}
-                        <small id='NISSymbol'>₪</small>
+                        <small id='NISSymbol'>JD</small>
                         <label id='Total'>
                             {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
                         </label>

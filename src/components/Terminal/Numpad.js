@@ -183,7 +183,7 @@ const Numpad = (props) => {
                                 }
                                 {
                                     trxSlice.priceChangeMode &&
-                                    <Input value={'₪ ' + (trxSlice.selectedLine ? (trxSlice.selectedLine.finalprice / trxSlice.selectedLine.qty) : '-') + ' -> '}
+                                    <Input value={'JD ' + (trxSlice.selectedLine ? (trxSlice.selectedLine.finalprice / trxSlice.selectedLine.qty) : '-') + ' -> '}
                                         disabled
                                         placeholder={'Old Price'}
                                         style={{ borderRadius: 0, boxShadow: 'none', textAlign: 'center', color: '#404040' }} />
