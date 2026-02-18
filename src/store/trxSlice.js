@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { showLoading, hideLoading, notify, showItemScanError } from './uiSlice'
+import { showLoading, hideLoading, notify, showItemScanError, showCampaignWin } from './uiSlice'
 import { fetchSuspendedForTill, resetCustomer, setCustomer, setManagerMode, setManagerUser, setTrxMode, triggerErrorSound, unlockTill } from './terminalSlice';
 import { reset } from './terminalSlice'
 import config from '../config';
@@ -347,6 +347,10 @@ export const closeTrxPayment = createAsyncThunk(
             if (response && response.data) {
 
                 thunkAPI.dispatch(notify({ msg: 'Transaction paid, print invoice ☺', sev: 'info' }));
+
+                if (response.data.campaignWinResult) {
+                    thunkAPI.dispatch(showCampaignWin(response.data.campaignWinResult));
+                }
 
                 if (payload.sendToNumber) {
                     axios({

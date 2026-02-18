@@ -66,7 +66,6 @@ import Lock from '../../assets/lock.png';
 import { ArrowLeft, Funnel, IOs, Global } from '@rsuite/icons';
 import InactivityHandler from '../InactivityHandler';
 import VirtualKeyboardInput from '../UI/VirtualKeyboardInput';
-import RefundReferenceDialog from './RefundReferenceDialog';
 import CustomCustomerNameDialog from './CustomCustomerNameDialog';
 const { ipcRenderer } = window.require('electron');
 
@@ -110,7 +109,7 @@ const Terminal = (props) => {
     const [play] = useSound(errorBeep);
     const [groupedFastItems, setGroupedFastItems] = useState({});
     const [selectedFGroup, setSelectedFGroup] = useState(null);
-    const [hasEshiniConnection, setHasEshiniConnection] = useState(true);
+    const [hasShiniMeConnection, setHasShiniMeConnection] = useState(true);
     const [scaleItemsOpen, setScaleItemsOpen] = useState(false);
     const [scaleConnected, setScaleConnected] = useState(false);
     const [selectedScaleCategory, setSelectedScaleCategory] = useState('all');
@@ -119,7 +118,6 @@ const Terminal = (props) => {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [lastTrxOpen, setLastTrxOpen] = useState(false);
     const [lastTrxList, setLastTrxList] = useState([]);
-    const [refundReferenceDialogOpen, setRefundReferenceDialogOpen] = useState(false);
     const [customCustomerNameDialogOpen, setCustomCustomerNameDialogOpen] = useState(false);
     const [cashDroModalOpen, setCashDroModalOpen] = useState(false);
     const [cashDroStatus, setCashDroStatus] = useState({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
@@ -147,16 +145,19 @@ const Terminal = (props) => {
 
 
     useEffect(() => {
-        axios({
-            method: 'post',
-            url: '/trx/hasEshiniConnection'
-        }).then((response) => {
-            if (response) {
-                setHasEshiniConnection(response.data);
-            }
-        }).catch((error) => {
-            dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
-        });
+        const checkShiniMeConnection = () => {
+            axios.get('/trx/hasShiniMeConnection')
+                .then((response) => {
+                    if (response) {
+                        setHasShiniMeConnection(response.data);
+                    }
+                }).catch(() => {
+                    setHasShiniMeConnection(false);
+                });
+        };
+        checkShiniMeConnection();
+        const interval = setInterval(checkShiniMeConnection, 5 * 60 * 1000);
+        return () => clearInterval(interval);
     }, [])
 
     useEffect(() => {
@@ -1470,54 +1471,39 @@ const Terminal = (props) => {
     const handleSwitchToRefund = () => {
         confirm(`Refund Mode ?`, '',
             () => {
-                // First, show the refund reference dialog
-                setRefundReferenceDialogOpen(true);
+                if (terminal.managerMode) {
+                    dispatch(setTrxMode('Refund'));
+                } else {
+                    axios({
+                        method: 'post',
+                        url: '/utilities/generateQR',
+                        data: {
+                            hardwareId: config.deviceId,
+                            source: 'Refund',
+                            sourceKey: null,
+                            creator: terminal.loggedInUser.key
+                        }
+                    }).then((response) => {
+                        if (response && response.data) {
+                            setAuthQR({
+                                ...response.data,
+                                source: 'Refund'
+                            });
+                        } else {
+                            dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                        }
+                    }).catch((error) => {
+                        if (error.response) {
+                            if (error.response.status === 401) {
+                                dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                            }
+                        } else {
+                            dispatch(notify({ msg: error.message, sev: 'error' }));
+                        }
+                    });
+                }
             }
         )
-    }
-
-    const handleRefundReferenceValidated = (originalTransaction) => {
-        // Store the original transaction reference in Redux state
-        dispatch(setOriginalTrxReference(originalTransaction));
-
-        // After successful validation, proceed with QR auth if needed
-        if (terminal.managerMode) {
-            dispatch(setTrxMode('Refund'));
-        } else {
-            axios({
-                method: 'post',
-                url: '/utilities/generateQR',
-                data: {
-                    hardwareId: config.deviceId,
-                    source: 'Refund',
-                    sourceKey: null,
-                    creator: terminal.loggedInUser.key
-                }
-            }).then((response) => {
-                if (response && response.data) {
-                    setAuthQR({
-                        ...response.data,
-                        source: 'Refund'
-                    });
-                } else {
-                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-                }
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                    }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
-                }
-            });
-        }
-    }
-
-    const handleRefundReferenceDialogClose = () => {
-        setRefundReferenceDialogOpen(false);
-        // Clear any stored reference when dialog is closed without validation
-        // dispatch(clearOriginalTrxReference());
     }
 
     const handleLockTill = () => {
@@ -1726,14 +1712,14 @@ const Terminal = (props) => {
             </Button>}
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {terminal.customer && terminal.store && <Button key='cashBack'
-                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection || !trxSlice.trx}
+                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasShiniMeConnection || !trxSlice.trx}
                 className={classes.MainActionButton} onClick={() => { startPayment('cashBack', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>Cash Back</label>
             </Button>}
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {terminal.customer && terminal.customer.employee && terminal.store && <Button key='employeeExtra'
-                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection || !trxSlice.trx}
+                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasShiniMeConnection || !trxSlice.trx}
                 className={classes.MainActionButton} onClick={() => { startPayment('employeeExtra', 'numpad') }}>
                 <FontAwesomeIcon icon={faPlusSquare} style={{ marginRight: '5px' }} />
                 <label>Employee</label>
@@ -2395,9 +2381,9 @@ const Terminal = (props) => {
                         </span>}
 
                     <Divider style={{ margin: '7px' }} />
-                    {!hasEshiniConnection && <span style={{ color: 'orangered' }}>
+                    {!hasShiniMeConnection && <span style={{ color: 'orangered' }}>
                         <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginRight: '7px' }} />
-                        <b>WARNING:</b> NO CONNECTION TO E-SHINI
+                        <b>WARNING:</b> NO CONNECTION TO SHINI ME
                     </span>}
                     
                     {/* Expected Bags Display */}
@@ -2966,12 +2952,6 @@ const Terminal = (props) => {
                     </Button>
                 </Modal.Footer>
             </Modal>
-
-            <RefundReferenceDialog
-                open={refundReferenceDialogOpen}
-                onClose={handleRefundReferenceDialogClose}
-                onValidated={handleRefundReferenceValidated}
-            />
 
             <CustomCustomerNameDialog
                 open={customCustomerNameDialogOpen}

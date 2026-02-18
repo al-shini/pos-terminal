@@ -12,7 +12,9 @@ const initialState = {
     itemScanError: false,
     itemScanErrorMessage: '',
     hardNotification: false,
-    hardNotificationMessage: ''
+    hardNotificationMessage: '',
+    campaignWin: false,
+    campaignWinData: null
 }
 
 /**
@@ -80,9 +82,17 @@ export const uiSlice = createSlice({
         hideHardNotification: (state) => {
             state.hardNotification = false; 
             state.hardNotificationMessage = '';
+        },
+        showCampaignWin: (state, action) => {
+            state.campaignWin = true;
+            state.campaignWinData = action.payload;
+        },
+        hideCampaignWin: (state) => {
+            state.campaignWin = false;
+            state.campaignWinData = null;
         }
     }
 })
 
-export const { showLoading, hideLoading, hideToast, showItemScanError, hideItemScanError, showHardNotification, hideHardNotification } = uiSlice.actions
+export const { showLoading, hideLoading, hideToast, showItemScanError, hideItemScanError, showHardNotification, hideHardNotification, showCampaignWin, hideCampaignWin } = uiSlice.actions
 export default uiSlice.reducer
