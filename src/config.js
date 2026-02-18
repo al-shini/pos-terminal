@@ -40,11 +40,11 @@ if (query.get("arabiVisaCom")) {
 }
 
 if (query.get("systemCurrency")) {
-    systemCurrency = 'NIS';//query.get("systemCurrency");
+    systemCurrency = 'JOD';//query.get("systemCurrency");
 }
 
-    const _visa = '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639';
-    // const _visa = 'Visa';
+    // const _visa = '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639';
+    const _visa = 'Visa';
 
 
 const config = {
@@ -65,7 +65,7 @@ const config = {
     employeeExtra: 'EmployeeExtra',
     cashDroEnabled: true,
     arabiVisaCom: arabiVisaCom ? arabiVisaCom : false,
-    systemCurrency: systemCurrency ? systemCurrency : 'NIS'
+    systemCurrency: systemCurrency ? systemCurrency : 'JOD'
 }; 
 
 console.log(config);

@@ -2019,7 +2019,7 @@ const Terminal = (props) => {
                 </Button>
             }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
-                <Button disabled={config.systemCurrency === 'NIS'} key='lastTrxList' className={classes.MainActionButton}
+                <Button key='lastTrxList' className={classes.MainActionButton}
                     onClick={handleLastTrxList}>
                     <div style={{ fontSize: '12px', }}>
                         <FontAwesomeIcon icon={faList} style={{ marginRight: '5px' }} />
