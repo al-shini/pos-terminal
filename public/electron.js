@@ -844,6 +844,8 @@ if (!gotTheLock) {
             this.currentWeightPromise = null;
             this.weightTimeout = null;
             this.retryCount = 0;
+            this.commandSentAt = 0;
+            this.requestId = 0;
         }
 
         async connect() {
@@ -875,7 +877,6 @@ if (!gotTheLock) {
                         this.isConnected = false;
                     });
 
-                    // Listen for weight data
                     this.parser.on('data', (data) => {
                         this.handleWeightData(data);
                     });
@@ -900,6 +901,21 @@ if (!gotTheLock) {
             });
         }
 
+        flushSerialBuffer() {
+            return new Promise((resolve) => {
+                if (this.serialPort && this.serialPort.isOpen) {
+                    this.serialPort.flush((err) => {
+                        if (err) {
+                            logger.error('Scale buffer flush error:', err.message);
+                        }
+                        resolve();
+                    });
+                } else {
+                    resolve();
+                }
+            });
+        }
+
         async getWeight() {
             if (!this.isConnected) {
                 throw new Error('Scale not connected');
@@ -909,9 +925,15 @@ if (!gotTheLock) {
                 throw new Error('Weight reading already in progress');
             }
 
+            this.requestId++;
+            const myRequestId = this.requestId;
+
+            await this.flushSerialBuffer();
+
             return new Promise((resolve, reject) => {
-                this.currentWeightPromise = { resolve, reject };
+                this.currentWeightPromise = { resolve, reject, requestId: myRequestId };
                 this.retryCount = 0;
+                this.commandSentAt = 0;
                 this.attemptWeightReading();
             });
         }
@@ -941,12 +963,12 @@ if (!gotTheLock) {
             logger.info(`Attempting weight reading (${this.retryCount + 1}/${this.config.maxRetries + 1})`);
             this.isWaitingForWeight = true;
 
-            // Set timeout for response
             this.weightTimeout = setTimeout(() => {
                 this.handleNoResponse();
             }, this.config.responseTimeout);
 
-            // Send weight command
+            this.commandSentAt = Date.now();
+
             this.serialPort.write(this.config.weightCommand, (err) => {
                 if (err) {
                     this.handleWeightError(`Failed to send weight command: ${err.message}`);
@@ -955,7 +977,17 @@ if (!gotTheLock) {
         }
 
         handleWeightData(data) {
-            // Clear timeout since we got a response
+            if (!this.isWaitingForWeight || !this.currentWeightPromise) {
+                logger.info(`Scale data discarded (no active request): ${data.trim()}`);
+                return;
+            }
+
+            const elapsed = Date.now() - this.commandSentAt;
+            if (this.commandSentAt > 0 && elapsed < 50) {
+                logger.info(`Scale data discarded (arrived ${elapsed}ms after command, likely stale): ${data.trim()}`);
+                return;
+            }
+
             if (this.weightTimeout) {
                 clearTimeout(this.weightTimeout);
                 this.weightTimeout = null;
@@ -963,20 +995,22 @@ if (!gotTheLock) {
 
             this.isWaitingForWeight = false;
 
-            // Clean and parse the weight data
             const cleanWeight = data.replace(/[^\d.]/g, '');
             const weightValue = parseFloat(cleanWeight);
 
             if (!isNaN(weightValue)) {
-                logger.info(`Weight reading successful: ${weightValue}`);
+                logger.info(`Weight reading successful: ${weightValue} (elapsed ${elapsed}ms)`);
                 this.retryCount = 0;
+                this.commandSentAt = 0;
                 
                 if (this.currentWeightPromise) {
                     this.currentWeightPromise.resolve(weightValue);
                     this.currentWeightPromise = null;
                 }
             } else {
-                this.handleWeightError('Invalid weight data format received');
+                logger.info(`Invalid weight data format, retrying: ${data.trim()}`);
+                this.retryCount++;
+                this.attemptWeightReading();
             }
         }
 
@@ -999,6 +1033,7 @@ if (!gotTheLock) {
         handleWeightError(errorMessage) {
             this.isWaitingForWeight = false;
             this.retryCount = 0;
+            this.commandSentAt = 0;
 
             if (this.weightTimeout) {
                 clearTimeout(this.weightTimeout);
