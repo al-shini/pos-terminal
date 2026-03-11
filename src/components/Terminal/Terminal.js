@@ -597,7 +597,7 @@ const Terminal = (props) => {
     }
 
     const scanWeightableItem = (item) => {
-        dispatch(showLoading({ msg: 'Reading weight from scale (may retry if unstable)...' }));
+        dispatch(showLoading({ msg: 'Reading weight from scale...' }));
         let barcode = item.barcode;
 
         if (item.isScalePiece) {
@@ -657,40 +657,15 @@ const Terminal = (props) => {
             }).catch((error) => {
                 console.error(error);
 
-                // Handle enhanced error responses from the new scale system
                 let errorMessage = 'Could not fetch weight from scale';
-                let severity = 'error';
 
-                if (error.response) {
-                    const status = error.response.status;
-                    const responseMessage = error.response.data;
-
-                    switch (status) {
-                        case 408: // Request timeout - unstable weight
-                            errorMessage = 'Weight is unstable. Please place items steadily on the scale and try again.';
-                            severity = 'warning';
-                            break;
-                        case 409: // Conflict - scale busy
-                            errorMessage = 'Scale is busy. Please wait and try again.';
-                            severity = 'info';
-                            break;
-                        case 500: // Server error
-                            if (responseMessage && responseMessage.includes('not open')) {
-                                errorMessage = 'Scale not connected. Please check scale connection.';
-                            } else {
-                                errorMessage = responseMessage || 'Scale communication error';
-                            }
-                            break;
-                        default:
-                            errorMessage = responseMessage || errorMessage;
-                    }
+                if (error.response && error.response.data) {
+                    errorMessage = error.response.data;
                 } else if (error.request) {
                     errorMessage = 'Cannot communicate with scale service';
-                } else {
-                    errorMessage = error.message || errorMessage;
                 }
 
-                dispatch(notify({ msg: errorMessage, sev: severity }));
+                dispatch(notify({ msg: errorMessage, sev: 'error' }));
             }).finally(() => {
                 dispatch(hideLoading());
             })
