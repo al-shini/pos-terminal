@@ -879,6 +879,86 @@ export const setCustomCustomerName = createAsyncThunk(
     }
 )
 
+export const setCustomCustomerMobile = createAsyncThunk(
+    'setCustomCustomerMobile',
+    async (payload, thunkAPI) => {
+        return axios({
+            method: 'post',
+            url: '/trx/setCustomCustomerMobile',
+            data: {
+                trxKey: payload.trxKey,
+                customerMobile: payload.customerMobile
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(notify({
+                    msg: 'Customer mobile updated successfully',
+                    sev: 'success'
+                }));
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                } else {
+                    thunkAPI.dispatch(notify({
+                        msg: error.response.data.error || error.response.data.message || 'Failed to update customer mobile',
+                        sev: 'error'
+                    }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
+            }
+        });
+    }
+)
+
+export const setReferenceNumber = createAsyncThunk(
+    'setReferenceNumber',
+    async (payload, thunkAPI) => {
+        return axios({
+            method: 'post',
+            url: '/trx/setReferenceNumber',
+            data: {
+                trxKey: payload.trxKey,
+                referenceNumber: payload.referenceNumber
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(notify({
+                    msg: 'Reference number updated successfully',
+                    sev: 'success'
+                }));
+                return thunkAPI.fulfillWithValue(response.data);
+            } else {
+                return thunkAPI.rejectWithValue('Incorrect server response');
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                } else {
+                    thunkAPI.dispatch(notify({
+                        msg: error.response.data.error || error.response.data.message || 'Failed to update reference number',
+                        sev: 'error'
+                    }));
+                    return thunkAPI.rejectWithValue(error.response.data);
+                }
+            } else {
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
+            }
+        });
+    }
+)
+
 /**
  * reducer
  */
@@ -1079,7 +1159,6 @@ export const trxSlice = createSlice({
             if (action.payload.line) {
                 state.trx = action.payload.trx;
                 state.scannedItems = action.payload.trxLines;
-                state.selectedLine = action.payload.line;
                 state.numberInputValue = '';
                 state.multiplier = '1'
             }
@@ -1095,7 +1174,6 @@ export const trxSlice = createSlice({
             if (action.payload.line) {
                 state.trx = action.payload.trx;
                 state.scannedItems = action.payload.trxLines;
-                state.selectedLine = action.payload.line;
                 state.numberInputValue = '';
                 state.multiplier = '1'
             }
@@ -1263,6 +1341,26 @@ export const trxSlice = createSlice({
         })
 
         builder.addCase(setCustomCustomerName.rejected, (state, action) => {
+            // Handle error case if needed
+        })
+
+        /* setCustomCustomerMobile thunk */
+        builder.addCase(setCustomCustomerMobile.fulfilled, (state, action) => {
+            if (state.trx && action.payload) {
+                state.trx.customCustomerMobile = action.payload.customCustomerMobile;
+            }
+        })
+        builder.addCase(setCustomCustomerMobile.rejected, (state, action) => {
+            // Handle error case if needed
+        })
+
+        /* setReferenceNumber thunk */
+        builder.addCase(setReferenceNumber.fulfilled, (state, action) => {
+            if (state.trx && action.payload) {
+                state.trx.referenceNumber = action.payload.referenceNumber;
+            }
+        })
+        builder.addCase(setReferenceNumber.rejected, (state, action) => {
             // Handle error case if needed
         })
 

@@ -56,6 +56,7 @@ const config = {
     autoUpdate: autoUpdate ? autoUpdate : false,
     visa: _visa,
     mobiCash: 'MobiCash',
+    talabat: 'Talabat',
     wfp: 'WFP',
     visaArabi: 'VISA_AB',
     jawwalPay: 'JawwalPay',

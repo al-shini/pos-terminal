@@ -1,0 +1,426 @@
+/* ==========================================================================
+   CustomerFieldDialog — shared modern entry dialog used by:
+     - CustomCustomerNameDialog (alphabet)
+     - CustomCustomerMobileDialog (numeric)
+     - ReferenceNumberDialog (numeric)
+   Compact pass: lighter paddings, smaller display + keys, smoother motion.
+   ========================================================================== */
+
+@keyframes cfdAccentSlide {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes cfdDialogIn {
+    0% { opacity: 0; transform: translateY(8px) scale(0.985); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes cfdCaretBlink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+@keyframes cfdKeyPress {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.94); }
+    100% { transform: scale(1); }
+}
+
+.Paper {
+    background: #F8FAFC !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    box-shadow:
+        0 18px 44px rgba(17, 24, 39, 0.18),
+        0 2px 6px rgba(17, 24, 39, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+    animation: cfdDialogIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.Header {
+    position: relative;
+    padding: 20px 28px 22px 28px;
+    background:
+        radial-gradient(140% 180% at 0% 0%, rgba(225, 30, 38, 0.06) 0%, rgba(225, 30, 38, 0) 55%),
+        linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.Header::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        rgba(225, 30, 38, 0) 0%,
+        rgba(225, 30, 38, 0.9) 20%,
+        rgba(180, 20, 27, 1) 50%,
+        rgba(225, 30, 38, 0.9) 80%,
+        rgba(225, 30, 38, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: cfdAccentSlide 3.5s linear infinite;
+}
+
+.HeaderRow {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.IconBadge {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
+    border: 1px solid rgba(225, 30, 38, 0.22);
+    color: #B3141B;
+    font-size: 15px;
+    box-shadow: 0 1px 3px rgba(225, 30, 38, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.HeaderText { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+.Title {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: 0.1px;
+    line-height: 1.2;
+}
+
+.Subtitle {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    color: #6B7280;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.LockBadge {
+    margin-left: auto;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.18) 100%);
+    border: 1px solid rgba(217, 119, 6, 0.32);
+    color: #92400E;
+}
+
+/* Content wrapper */
+.Content {
+    padding: 14px 18px 16px 18px !important;
+    background: transparent !important;
+}
+
+/* Display screen: the input preview — slim horizontal strip */
+.Display {
+    position: relative;
+    margin-bottom: 10px;
+    padding: 10px 14px;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    box-shadow: inset 0 2px 4px rgba(17, 24, 39, 0.04);
+    overflow: hidden;
+}
+
+.Display::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(225, 30, 38, 0) 0%, rgba(225, 30, 38, 0.35) 50%, rgba(225, 30, 38, 0) 100%);
+}
+
+.DisplayValue {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0F172A;
+    line-height: 1.25;
+    width: 100%;
+    word-break: break-all;
+    letter-spacing: 0.15px;
+}
+
+.DisplayValueNumeric {
+    font-family: "DSDIGI", monospace;
+    font-size: 26px;
+    letter-spacing: 3px;
+    color: #0F172A;
+}
+
+.DisplayValueAlphabet {
+    font-family: "Janna", "Inter", "Segoe UI", sans-serif;
+}
+
+.DisplayPlaceholder {
+    color: #9CA3AF;
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: 0.25px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.Caret {
+    display: inline-block;
+    width: 2px;
+    height: 0.9em;
+    margin-left: 3px;
+    background: #B3141B;
+    vertical-align: middle;
+    animation: cfdCaretBlink 1s steps(1) infinite;
+}
+
+.HintRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2px;
+    margin-bottom: 10px;
+    padding: 0 2px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 10px;
+    color: #6B7280;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.CharCount {
+    font-family: "DSDIGI", monospace;
+    color: #374151;
+    font-size: 12px;
+    letter-spacing: 0.8px;
+}
+
+/* Numeric keyboard */
+.NumKeyboard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+    margin-bottom: 12px;
+}
+
+.NumKey {
+    height: 50px;
+    border-radius: 10px;
+    border: 1px solid #E5E7EB;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    font-family: "DSDIGI", monospace;
+    font-size: 22px;
+    font-weight: 800;
+    color: #0F172A;
+    cursor: pointer;
+    transition: all 110ms cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.NumKey:hover:not(:disabled) {
+    border-color: #FBC9CC;
+    box-shadow: 0 4px 10px rgba(225, 30, 38, 0.10);
+    transform: translateY(-1px);
+}
+
+.NumKey:active:not(:disabled) {
+    animation: cfdKeyPress 120ms;
+    background: linear-gradient(180deg, #FEF2F2 0%, #FEE2E2 100%);
+    border-color: rgba(225, 30, 38, 0.3);
+    color: #B3141B;
+}
+
+.NumKey:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.NumKeyAction {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.NumKeyClear {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FFF7ED 100%);
+    border-color: rgba(234, 88, 12, 0.25);
+    color: #C2410C;
+}
+
+.NumKeyClear:hover:not(:disabled) {
+    border-color: rgba(234, 88, 12, 0.5);
+    box-shadow: 0 4px 10px rgba(234, 88, 12, 0.14);
+}
+
+.NumKeyBackspace {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FEF2F2 100%);
+    border-color: rgba(220, 38, 38, 0.25);
+    color: #B91C1C;
+}
+
+.NumKeyBackspace:hover:not(:disabled) {
+    border-color: rgba(220, 38, 38, 0.5);
+    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.14);
+}
+
+/* Footer actions */
+.Actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.BtnSave,
+.BtnCancel {
+    flex: 1;
+    height: 42px;
+    border-radius: 10px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid transparent;
+}
+
+.BtnSave {
+    background: linear-gradient(180deg, #E11E26 0%, #B3141B 100%);
+    color: #FFFFFF;
+    box-shadow: 0 4px 10px rgba(225, 30, 38, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.BtnSave:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 16px rgba(225, 30, 38, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.BtnSave:disabled {
+    background: linear-gradient(180deg, #E5E7EB 0%, #D1D5DB 100%);
+    color: #9CA3AF;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.BtnCancel {
+    background: #FFFFFF;
+    color: #374151;
+    border-color: #E5E7EB;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+}
+
+.BtnCancel:hover:not(:disabled) {
+    background: #F9FAFB;
+    border-color: #D1D5DB;
+    transform: translateY(-1px);
+}
+
+.BtnSaveWarning {
+    background: linear-gradient(180deg, #F59E0B 0%, #C2410C 100%) !important;
+    box-shadow: 0 4px 10px rgba(234, 88, 12, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+}
+
+.BtnSaveWarning:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 16px rgba(234, 88, 12, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.32) !important;
+}
+
+/* Inline alert banner between display and keyboard */
+@keyframes cfdAlertIn {
+    0% { opacity: 0; transform: translateY(-4px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.Alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    line-height: 1.35;
+    animation: cfdAlertIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.AlertIcon {
+    font-size: 15px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.AlertMessage {
+    flex: 1 1 auto;
+    min-width: 0;
+    word-break: break-word;
+}
+
+.AlertError {
+    background: linear-gradient(180deg, #FEF2F2 0%, #FEE2E2 100%);
+    border-color: rgba(220, 38, 38, 0.28);
+    color: #991B1B;
+}
+
+.AlertWarning {
+    background: linear-gradient(180deg, #FFFBEB 0%, #FEF3C7 100%);
+    border-color: rgba(217, 119, 6, 0.32);
+    color: #92400E;
+}
+
+.AlertInfo {
+    background: linear-gradient(180deg, #EFF6FF 0%, #DBEAFE 100%);
+    border-color: rgba(37, 99, 235, 0.28);
+    color: #1E40AF;
+}
+
+.AlertSuccess {
+    background: linear-gradient(180deg, #F0FDF4 0%, #DCFCE7 100%);
+    border-color: rgba(22, 163, 74, 0.28);
+    color: #166534;
+}
+
+/* Footer shown under the keyboard */
+.Footer {
+    padding: 0 !important;
+    margin: 0 !important;
+}

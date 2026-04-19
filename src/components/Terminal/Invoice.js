@@ -1,120 +1,165 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { FlexboxGrid, IconButton, Divider } from 'rsuite';
 import { FixedSizeList as List } from 'react-window';
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faGift, faTag, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
-import Typography from '@mui/material/Typography';
+import { faGift, faTag, faExclamationTriangle, faBan, faMobileScreenButton, faHashtag, faUser } from '@fortawesome/free-solid-svg-icons';
 import BarcodeReader from 'react-barcode-reader';
 import config from '../../config';
 
-import { scanBarcode, scanNewTransaction, scrollUp, scrollDown, resetScrollAction, selectLine, scrollBottom } from '../../store/trxSlice';
+import { scanBarcode, scanNewTransaction, resetScrollAction, selectLine } from '../../store/trxSlice';
 
 const InvoiceItem = React.memo(({ index, style, data }) => {
     const { items, handleItemClick, selectedLine, terminal } = data;
     const obj = items[index];
     const isEven = (number) => number % 2 === 0;
+    const isSelected = obj.key === selectedLine.key;
+    const isVoided = obj.voided;
+
+    const currency = config.systemCurrency === 'NIS' ? 'JD' : 'JD';
+    const decimals = config.systemCurrency === 'NIS' ? 2 : 3;
+    const fmt = (n) => (((n) * 100) / 100).toFixed(decimals);
+
+    const hasDiscount = obj.finalprice < obj.totalprice;
+    const hasNegativeDiscount = obj.finalprice > obj.totalprice;
+    const hasPriceChange = (obj.finalprice !== obj.totalprice) && obj.priceOverride;
+    const hasCashback = obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club;
+    const hasAnyBadge = isVoided || hasDiscount || hasNegativeDiscount || hasPriceChange || hasCashback;
+
+    const hasPriceAdjustment = hasDiscount || hasNegativeDiscount;
+    const displayPrice = hasPriceAdjustment ? obj.finalprice : obj.totalprice;
+    const priceDelta = hasPriceAdjustment ? Math.abs(obj.totalprice - obj.finalprice) : 0;
+
+    const baseRowClass = isSelected
+        ? classes.SelectedRowBG
+        : (isEven(index + 1) ? classes.EvenRow : classes.OddRow);
+    const rowClassName = isVoided
+        ? `${baseRowClass} ${classes.VoidedRow}`
+        : baseRowClass;
 
     return (
         <div
             onClick={() => handleItemClick(obj)}
-            className={(obj.key === selectedLine.key) ? classes.SelectedRowBG : (isEven(index + 1) ? classes.EvenRow : classes.OddRow)}
-            style={{ ...style, paddingTop: 10 }}
+            className={rowClassName}
+            style={{
+                ...style,
+                padding: '10px 14px 12px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: 8,
+                boxSizing: 'border-box'
+            }}
         >
-            <FlexboxGrid style={{ paddingLeft: '10px' }}>
-                {/* First row */}
-                <FlexboxGrid.Item colspan={4}>
-                    <Typography variant='subtitle1'>
-                        <span
-                            style={{
-                                textDecoration: obj.voided ? 'line-through' : '',
-                                color: obj.voided ? '#db0000' : '',
-                                fontSize: '15px',
-                                marginLeft: '5px',
-                                fontFamily: 'DSDIGI'
-                            }}>
-                            x <b>{obj.qty}</b>
+            {/* Top line: qty chip | description | price */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <span
+                    className={`${classes.InvoiceQtyChip} ${isVoided ? classes.VoidedQtyChip : ''}`}
+                    style={{ flexShrink: 0 }}
+                >
+                    <span className={classes.InvoiceQtyChipMult}>×</span>
+                    {obj.qty}
+                </span>
+
+                <span
+                    className={`${isSelected ? classes.SelectedRow : ''} ${isVoided ? classes.VoidedText : ''}`}
+                    style={{
+                        flex: 1,
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        color: isVoided ? undefined : '#111827',
+                        fontSize: 16,
+                        fontFamily: 'Janna',
+                        textAlign: 'left'
+                    }}>
+                    {obj.description}
+                </span>
+
+                <span style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    lineHeight: 1,
+                    flexShrink: 0
+                }}>
+                    {hasPriceAdjustment && !isVoided && (
+                        <span style={{
+                            fontSize: 13,
+                            color: '#9CA3AF',
+                            textDecoration: 'line-through',
+                            fontFamily: 'DSDIGI, monospace',
+                            marginBottom: 3,
+                            letterSpacing: 0.3
+                        }}>
+                            {currency} {fmt(obj.totalprice)}
                         </span>
-                    </Typography>
-                </FlexboxGrid.Item>
-                <FlexboxGrid.Item colspan={15}>
-                    <span
+                    )}
+                    <b
+                        className={isVoided ? classes.VoidedPrice : ''}
                         style={{
-                            textDecoration: obj.voided ? 'line-through' : '',
-                            color: obj.voided ? '#db0000' : '',
-                            fontSize: '15px',
-                            fontFamily: 'Janna'
-                        }}
-                        className={(obj.key === selectedLine.key) ? classes.SelectedRow : null}>
-                        {obj.description}
-                    </span>
-                </FlexboxGrid.Item>
-                <FlexboxGrid.Item colspan={5}>
-                    <Typography variant='subtitle1'>
-                        <span
-                            style={{
-                                textDecoration: obj.voided ? 'line-through' : (obj.finalprice !== obj.totalprice) ? 'line-through' : '',
-                                color: obj.voided ? '#db0000' : '',
-                                fontSize: '20px',
-                                fontFamily: 'DSDIGI'
-                            }}>
-                            <b>{config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {(((obj.totalprice) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
-                        </span>
-                    </Typography>
-                </FlexboxGrid.Item>
+                            fontSize: 20,
+                            fontFamily: 'DSDIGI, monospace',
+                            color: isVoided
+                                ? undefined
+                                : hasDiscount
+                                    ? '#15803D'
+                                    : hasNegativeDiscount
+                                        ? '#E11E26'
+                                        : '#111827',
+                            letterSpacing: 0.3
+                        }}>
+                        {currency} {fmt(displayPrice)}
+                    </b>
+                </span>
+            </div>
 
-                {/* Promotion row */}
-                <FlexboxGrid.Item colspan={19}>
-                    {(obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club) &&
-                        <span style={{ color: 'rgb(70 163 235)', position: 'relative', fontSize: '14px', bottom: '3px', marginRight: 8 }}>
-                            <b style={{marginRight: 8}}>Cashback: </b>
-                            {(obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club) &&
-                                <b>{config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {(((obj.cashBackAmt) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
-                            }
-
-                            <i style={{marginLeft: 8}}>|</i>
+            {/* Badges line */}
+            {hasAnyBadge && (
+                <div style={{
+                    display: 'flex',
+                    gap: 6,
+                    alignItems: 'center',
+                    marginLeft: 0,
+                    overflow: 'hidden',
+                    flexWrap: 'nowrap'
+                }}>
+                    {isVoided && (
+                        <span className={`${classes.InvoicePill} ${classes.InvoicePillVoided}`}>
+                            <FontAwesomeIcon icon={faBan} />
+                            Voided
                         </span>
-
-                    }
-                    {(obj.finalprice < obj.totalprice) &&
-                        <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '14px', bottom: '3px', display: 'inline-block' }}>
-                            <b>Discount</b>
+                    )}
+                    {!isVoided && hasDiscount && (
+                        <span className={`${classes.InvoicePill} ${classes.InvoicePillDiscount}`}>
+                            <FontAwesomeIcon icon={faTag} />
+                            Discount
+                            <span className={classes.InvoicePillAmount}>−{currency} {fmt(priceDelta)}</span>
                         </span>
-                    }
-                    {(obj.finalprice > obj.totalprice) &&
-                        <span style={{ color: 'rgb(225,42,42)', position: 'relative', fontSize: '14px', bottom: '3px', display: 'inline-block' }}>
-                            <FontAwesomeIcon icon={faTag} style={{ marginRight: '7px' }} />
-                            <b>Negative Discount</b>
+                    )}
+                    {!isVoided && hasNegativeDiscount && (
+                        <span className={`${classes.InvoicePill} ${classes.InvoicePillExtra}`}>
+                            <FontAwesomeIcon icon={faTag} />
+                            Extra
+                            <span className={classes.InvoicePillAmount}>+{currency} {fmt(priceDelta)}</span>
                         </span>
-                    }
-                    {(obj.finalprice !== obj.totalprice) && obj.priceOverride &&
-                        <span style={{ color: '#fa8900', position: 'relative', fontSize: '14px', bottom: '3px', display: 'inline-block' }}>
-                            <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginLeft: '12px', marginRight: '7px' }} />
-                            <b>Price Change</b>
+                    )}
+                    {!isVoided && hasPriceChange && (
+                        <span className={`${classes.InvoicePill} ${classes.InvoicePillPriceChange}`}>
+                            <FontAwesomeIcon icon={faExclamationTriangle} />
+                            Price Change
                         </span>
-                    }
-                </FlexboxGrid.Item>
-                <FlexboxGrid.Item colspan={5}>
-                    <Typography variant='subtitle1'>
-                        {(obj.finalprice !== obj.totalprice) &&
-                            <span
-                                style={{
-                                    textDecoration: obj.voided ? 'line-through' : '',
-                                    color: obj.voided ? '#db0000' : 'rgb(225,42,42)',
-                                    fontSize: '18px',
-                                    fontFamily: 'DSDIGI',
-                                    position: 'relative',
-                                    bottom: 10
-                                }}>
-                                <b>{config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {(((obj.finalprice) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
-                            </span>
-                        }
-                    </Typography>
-                </FlexboxGrid.Item>
-
-
-            </FlexboxGrid>
+                    )}
+                    {!isVoided && hasCashback && (
+                        <span className={`${classes.InvoicePill} ${classes.InvoicePillCashback}`}>
+                            <FontAwesomeIcon icon={faGift} />
+                            Cashback
+                            <span className={classes.InvoicePillAmount}>{currency} {fmt(obj.cashBackAmt)}</span>
+                        </span>
+                    )}
+                </div>
+            )}
         </div>
     );
 });
@@ -124,6 +169,24 @@ const Invoice = (props) => {
     const trxSlice = useSelector((state) => state.trx);
     const dispatch = useDispatch();
     const listRef = useRef();
+    const listContainerRef = useRef(null);
+    const [listHeight, setListHeight] = useState(400);
+
+    useEffect(() => {
+        const el = listContainerRef.current;
+        if (!el) return;
+        const measure = () => {
+            setListHeight(Math.max(0, Math.floor(el.clientHeight)));
+        };
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        window.addEventListener('resize', measure);
+        return () => {
+            ro.disconnect();
+            window.removeEventListener('resize', measure);
+        };
+    }, []);
 
     useEffect(() => {
         console.log(trxSlice.scrollAction);
@@ -192,85 +255,269 @@ const Invoice = (props) => {
     };
 
     return (
-        <React.Fragment>
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            minHeight: 0
+        }}>
             {!terminal.paymentMode && <BarcodeReader onError={handleScanError} onScan={handleScan} />}
-            <div style={{ background: '#303030', color: 'white', height: '5vh', width: '110%', right: '10px', position: 'relative' }}>
-                <h4 id='trxModeHeader' style={{ lineHeight: '5vh', paddingLeft: '15px' }}>
-                    {terminal.trxMode === 'Sale' && <span>{terminal.trxMode}</span>}
-                    {terminal.trxMode === 'Refund' && <span style={{ color: 'rgb(255 60 80)' }}>{terminal.trxMode}</span>}
+            <div style={{
+                background: 'linear-gradient(135deg, #1F2937 0%, #111827 100%)',
+                color: 'white',
+                height: '5vh',
+                flexShrink: 0,
+                width: '110%',
+                right: '10px',
+                position: 'relative',
+                borderLeft: terminal.trxMode === 'Refund' ? '4px solid #EF4444' : '4px solid #E11E26',
+                display: 'flex',
+                alignItems: 'center',
+                paddingLeft: '16px',
+                boxShadow: '0 2px 6px rgba(17, 24, 39, 0.12)'
+            }}>
+                <h4 id='trxModeHeader' style={{
+                    margin: 0,
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    letterSpacing: '1.2px',
+                    textTransform: 'uppercase',
+                    fontFamily: '"Inter", "Segoe UI", sans-serif',
+                    display: 'flex',
+                    alignItems: 'stretch',
+                    height: '100%',
+                    gap: '0'
+                }}>
+                    {terminal.trxMode === 'Sale' && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', paddingRight: '14px' }}>
+                            <span style={{
+                                display: 'inline-block',
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: '#22C55E',
+                                boxShadow: '0 0 10px rgba(34, 197, 94, 0.6)'
+                            }} />
+                            {terminal.trxMode}
+                        </span>
+                    )}
+                    {terminal.trxMode === 'Refund' && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', paddingRight: '14px', color: '#FCA5A5' }}>
+                            <span style={{
+                                display: 'inline-block',
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: '#EF4444',
+                                boxShadow: '0 0 10px rgba(239, 68, 68, 0.6)'
+                            }} />
+                            {terminal.trxMode}
+                        </span>
+                    )}
                     {trxSlice.trx && trxSlice.trx.customCustomerName && (
-                        <span style={{ 
-                            color: '#4CAF50', 
-                            marginLeft: '20px', 
-                            fontSize: '14px',
-                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            border: '1px solid #4CAF50'
+                        <span style={{
+                            color: '#BBF7D0',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            letterSpacing: '0.4px',
+                            textTransform: 'none',
+                            backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                            padding: '0 14px',
+                            borderRadius: 0,
+                            borderLeft: '1px solid rgba(34, 197, 94, 0.35)',
+                            borderRight: '1px solid rgba(34, 197, 94, 0.35)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            alignSelf: 'stretch',
+                            gap: '8px'
                         }}>
-                            Customer: {trxSlice.trx.customCustomerName}
+                            <FontAwesomeIcon icon={faUser} style={{ fontSize: '11px', opacity: 0.85 }} />
+                            {trxSlice.trx.customCustomerName}
+                        </span>
+                    )}
+                    {trxSlice.trx && trxSlice.trx.customCustomerMobile && (
+                        <span style={{
+                            color: '#BFDBFE',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            letterSpacing: '0.4px',
+                            textTransform: 'none',
+                            backgroundColor: 'rgba(59, 130, 246, 0.14)',
+                            padding: '0 14px',
+                            borderRadius: 0,
+                            borderLeft: '1px solid rgba(59, 130, 246, 0.38)',
+                            borderRight: '1px solid rgba(59, 130, 246, 0.38)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            alignSelf: 'stretch',
+                            gap: '8px',
+                            fontFamily: '"DSDIGI", "Inter", monospace'
+                        }}>
+                            <FontAwesomeIcon icon={faMobileScreenButton} style={{ fontSize: '11px', opacity: 0.85, fontFamily: 'inherit' }} />
+                            {trxSlice.trx.customCustomerMobile}
+                        </span>
+                    )}
+                    {trxSlice.trx && trxSlice.trx.referenceNumber && (
+                        <span style={{
+                            color: '#FDE68A',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            letterSpacing: '0.4px',
+                            textTransform: 'none',
+                            backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                            padding: '0 14px',
+                            borderRadius: 0,
+                            borderLeft: '1px solid rgba(245, 158, 11, 0.38)',
+                            borderRight: '1px solid rgba(245, 158, 11, 0.38)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            alignSelf: 'stretch',
+                            gap: '8px',
+                            fontFamily: '"DSDIGI", "Inter", monospace'
+                        }}>
+                            <FontAwesomeIcon icon={faHashtag} style={{ fontSize: '11px', opacity: 0.85, fontFamily: 'inherit' }} />
+                            {trxSlice.trx.referenceNumber}
                         </span>
                     )}
                 </h4>
             </div>
 
-            <List
-                height={580}
-                itemCount={trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
-                itemSize={60}
-                width={'100%'}
-                itemData={data}
-                ref={listRef}
-                className="hide-scrollbar"
-            >
-                {InvoiceItem}
-            </List>
+            {trxSlice.scannedItems && trxSlice.scannedItems.length > 0 && (() => {
+                const latestItem = trxSlice.scannedItems[trxSlice.scannedItems.length - 1];
+                const isVoidedLatest = latestItem.voided;
+                const hasDiscountLatest = latestItem.finalprice < latestItem.totalprice;
+                const hasNegativeDiscountLatest = latestItem.finalprice > latestItem.totalprice;
+                const hasPriceAdjustmentLatest = hasDiscountLatest || hasNegativeDiscountLatest;
+                const displayPriceLatest = hasPriceAdjustmentLatest ? latestItem.finalprice : latestItem.totalprice;
+                const priceDeltaLatest = hasPriceAdjustmentLatest ? Math.abs(latestItem.totalprice - latestItem.finalprice) : 0;
 
-            <FlexboxGrid style={{
-                height: '15.5vh', color: 'white', background: 'white', justifyContent: 'flex-end',
-                borderBottom: '1px solid #e1e1e1',
-                borderTop: '1px solid #e1e1e1'
-            }}>
-                <FlexboxGrid.Item colspan={24}>
-                    <span style={{ color: 'transparent', lineHeight: '1vh' }}>.</span>
-                </FlexboxGrid.Item>
-                <FlexboxGrid.Item colspan={8}>
-                    <FlexboxGrid style={{ marginTop: '1vh', color: 'white' }}>
-                        <FlexboxGrid.Item colspan={2} />
-                        <FlexboxGrid.Item colspan={5}>
-                            <IconButton onClick={() => dispatch(scrollUp())} icon={<FontAwesomeIcon size='2x' icon={faChevronUp} />} className={classes.ScrollButton} />
-                        </FlexboxGrid.Item>
-                        <FlexboxGrid.Item colspan={3} />
-                        <FlexboxGrid.Item colspan={5}>
-                            <IconButton onClick={() => dispatch(scrollDown())} icon={<FontAwesomeIcon size='2x' icon={faChevronDown} />} className={classes.ScrollButton} />
-                        </FlexboxGrid.Item>
-                    </FlexboxGrid>
-                </FlexboxGrid.Item>
-                <FlexboxGrid.Item colspan={16}>
-                    <div style={{ fontSize: '22px', position: 'relative', top: '7px', textAlign: 'right', marginRight: '8px' }}>
-                        <span style={{ color: '#000000', marginRight: '10px', fontFamily: 'monospace' }}>
-                            {trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
-                        </span>
-                        <span style={{ color: 'grey', fontFamily: 'monospace', fontSize: 20 }}>
-                            Item(s) / Cashback: {trxSlice.trx ? ((trxSlice.trx.totalcashbackamt * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
-                        </span>
+                const currencyLatest = config.systemCurrency === 'NIS' ? 'JD' : 'JD';
+                const decimalsLatest = config.systemCurrency === 'NIS' ? 2 : 3;
+                const fmtLatest = (n) => (((n) * 100) / 100).toFixed(decimalsLatest);
+
+                const cardExtraClass = isVoidedLatest
+                    ? classes.LatestScanCardVoided
+                    : hasDiscountLatest
+                        ? classes.LatestScanCardDiscount
+                        : '';
+
+                return (
+                    <div
+                        className={`${classes.LatestScanCard} ${cardExtraClass}`}
+                        onClick={() => handleItemClick(latestItem)}
+                    >
+                        <div key={latestItem.key} className={classes.LatestScanInner}>
+                            <span className={classes.LatestScanLabel}>
+                                <span className={classes.LatestScanLabelDot} />
+                                Latest Scan
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                                <span className={classes.InvoiceQtyChip} style={{ flexShrink: 0 }}>
+                                    <span className={classes.InvoiceQtyChipMult}>×</span>
+                                    {latestItem.qty}
+                                </span>
+                                <span style={{
+                                    flex: 1,
+                                    minWidth: 0,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    color: isVoidedLatest ? '#94A3B8' : '#111827',
+                                    fontStyle: isVoidedLatest ? 'italic' : 'normal',
+                                    fontSize: 19,
+                                    fontWeight: 600,
+                                    fontFamily: 'Janna',
+                                    textAlign: 'left'
+                                }}>
+                                    {latestItem.description}
+                                </span>
+                                <span style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'flex-end',
+                                    lineHeight: 1,
+                                    flexShrink: 0
+                                }}>
+                                    {hasPriceAdjustmentLatest && !isVoidedLatest && (
+                                        <span style={{
+                                            fontSize: 15,
+                                            color: '#9CA3AF',
+                                            textDecoration: 'line-through',
+                                            fontFamily: 'DSDIGI, monospace',
+                                            marginBottom: 4,
+                                            letterSpacing: 0.3
+                                        }}>
+                                            {currencyLatest} {fmtLatest(latestItem.totalprice)}
+                                        </span>
+                                    )}
+                                    <b style={{
+                                        fontSize: 28,
+                                        fontFamily: 'DSDIGI, monospace',
+                                        color: isVoidedLatest
+                                            ? '#94A3B8'
+                                            : hasDiscountLatest
+                                                ? '#15803D'
+                                                : hasNegativeDiscountLatest
+                                                    ? '#E11E26'
+                                                    : '#111827',
+                                        textDecoration: isVoidedLatest ? 'line-through' : 'none',
+                                        letterSpacing: 0.3
+                                    }}>
+                                        {currencyLatest} {fmtLatest(displayPriceLatest)}
+                                    </b>
+                                </span>
+                            </div>
+                            {(isVoidedLatest || hasDiscountLatest || hasNegativeDiscountLatest) && (
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                    {isVoidedLatest && (
+                                        <span className={`${classes.InvoicePill} ${classes.InvoicePillVoided}`}>
+                                            <FontAwesomeIcon icon={faBan} />
+                                            Voided
+                                        </span>
+                                    )}
+                                    {!isVoidedLatest && hasDiscountLatest && (
+                                        <span className={`${classes.InvoicePill} ${classes.InvoicePillDiscount}`}>
+                                            <FontAwesomeIcon icon={faTag} />
+                                            Discount
+                                            <span className={classes.InvoicePillAmount}>−{currencyLatest} {fmtLatest(priceDeltaLatest)}</span>
+                                        </span>
+                                    )}
+                                    {!isVoidedLatest && hasNegativeDiscountLatest && (
+                                        <span className={`${classes.InvoicePill} ${classes.InvoicePillExtra}`}>
+                                            <FontAwesomeIcon icon={faTag} />
+                                            Extra
+                                            <span className={classes.InvoicePillAmount}>+{currencyLatest} {fmtLatest(priceDeltaLatest)}</span>
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div style={{ textAlign: 'right', marginRight: '10px' }}>
-                        <small id='NISSymbol'>{config.systemCurrency === 'NIS' ? 'JD' : 'JD'}</small>
-                        <label id='Total'>
-                            {trxSlice.trx ? ((trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
-                            {trxSlice.trx && <small style={{
-                                fontSize: 15,
-                                color: trxSlice.trx.isTaxExempt ? 'red' : '',
-                                textDecoration: trxSlice.trx.isTaxExempt ? 'line-through' : ''
-                            }}>
-                                Tax: {trxSlice.trx ? (((trxSlice.trx.totalTaxAmt) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
-                            </small>}
-                        </label>
-                    </div>
-                </FlexboxGrid.Item>
-            </FlexboxGrid>
-        </React.Fragment>
+                );
+            })()}
+
+            <div
+                ref={listContainerRef}
+                style={{
+                    flex: 1,
+                    minHeight: 0,
+                    position: 'relative'
+                }}
+            >
+                <List
+                    height={listHeight}
+                    itemCount={trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}
+                    itemSize={86}
+                    width={'100%'}
+                    itemData={data}
+                    ref={listRef}
+                    className="hide-scrollbar"
+                >
+                    {InvoiceItem}
+                </List>
+            </div>
+
+        </div>
     );
 }
 

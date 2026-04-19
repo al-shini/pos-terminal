@@ -1,0 +1,1337 @@
+/* ==========================================================================
+   Customer Display — the second monitor that customers see at the till.
+   Layout:
+     ┌────────────────────────────┬─────────────────────────────┐
+     │                            │                             │
+     │  Left column (50%)         │  Image carousel (50%)       │
+     │  - Header (cashier + date) │                             │
+     │  - Latest scan card        │                             │
+     │  - Invoice list            │                             │
+     │  - Totals / customer card  │                             │
+     │                            │                             │
+     ├────────────────────────────┴─────────────────────────────┤
+     │              News ticker (full width, ~10%)              │
+     └──────────────────────────────────────────────────────────┘
+   ========================================================================== */
+
+.Shell {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 1fr 10vh;
+    grid-template-columns: 1fr 1fr;
+    background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
+    color: #F8FAFC;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   Left column — invoice side
+   ========================================================================== */
+
+.LeftColumn {
+    grid-row: 1 / 2;
+    grid-column: 1 / 2;
+    display: flex;
+    flex-direction: column;
+    background: #FFFFFF;
+    color: #111827;
+    overflow: hidden;
+    border-right: 1px solid rgba(15, 23, 42, 0.15);
+    position: relative;
+}
+
+.Header {
+    flex-shrink: 0;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+    color: #F8FAFC;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(17, 24, 39, 0.18);
+    position: relative;
+    z-index: 2;
+}
+
+.HeaderLeft {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.HeaderLogo {
+    height: 34px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+.HeaderBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    background: rgba(248, 250, 252, 0.08);
+    border: 1px solid rgba(248, 250, 252, 0.15);
+    color: #CBD5E1;
+    white-space: nowrap;
+}
+
+.HeaderBadge b {
+    color: #F8FAFC;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: none;
+}
+
+.HeaderRight {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.HeaderStatus {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    color: #BBF7D0;
+}
+
+.HeaderStatusRefund {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.38);
+    color: #FECACA;
+}
+
+.HeaderStatusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22C55E;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.7);
+}
+
+.HeaderStatusRefund .HeaderStatusDot {
+    background: #EF4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+}
+
+/* Customer banner — always-visible strip above the invoice that shows
+   "Welcome" / customer name / club status, giving the customer a warm
+   acknowledgement. */
+.CustomerBanner {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 24px;
+    background:
+        radial-gradient(120% 180% at 100% 0%, rgba(225, 30, 38, 0.04) 0%, rgba(225, 30, 38, 0) 60%),
+        linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%);
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.CustomerBannerLeft {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.CustomerAvatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    font-size: 18px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #64748B 0%, #334155 100%);
+    box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.22);
+}
+
+.CustomerAvatarClub {
+    background: linear-gradient(135deg, #F59E0B 0%, #B45309 100%);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.28);
+}
+
+.CustomerGreeting {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+}
+
+.CustomerGreetingLabel {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #6B7280;
+}
+
+.CustomerGreetingName {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    font-family: "Janna", "Inter", "Segoe UI", sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.CustomerClubPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.38);
+    color: #B45309;
+    white-space: nowrap;
+}
+
+.CustomerClubBalance {
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 14px;
+    color: #111827;
+    margin-left: 4px;
+    letter-spacing: 0.3px;
+}
+
+.CustomerClubBalance small {
+    color: #6B7280;
+    font-size: 10px;
+    margin-left: 2px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-weight: 700;
+}
+
+/* ==========================================================================
+   Latest scan card
+   ========================================================================== */
+
+.LatestScanCard {
+    position: relative;
+    margin: 16px 22px 12px 22px;
+    padding: 18px 22px;
+    border-radius: 20px;
+    background:
+        radial-gradient(120% 160% at 0% 0%, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 55%),
+        linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 55%, #93C5FD 100%);
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    box-shadow:
+        0 10px 24px rgba(37, 99, 235, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    flex-shrink: 0;
+    overflow: hidden;
+    animation: latestScanFlash 350ms ease-out;
+}
+
+.LatestScanCard::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+        90deg,
+        rgba(37, 99, 235, 0) 0%,
+        rgba(37, 99, 235, 0.6) 30%,
+        rgba(29, 78, 216, 1) 50%,
+        rgba(37, 99, 235, 0.6) 70%,
+        rgba(37, 99, 235, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: latestScanAccent 5s linear infinite;
+}
+
+.LatestScanCard::after {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 60%;
+    height: 200%;
+    background: linear-gradient(115deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0) 100%);
+    transform: rotate(8deg);
+    animation: latestScanShimmer 7s linear infinite;
+    pointer-events: none;
+}
+
+.LatestScanLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #1D4ED8;
+    margin-bottom: 12px;
+}
+
+.LatestScanLabelDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #2563EB;
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.8);
+    animation: latestScanDot 1.8s ease-in-out infinite;
+}
+
+.LatestScanBody {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+}
+
+.LatestScanQty {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(37, 99, 235, 0.28);
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1D4ED8;
+    min-width: 56px;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.LatestScanQtyMult {
+    font-size: 17px;
+    color: #60A5FA;
+    margin-right: 2px;
+}
+
+.LatestScanName {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: "Janna", "Inter", "Segoe UI", sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #0F172A;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.LatestScanPriceWrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+}
+
+.LatestScanPriceOld {
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 17px;
+    color: #64748B;
+    text-decoration: line-through;
+    text-decoration-color: rgba(100, 116, 139, 0.7);
+    letter-spacing: 0.3px;
+    margin-bottom: 3px;
+}
+
+.LatestScanPrice {
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 36px;
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.LatestScanPriceDiscounted {
+    color: #15803D;
+}
+
+.LatestScanPriceVoided {
+    color: #94A3B8;
+    text-decoration: line-through;
+    text-decoration-color: rgba(225, 30, 38, 0.55);
+}
+
+.LatestScanPriceExtra {
+    color: #E11E26;
+}
+
+.LatestScanPills {
+    display: flex;
+    gap: 7px;
+    margin-top: 12px;
+}
+
+.LatestScanPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.LatestScanPillVoided {
+    background: rgba(225, 30, 38, 0.10);
+    border: 1px solid rgba(225, 30, 38, 0.28);
+    color: #B91C1C;
+}
+
+.LatestScanPillDiscount {
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.32);
+    color: #15803D;
+}
+
+.LatestScanPillExtra {
+    background: rgba(225, 30, 38, 0.08);
+    border: 1px solid rgba(225, 30, 38, 0.22);
+    color: #B91C1C;
+}
+
+.LatestScanPillAmount {
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 14px;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* When the latest card is for a voided line, tone it way down. */
+.LatestScanCardVoided {
+    background:
+        radial-gradient(120% 160% at 0% 0%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 55%),
+        linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
+    border-color: rgba(148, 163, 184, 0.45);
+    box-shadow: 0 6px 16px rgba(148, 163, 184, 0.25);
+    animation: none;
+}
+
+.LatestScanCardVoided::after { display: none; }
+
+.LatestScanCardVoided .LatestScanLabel {
+    color: #64748B;
+}
+
+.LatestScanCardVoided .LatestScanLabelDot {
+    background: #94A3B8;
+    box-shadow: none;
+    animation: none;
+}
+
+.LatestScanCardVoided .LatestScanName {
+    color: #94A3B8;
+    font-style: italic;
+}
+
+@keyframes latestScanFlash {
+    0% { transform: translateY(-6px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes latestScanAccent {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@keyframes latestScanShimmer {
+    0% { transform: translateX(-140%) rotate(8deg); }
+    100% { transform: translateX(240%) rotate(8deg); }
+}
+
+@keyframes latestScanDot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.35); opacity: 0.65; }
+}
+
+/* ==========================================================================
+   Invoice list (newest first, excludes latest scan)
+   ========================================================================== */
+
+.ListWrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 2px 18px 10px 18px;
+}
+
+.ListWrap::-webkit-scrollbar { width: 0; }
+
+.ListEmpty {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 32px;
+    color: #6B7280;
+    text-align: center;
+}
+
+.ListEmptyIcon {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
+    color: #94A3B8;
+    font-size: 32px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.ListEmptyTitle {
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+    font-family: "Janna", "Inter", "Segoe UI", sans-serif;
+}
+
+.ListEmptySub {
+    font-size: 13px;
+    color: #6B7280;
+    max-width: 320px;
+    line-height: 1.5;
+}
+
+.LineRow {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    column-gap: 24px;
+    align-items: center;
+    padding: 12px 20px;
+    border-radius: 14px;
+    margin-bottom: 8px;
+    background: #FFFFFF;
+    border: 1px solid #F1F5F9;
+    transition: background 0.15s ease;
+}
+
+.LineRow:nth-child(even) {
+    background: #F8FAFC;
+}
+
+.LineRow.LineRowVoided {
+    opacity: 0.65;
+    background: #F8FAFC;
+}
+
+.LineQty {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    justify-self: start;
+    min-width: 60px;
+    justify-content: center;
+}
+
+.LineQtyMult {
+    font-size: 13px;
+    color: #6B7280;
+    margin-right: 1px;
+}
+
+.LineCenter {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.LineName {
+    font-family: "Janna", "Inter", "Segoe UI", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.LineRowVoided .LineName {
+    color: #94A3B8;
+    font-style: italic;
+}
+
+.LineSubRow {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.LinePill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.LinePillVoided {
+    background: rgba(225, 30, 38, 0.10);
+    border: 1px solid rgba(225, 30, 38, 0.28);
+    color: #B91C1C;
+}
+
+.LinePillDiscount {
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.28);
+    color: #15803D;
+}
+
+.LinePillExtra {
+    background: rgba(225, 30, 38, 0.08);
+    border: 1px solid rgba(225, 30, 38, 0.22);
+    color: #B91C1C;
+}
+
+.LinePrice {
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.LinePriceOld {
+    display: block;
+    font-size: 13px;
+    color: #9CA3AF;
+    text-decoration: line-through;
+    text-decoration-color: rgba(156, 163, 175, 0.7);
+    font-weight: 500;
+}
+
+.LinePriceDiscounted {
+    color: #15803D;
+}
+
+.LinePriceExtra {
+    color: #E11E26;
+}
+
+.LineRowVoided .LinePrice {
+    color: #94A3B8;
+    text-decoration: line-through;
+    text-decoration-color: rgba(225, 30, 38, 0.5);
+}
+
+/* ==========================================================================
+   Totals footer (under invoice)
+   ========================================================================== */
+
+.TotalsPanel {
+    flex-shrink: 0;
+    padding: 14px 20px 18px 20px;
+    background:
+        radial-gradient(140% 200% at 0% 100%, rgba(225, 30, 38, 0.05) 0%, rgba(225, 30, 38, 0) 60%),
+        linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    border-top: 1px solid #E5E7EB;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.TotalsPanel::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        rgba(225, 30, 38, 0) 0%,
+        rgba(225, 30, 38, 0.7) 30%,
+        rgba(180, 20, 27, 1) 50%,
+        rgba(225, 30, 38, 0.7) 70%,
+        rgba(225, 30, 38, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: latestScanAccent 6s linear infinite;
+    opacity: 0.7;
+}
+
+.TotalsCell {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.TotalsLabel {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #6B7280;
+    margin-bottom: 2px;
+}
+
+.TotalsLabelAccent {
+    color: #B3141B;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.TotalsLabelAccent::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #E11E26;
+    box-shadow: 0 0 8px rgba(225, 30, 38, 0.7);
+}
+
+/* Green variant of the "Grand Total" label — used on sales mode to match
+   the green total amount. */
+.TotalsLabelAccentGreen {
+    color: #15803D;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.TotalsLabelAccentGreen::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #22C55E;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.75);
+}
+
+.TotalsAmount {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-family: "DSDIGI", "Inter", monospace;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+}
+
+.TotalsAmount small {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 14px;
+    color: #6B7280;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.TotalsAmountGrand {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.5px;
+}
+
+.TotalsAmountRed {
+    color: #E11E26;
+}
+
+.TotalsAmountGreen {
+    color: #15803D;
+}
+
+.TotalsStackCell {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    row-gap: 4px;
+    padding: 2px 14px;
+    border-left: 1px dashed rgba(17, 24, 39, 0.1);
+    border-right: 1px dashed rgba(17, 24, 39, 0.1);
+}
+
+.TotalsStackRow {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    align-items: center;
+    column-gap: 10px;
+}
+
+.TotalsStackLabel {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #6B7280;
+}
+
+.TotalsStackLabelGreen { color: #15803D; }
+.TotalsStackLabelRed { color: #B91C1C; }
+
+.TotalsStackAmount {
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 22px;
+    font-weight: 800;
+    color: #111827;
+    text-align: right;
+    line-height: 1;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.TotalsStackAmountGreen { color: #15803D; }
+.TotalsStackAmountRed { color: #B91C1C; }
+
+.TotalsPills {
+    display: flex;
+    gap: 8px;
+}
+
+.TotalsPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    background: #F1F5F9;
+    color: #334155;
+    border: 1px solid #E2E8F0;
+}
+
+.TotalsPill b {
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 13px;
+    color: #111827;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+}
+
+.TotalsPillCashback {
+    background: rgba(37, 99, 235, 0.08);
+    border-color: rgba(37, 99, 235, 0.22);
+    color: #1D4ED8;
+}
+
+.TotalsPillCashback b { color: #1E3A8A; }
+
+/* "You Saved JD X.XXX" — customer-delight pill. Brand green, with a
+   gentle breathing glow so customers naturally notice it without it
+   being loud on the cashier's side. Appears only when totaldiscount > 0
+   on sales (never on refunds). */
+@keyframes cdSavedPulse {
+    0%, 100% {
+        box-shadow:
+            0 0 0 0 rgba(34, 197, 94, 0.35),
+            inset 0 0 0 1px rgba(34, 197, 94, 0.35);
+    }
+    50% {
+        box-shadow:
+            0 0 0 4px rgba(34, 197, 94, 0.12),
+            inset 0 0 0 1px rgba(34, 197, 94, 0.55);
+    }
+}
+
+.TotalsPillSaved {
+    background: linear-gradient(180deg, rgba(220, 252, 231, 0.9) 0%, rgba(187, 247, 208, 0.85) 100%);
+    border-color: rgba(34, 197, 94, 0.45);
+    color: #166534;
+    padding: 7px 16px;
+    gap: 8px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    animation: cdSavedPulse 2.4s ease-in-out infinite;
+}
+
+.TotalsPillSaved b {
+    color: #166534;
+    font-size: 17px;
+    letter-spacing: 0.4px;
+    margin-left: 2px;
+}
+
+.TotalsPillSaved small {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    color: #15803D;
+    margin-left: 2px;
+}
+
+/* ==========================================================================
+   Right column — image carousel
+   ========================================================================== */
+
+.RightColumn {
+    grid-row: 1 / 2;
+    grid-column: 2 / 3;
+    position: relative;
+    background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.Carousel {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.CarouselSlide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transform: scale(1.05);
+    transition: opacity 900ms ease, transform 6000ms ease;
+    pointer-events: none;
+}
+
+.CarouselSlideActive {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+    z-index: 1;
+}
+
+.CarouselImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.CarouselFallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(120% 100% at 50% 0%, rgba(225, 30, 38, 0.18) 0%, rgba(225, 30, 38, 0) 55%), #0F172A;
+    color: #F8FAFC;
+    text-align: center;
+    padding: 40px;
+    gap: 16px;
+    flex-direction: column;
+}
+
+.CarouselFallback img {
+    max-width: 50%;
+    max-height: 40%;
+    object-fit: contain;
+    opacity: 0.85;
+    filter: drop-shadow(0 4px 18px rgba(225, 30, 38, 0.35));
+}
+
+.CarouselFallbackText {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: #F8FAFC;
+    opacity: 0.88;
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.CarouselFallbackSub {
+    font-size: 13px;
+    color: rgba(248, 250, 252, 0.55);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+.CarouselOverlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.22) 0%, rgba(15, 23, 42, 0) 25%, rgba(15, 23, 42, 0) 75%, rgba(15, 23, 42, 0.45) 100%);
+}
+
+.CarouselDots {
+    position: absolute;
+    bottom: 18px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    z-index: 3;
+}
+
+.CarouselDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    transition: background 0.2s ease, width 0.3s ease;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.4);
+}
+
+.CarouselDotActive {
+    background: #FFFFFF;
+    width: 22px;
+    border-radius: 6px;
+}
+
+.CarouselProgress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.12);
+    z-index: 3;
+    overflow: hidden;
+}
+
+.CarouselProgressBar {
+    height: 100%;
+    background: linear-gradient(90deg, #E11E26 0%, #FCA5A5 50%, #E11E26 100%);
+    background-size: 200% 100%;
+    animation: carouselProgressShimmer 3s linear infinite;
+    transform-origin: left;
+    transition: transform 100ms linear;
+}
+
+@keyframes carouselProgressShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ==========================================================================
+   Payment highlight overlay — shown on top of the carousel briefly when
+   paymentMode kicks in, to guide customer eyes to the left side totals.
+   ========================================================================== */
+
+.PayBanner {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    right: 24px;
+    z-index: 5;
+    padding: 12px 20px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(225, 30, 38, 0.92) 0%, rgba(180, 20, 27, 0.92) 100%);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 12px 32px rgba(225, 30, 38, 0.42);
+    animation: payBannerIn 400ms ease-out;
+}
+
+.PayBanner b {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+
+.PayBanner small {
+    font-size: 12px;
+    opacity: 0.92;
+}
+
+@keyframes payBannerIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   Bottom news ticker (full width)
+   ========================================================================== */
+
+.NewsTicker {
+    grid-row: 2 / 3;
+    grid-column: 1 / 3;
+    background: linear-gradient(90deg, #111827 0%, #1F2937 50%, #111827 100%);
+    color: #F8FAFC;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+    border-top: 2px solid rgba(225, 30, 38, 0.6);
+    box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.NewsTicker::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        rgba(225, 30, 38, 0) 0%,
+        rgba(225, 30, 38, 0.9) 30%,
+        rgba(180, 20, 27, 1) 50%,
+        rgba(225, 30, 38, 0.9) 70%,
+        rgba(225, 30, 38, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: latestScanAccent 5s linear infinite;
+}
+
+.NewsBadge {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 20px;
+    height: 100%;
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%);
+    color: #FFFFFF;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    box-shadow: 4px 0 12px rgba(225, 30, 38, 0.4);
+    position: relative;
+    z-index: 2;
+}
+
+.NewsBadgeDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+    animation: newsBadgeDot 1.2s ease-in-out infinite;
+}
+
+@keyframes newsBadgeDot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.4); opacity: 0.5; }
+}
+
+.NewsScroller {
+    flex: 1 1 auto;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    mask-image: linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
+}
+
+.NewsTrack {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    animation: newsScroll 45s linear infinite;
+    will-change: transform;
+}
+
+.NewsTrack:hover {
+    animation-play-state: paused;
+}
+
+/* Each group holds one full copy of the messages. The track renders two
+   groups back-to-back and animates by exactly -50% of its own width, which
+   is one group width — guaranteeing a seamless wrap regardless of how
+   many messages or how long they are. The group's own padding-left acts as
+   the spacing between the end of group A and the start of group B (it
+   matches the gap between items inside a group, so the rhythm is kept). */
+.NewsGroup {
+    display: flex;
+    align-items: center;
+    gap: 56px;
+    padding-left: 56px;
+    flex-shrink: 0;
+}
+
+.NewsItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    color: #F8FAFC;
+    font-family: "Janna", "Inter", "Segoe UI", sans-serif;
+}
+
+.NewsSeparator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(225, 30, 38, 0.85);
+    box-shadow: 0 0 8px rgba(225, 30, 38, 0.5);
+    flex-shrink: 0;
+}
+
+@keyframes newsScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.NewsEmpty {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: rgba(248, 250, 252, 0.45);
+    letter-spacing: 0.6px;
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   Terminal lock overlay — replaces the old basic lock image with an
+   animated, branded locked state.
+   ========================================================================== */
+
+.LockOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: radial-gradient(120% 100% at 50% 50%, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.97) 70%, #0F172A 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    color: #F8FAFC;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: lockOverlayFade 300ms ease-out;
+}
+
+.LockIcon {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    color: #F8FAFC;
+    background: linear-gradient(135deg, #1F2937 0%, #0F172A 100%);
+    border: 2px solid rgba(225, 30, 38, 0.65);
+    box-shadow:
+        0 0 0 6px rgba(225, 30, 38, 0.18),
+        0 20px 50px rgba(0, 0, 0, 0.55);
+    animation: lockBreathe 2.4s ease-in-out infinite;
+}
+
+.LockTitle {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 2.2px;
+    text-transform: uppercase;
+    color: #F8FAFC;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+
+.LockSub {
+    font-size: 14px;
+    color: rgba(248, 250, 252, 0.6);
+    letter-spacing: 0.8px;
+    max-width: 380px;
+    text-align: center;
+}
+
+@keyframes lockOverlayFade {
+    from { opacity: 0; backdrop-filter: blur(0); }
+    to   { opacity: 1; backdrop-filter: blur(8px); }
+}
+
+@keyframes lockBreathe {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow:
+            0 0 0 6px rgba(225, 30, 38, 0.18),
+            0 20px 50px rgba(0, 0, 0, 0.55);
+    }
+    50% {
+        transform: scale(1.04);
+        box-shadow:
+            0 0 0 12px rgba(225, 30, 38, 0.08),
+            0 20px 50px rgba(0, 0, 0, 0.55);
+    }
+}
+
+/* ==========================================================================
+   Refund mode ambient cue on the customer-facing display — matches the
+   main terminal's refund ambience so CCTV sees both screens tagged in
+   the same way.
+   ========================================================================== */
+
+@keyframes cdRefundPulse {
+    0%, 100% {
+        box-shadow:
+            inset 0 0 0 5px rgba(225, 30, 38, 0.60),
+            inset 0 0 70px rgba(225, 30, 38, 0.08);
+    }
+    50% {
+        box-shadow:
+            inset 0 0 0 5px rgba(225, 30, 38, 0.85),
+            inset 0 0 100px rgba(225, 30, 38, 0.12);
+    }
+}
+
+.Shell.RefundMode::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
+    box-shadow:
+        inset 0 0 0 5px rgba(225, 30, 38, 0.60),
+        inset 0 0 70px rgba(225, 30, 38, 0.08);
+    animation: cdRefundPulse 2.6s ease-in-out infinite;
+}

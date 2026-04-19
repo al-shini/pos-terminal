@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown, faCogs,
-    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck
+    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck, faArrowRightFromBracket, faQrcode, faMobileScreenButton, faHashtag, faMotorcycle
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -68,6 +68,8 @@ import InactivityHandler from '../InactivityHandler';
 import VirtualKeyboardInput from '../UI/VirtualKeyboardInput';
 import RefundReferenceDialog from './RefundReferenceDialog';
 import CustomCustomerNameDialog from './CustomCustomerNameDialog';
+import CustomCustomerMobileDialog from './CustomCustomerMobileDialog';
+import ReferenceNumberDialog from './ReferenceNumberDialog';
 const { ipcRenderer } = window.require('electron');
 
 
@@ -121,6 +123,8 @@ const Terminal = (props) => {
     const [lastTrxList, setLastTrxList] = useState([]);
     const [refundReferenceDialogOpen, setRefundReferenceDialogOpen] = useState(false);
     const [customCustomerNameDialogOpen, setCustomCustomerNameDialogOpen] = useState(false);
+    const [customCustomerMobileDialogOpen, setCustomCustomerMobileDialogOpen] = useState(false);
+    const [referenceNumberDialogOpen, setReferenceNumberDialogOpen] = useState(false);
     const [cashDroModalOpen, setCashDroModalOpen] = useState(false);
     const [cashDroStatus, setCashDroStatus] = useState({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
     const [cashDroPollingRef, setCashDroPollingRef] = useState(null);
@@ -1688,6 +1692,12 @@ const Terminal = (props) => {
                 <label>MobiCash</label>
             </Button>
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            <Button key='talabat' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
+                onClick={() => { startPayment('talabat', 'numpad') }}>
+                <FontAwesomeIcon icon={faMotorcycle} style={{ marginRight: '5px' }} />
+                <label>Talabat</label>
+            </Button>
+            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {config.systemCurrency === 'NIS' && <Button key='wfp' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
                 onClick={() => { startPayment('wfp', 'numpad') }}>
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
@@ -1758,10 +1768,42 @@ const Terminal = (props) => {
                             visaPayment: null
                         }));
                     }}
-                        style={{ backgroundColor: '#f7f7fa', display: 'block', width: '90%', position: 'relative', left: '15px' }}
-
+                        style={{
+                            backgroundColor: '#FFFFFF',
+                            display: 'block',
+                            width: 'calc(100% - 12px)',
+                            margin: '4px 6px',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: '12px',
+                            boxShadow: '0 1px 2px rgba(17, 24, 39, 0.04)',
+                            cursor: 'pointer',
+                            overflow: 'hidden',
+                            transition: 'border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease'
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = '#FBC9CC';
+                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(225, 30, 38, 0.10)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = '#E5E7EB';
+                            e.currentTarget.style.boxShadow = '0 1px 2px rgba(17, 24, 39, 0.04)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                        }}
                     >
-                        <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: obj.amount > 10 ? '90%' : 'auto', height: '60px' }} />
+                        <img
+                            src={notesImages[obj.amount + '' + obj.currency]}
+                            alt={obj.amount + ' ' + obj.currency}
+                            style={{
+                                display: 'block',
+                                margin: '6px auto',
+                                maxWidth: '92%',
+                                maxHeight: '56px',
+                                height: 'auto',
+                                width: 'auto',
+                                objectFit: 'contain'
+                            }}
+                        />
                     </a>
                 )
                 tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={i + 'space'} > .</div>);
@@ -1780,8 +1822,8 @@ const Terminal = (props) => {
                     }))
                 }}>
                     <label style={{ marginRight: '5px' }}>Refund</label>
-                    <label style={{ fontFamily: 'DSDIGI', fontSize: '20px' }}>
-                        {trxSlice.trx.totalafterdiscount} {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
+                    <label style={{ fontSize: '20px' }}>
+                        <span style={{ fontFamily: '"DSDIGI", monospace' }}>{trxSlice.trx.totalafterdiscount}</span> {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
                     </label>
                 </Button>
             );
@@ -1809,8 +1851,43 @@ const Terminal = (props) => {
                         sourceKey: '',
                         visaPayment: null
                     }))
-                }} style={{ backgroundColor: '#f7f7fa', display: 'block', width: '90%', position: 'relative', left: '15px' }} >
-                    <img src={notesImages[obj.amount + '' + obj.currency]} style={{ display: 'block', margin: 'auto', width: '90%', height: '57px' }} />
+                }}
+                    style={{
+                        backgroundColor: '#FFFFFF',
+                        display: 'block',
+                        width: 'calc(100% - 12px)',
+                        margin: '4px 6px',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '12px',
+                        boxShadow: '0 1px 2px rgba(17, 24, 39, 0.04)',
+                        cursor: 'pointer',
+                        overflow: 'hidden',
+                        transition: 'border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease'
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.borderColor = '#FBC9CC';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(225, 30, 38, 0.10)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.borderColor = '#E5E7EB';
+                        e.currentTarget.style.boxShadow = '0 1px 2px rgba(17, 24, 39, 0.04)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                >
+                    <img
+                        src={notesImages[obj.amount + '' + obj.currency]}
+                        alt={obj.amount + ' ' + obj.currency}
+                        style={{
+                            display: 'block',
+                            margin: '6px auto',
+                            maxWidth: '92%',
+                            maxHeight: '56px',
+                            height: 'auto',
+                            width: 'auto',
+                            objectFit: 'contain'
+                        }}
+                    />
                 </a>
             )
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.uuid + 'space'} > .</div>);
@@ -2019,6 +2096,27 @@ const Terminal = (props) => {
                 </Button>
             }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {
+                <Button key='customerMobile' className={classes.MainActionButton}
+                    disabled={!trxSlice.trx || (terminal.customer && terminal.customer.club)}
+                    onClick={() => setCustomCustomerMobileDialogOpen(true)}
+                    title={(terminal.customer && terminal.customer.club) ? 'Club customer scanned — mobile is locked' : undefined}>
+                    <div style={{ fontSize: '12px', }}>
+                        <FontAwesomeIcon icon={faMobileScreenButton} style={{ marginRight: '5px' }} />
+                        <label>Customer Mobile</label>
+                    </div>
+                </Button>
+            }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {
+                <Button key='referenceNumber' className={classes.MainActionButton}
+                    disabled={!trxSlice.trx}
+                    onClick={() => setReferenceNumberDialogOpen(true)}>
+                    <div style={{ fontSize: '12px', }}>
+                        <FontAwesomeIcon icon={faHashtag} style={{ marginRight: '5px' }} />
+                        <label>Reference Number</label>
+                    </div>
+                </Button>
+            }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {
                 <Button key='lastTrxList' className={classes.MainActionButton}
                     onClick={handleLastTrxList}>
                     <div style={{ fontSize: '12px', }}>
@@ -2033,7 +2131,24 @@ const Terminal = (props) => {
     const buildSuspendedButtons = () => {
         let tmp = [];
 
-        tmp.push(<h6 key={'title'} style={{ textAlign: 'center', color: 'white', marginBottom: '5px' }} >Suspended List <br /><small>Click to Resume</small></h6>);
+        tmp.push(
+            <div key={'title'} style={{
+                textAlign: 'center',
+                margin: '4px 6px 10px 6px',
+                padding: '10px 12px',
+                background: 'linear-gradient(135deg, #FFF7F7 0%, #FDEDEE 100%)',
+                border: '1px solid rgba(225, 30, 38, 0.18)',
+                borderRadius: '12px',
+                color: '#B3141B'
+            }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                    Suspended
+                </div>
+                <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: 600, marginTop: 2 }}>
+                    Tap an item to resume
+                </div>
+            </div>
+        );
 
         terminal.suspendedForTill.map((obj, i) => {
             // console.log('sus', obj);
@@ -2087,18 +2202,24 @@ const Terminal = (props) => {
     const buildCashBackButtons = () => {
         let tmp = [];
 
+        const rawBalance = Number(terminal.customer ? terminal.customer.cashbackBalance : 0) || 0;
+        const balance = Math.round(rawBalance * 10000) / 10000;
+        const currency = config.systemCurrency === 'NIS' ? 'JD' : 'JD';
+
         tmp.push(
-            <Button key={'1'}
-                disabled style={{ left: 20, width: '80%', backgroundColor: 'yellow', color: 'black' }}>
-                <div>
-                    <i style={{ fontSize: 12 }}>Cashback Balance</i>
-                    <br />
-                    <div style={{ margin: 'auto' }}>
-                        <b>{terminal.customer.cashbackBalance} <small>{config.systemCurrency === 'NIS' ? 'JD' : 'JD'}</small></b>
+            <div key={'cashbackBalanceCard'} className={classes.CashbackBalanceCard}>
+                <div className={classes.CashbackBalanceIcon}>
+                    <FontAwesomeIcon icon={faStar} />
+                </div>
+                <div className={classes.CashbackBalanceBody}>
+                    <span className={classes.CashbackBalanceLabel}>Cashback Balance</span>
+                    <div className={classes.CashbackBalanceAmountRow}>
+                        <small className={classes.CashbackBalanceCurrency}>{currency}</small>
+                        <span className={classes.CashbackBalanceAmount}>{balance}</span>
                     </div>
                 </div>
-            </Button >
-        )
+            </div>
+        );
         tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={'empExtraSpace'} > .</div>);
 
         return tmp;
@@ -2278,221 +2399,784 @@ const Terminal = (props) => {
 
 
     return (
-        <FlexboxGrid style={{ zoom: 0.9 }} >
-            <FlexboxGrid.Item colspan={11} style={{ background: 'white', position: 'relative', left: '6px', width: '48.83333333%' }}  >
+        <FlexboxGrid
+            className={terminal.trxMode === 'Refund' ? classes.RefundMode : ''}
+            style={{
+                zoom: 0.9,
+                background: '#F8FAFC',
+                height: 'calc(100vh / 0.9)',
+                maxHeight: 'calc(100vh / 0.9)',
+                overflow: 'hidden'
+            }}
+        >
+            <FlexboxGrid.Item colspan={10} style={{
+                background: '#FFFFFF',
+                position: 'relative',
+                height: 'calc(100vh / 0.9)',
+                overflow: 'hidden',
+                borderRight: '1px solid #E5E7EB'
+            }}  >
                 {terminal.display === 'ready' && <Invoice authQR={authQR} />}
                 {terminal.display === 'payment' && <Payments />}
                 {terminal.display === 'balance-setup' && <BalanceSetup />}
-            </FlexboxGrid.Item>
 
-            <FlexboxGrid.Item colspan={1} style={{ width: '1.166667%' }}>
                 <InactivityHandler setActionsMode={setActionsMode} />
 
                 {
-                    terminal.blockActions && <div style={{
-                        position: 'fixed',
-                        zIndex: '999',
-                        backgroundColor: 'rgba(0,0,0,0.6)', height: '100%', width: '100%', top: '0%', left: '0%'
-                    }}>
-                        <img src={Lock} style={{ margin: 'auto', display: 'block', top: '30%', position: 'relative' }} width='15%' />
-                        <div style={{ textAlign: 'center', color: 'white', top: '30%', position: 'relative', fontSize: '25px' }} >
-                            Terminal Locked
+                    terminal.blockActions && (
+                        <div className={classes.LockOverlay}>
+                            <div className={classes.LockCard}>
+                                <div className={classes.LockMedallionStage}>
+                                    <span className={classes.LockRingOuter} />
+                                    <span className={classes.LockRingInner} />
+                                    <span className={classes.LockHalo} />
+                                    <span className={classes.LockBadge}>
+                                        <FontAwesomeIcon icon={faLock} />
+                                    </span>
+                                </div>
+                                <div className={classes.LockTitle}>Terminal Locked</div>
+                                <div className={classes.LockSubtitle}>Awaiting cashier authorization</div>
+                                <div className={classes.LockDots}>
+                                    <span /><span /><span />
+                                </div>
+                                <div className={classes.LockActions}>
+                                    <button
+                                        type="button"
+                                        className={`${classes.LockActionBtn} ${classes.LockActionPrimary}`}
+                                        onClick={handleUnlockTill}
+                                    >
+                                        <FontAwesomeIcon icon={faQrcode} className={classes.LockActionIcon} />
+                                        Unlock Till
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`${classes.LockActionBtn} ${classes.LockActionGhost}`}
+                                        onClick={handleLogout}
+                                    >
+                                        <FontAwesomeIcon icon={faArrowRightFromBracket} className={classes.LockActionIcon} />
+                                        Sign Out
+                                    </button>
+                                </div>
+                                <div className={classes.LockFootnote}>
+                                    <FontAwesomeIcon icon={faShieldHalved} className={classes.LockFootnoteIcon} />
+                                    Secured session · Shini POS
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )
                 }
 
                 {
-                    (trxSlice.qrAuthState === 'pending') && authQR && <div style={{
-                        position: 'fixed',
-                        zIndex: '999',
-                        backgroundColor: 'rgba(0,0,0,0.50)', height: '100%', width: '100%', top: '0%', left: '0%'
-                    }}>
-                        <h1 style={{ textAlign: 'center', color: 'white', margin: '5% 0%' }}>
+                    (trxSlice.qrAuthState === 'pending') && authQR && (() => {
+                        const sourceLabels = {
+                            VoidLine: 'Void Line',
+                            VoidPayment: 'Void Payment',
+                            VoidTrx: 'Void Transaction',
+                            PriceChange: 'Price Change',
+                            Refund: 'Refund Mode',
+                            TaxExempt: 'Tax Exempt',
+                            Suspend: 'Suspend Transaction',
+                            'QTY-Multiplier': 'Quantity Multiplier',
+                            ManagerMode: 'Manager Mode'
+                        };
+                        const friendlySource = sourceLabels[authQR.source] || authQR.source;
+                        const showQR = authQR.source !== 'ManagerMode' &&
+                            ((authQR.source !== 'PriceChange') || (authQR.source === 'PriceChange' && trxSlice.priceChangeReason));
+                        const isPriceChangeAwaitingReason =
+                            authQR.source === 'PriceChange' && !trxSlice.priceChangeReason;
+
+                        return (
                             <div style={{
-                                color: '#a30b00',
-                                background: 'white',
-                                padding: '20px ',
-                                marginBottom: '20px'
+                                position: 'fixed',
+                                zIndex: 10050,
+                                inset: 0,
+                                background: 'radial-gradient(ellipse at center, rgba(17,24,39,0.65) 0%, rgba(17,24,39,0.85) 100%)',
+                                backdropFilter: 'blur(6px)',
+                                WebkitBackdropFilter: 'blur(6px)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '24px',
+                                fontFamily: '"Inter", "Segoe UI", sans-serif'
                             }}>
-                                <FontAwesomeIcon icon={faLock} style={{ marginRight: '8px' }} />
-                                Manager Access Required
+                                <div style={{
+                                    background: '#FFFFFF',
+                                    width: 460,
+                                    maxWidth: '94vw',
+                                    borderRadius: 20,
+                                    boxShadow: '0 30px 60px rgba(0,0,0,0.40), 0 10px 20px rgba(0,0,0,0.20)',
+                                    overflow: 'hidden',
+                                    border: '1px solid rgba(255,255,255,0.08)'
+                                }}>
+                                    {/* Header */}
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, #1F2937 0%, #111827 100%)',
+                                        color: '#FFFFFF',
+                                        padding: '18px 22px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 14,
+                                        borderBottom: '4px solid #E11E26'
+                                    }}>
+                                        <div style={{
+                                            width: 44,
+                                            height: 44,
+                                            borderRadius: 12,
+                                            background: 'rgba(225, 30, 38, 0.18)',
+                                            border: '1px solid rgba(225, 30, 38, 0.40)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: '#FCA5A5',
+                                            fontSize: 20,
+                                            flexShrink: 0
+                                        }}>
+                                            <FontAwesomeIcon icon={faLock} />
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{
+                                                fontSize: 17,
+                                                fontWeight: 800,
+                                                letterSpacing: 0.3,
+                                                textTransform: 'uppercase',
+                                                lineHeight: 1.2
+                                            }}>
+                                                Manager Authorization
+                                            </div>
+                                            <div style={{
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                color: 'rgba(255,255,255,0.65)',
+                                                marginTop: 3,
+                                                letterSpacing: 0.5,
+                                                textTransform: 'uppercase'
+                                            }}>
+                                                {authQR.source === 'ManagerMode' ? 'Enter access code to continue' : 'Scan QR with manager device'}
+                                            </div>
+                                        </div>
+                                        <span style={{
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            letterSpacing: 0.8,
+                                            textTransform: 'uppercase',
+                                            background: 'rgba(225, 30, 38, 0.18)',
+                                            color: '#FCA5A5',
+                                            border: '1px solid rgba(225, 30, 38, 0.40)',
+                                            padding: '4px 10px',
+                                            borderRadius: 999,
+                                            flexShrink: 0
+                                        }}>
+                                            {friendlySource}
+                                        </span>
+                                    </div>
+
+                                    {/* Body */}
+                                    <div style={{ padding: '22px' }}>
+                                        {/* PriceChange: need reason first */}
+                                        {authQR.source === 'PriceChange' && (
+                                            <div style={{ marginBottom: 18 }}>
+                                                <div style={{
+                                                    fontSize: 12,
+                                                    fontWeight: 700,
+                                                    color: '#6B7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: 0.4,
+                                                    marginBottom: 8
+                                                }}>
+                                                    Price Change Reason
+                                                </div>
+                                                <SelectPicker
+                                                    value={trxSlice.priceChangeReason}
+                                                    placeholder="Select a reason to generate QR"
+                                                    searchable={false}
+                                                    block
+                                                    menuStyle={{ zIndex: 1200 }}
+                                                    data={[
+                                                        { label: 'Offer (Wrong Sign)', value: '1' },
+                                                        { label: 'Offer (Facebook & No Cash)', value: '2' },
+                                                        { label: 'Nearly Expired', value: '3' },
+                                                        { label: 'Corrupted Item', value: '4' },
+                                                    ]}
+                                                    onChange={(value) => { dispatch(setPriceChangeReason(value)) }}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* QR code */}
+                                        {showQR && (
+                                            <div style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                gap: 14,
+                                                padding: '20px',
+                                                background: '#F8FAFC',
+                                                border: '1px solid #E5E7EB',
+                                                borderRadius: 14
+                                            }}>
+                                                <div style={{
+                                                    background: '#FFFFFF',
+                                                    padding: 14,
+                                                    borderRadius: 12,
+                                                    border: '1px solid #E5E7EB',
+                                                    boxShadow: '0 4px 10px rgba(17, 24, 39, 0.06)'
+                                                }}>
+                                                    <QRCode value={JSON.stringify(authQR)} size={180} />
+                                                </div>
+                                                <div style={{
+                                                    textAlign: 'center',
+                                                    color: '#374151',
+                                                    fontSize: 13,
+                                                    fontWeight: 600,
+                                                    lineHeight: 1.45
+                                                }}>
+                                                    Ask a manager to scan this code<br />
+                                                    <span style={{ color: '#6B7280', fontWeight: 500, fontSize: 12 }}>
+                                                        Waiting for authorization&hellip;
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* ManagerMode: password entry */}
+                                        {authQR.source === 'ManagerMode' && (
+                                            <div>
+                                                <div style={{
+                                                    fontSize: 12,
+                                                    fontWeight: 700,
+                                                    color: '#6B7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: 0.4,
+                                                    marginBottom: 8
+                                                }}>
+                                                    Manager Access Code
+                                                </div>
+                                                <Input
+                                                    autoFocus
+                                                    value={terminal.managerUser}
+                                                    onChange={(e) => { dispatch(setManagerUser(e)) }}
+                                                    type='password'
+                                                    placeholder='Enter code (min 10 characters)'
+                                                    style={{
+                                                        width: '100%',
+                                                        height: 52,
+                                                        fontSize: 18,
+                                                        fontWeight: 700,
+                                                        letterSpacing: 4,
+                                                        textAlign: 'center',
+                                                        borderRadius: 12,
+                                                        border: '1px solid #E5E7EB',
+                                                        background: '#F8FAFC'
+                                                    }}
+                                                />
+                                                <Button
+                                                    block
+                                                    appearance="primary"
+                                                    disabled={!terminal.managerUser || terminal.managerUser.length < 10}
+                                                    onClick={() => dispatch(verifyManagerMode())}
+                                                    style={{
+                                                        marginTop: 12,
+                                                        height: 52,
+                                                        borderRadius: 12,
+                                                        fontSize: 15,
+                                                        fontWeight: 800,
+                                                        letterSpacing: 0.4,
+                                                        textTransform: 'uppercase',
+                                                        background: 'linear-gradient(135deg, #16A34A 0%, #128A3F 100%)',
+                                                        border: 'none',
+                                                        boxShadow: '0 10px 22px rgba(22, 163, 74, 0.30)'
+                                                    }}
+                                                >
+                                                    <FontAwesomeIcon icon={faKey} style={{ marginRight: 8 }} />
+                                                    Verify Access
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                        {/* Placeholder while reason not picked */}
+                                        {isPriceChangeAwaitingReason && (
+                                            <div style={{
+                                                marginTop: 4,
+                                                padding: '14px 16px',
+                                                background: 'rgba(250, 137, 0, 0.08)',
+                                                border: '1px solid rgba(250, 137, 0, 0.30)',
+                                                borderRadius: 10,
+                                                color: '#B45309',
+                                                fontSize: 13,
+                                                fontWeight: 600,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 8
+                                            }}>
+                                                <FontAwesomeIcon icon={faExclamationTriangle} />
+                                                Select a reason first to generate the authorization QR.
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Footer */}
+                                    <div style={{
+                                        padding: '0 22px 22px 22px',
+                                        display: 'flex',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <Button
+                                            block
+                                            onClick={() => dispatch(holdQrAuthCheck())}
+                                            style={{
+                                                height: 52,
+                                                borderRadius: 12,
+                                                fontSize: 14,
+                                                fontWeight: 700,
+                                                letterSpacing: 0.4,
+                                                textTransform: 'uppercase',
+                                                border: '1px solid #E5E7EB',
+                                                background: '#FFFFFF',
+                                                color: '#374151',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: 8
+                                            }}
+                                        >
+                                            <FontAwesomeIcon icon={faBan} />
+                                            Back to Transaction
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
-
-                            <div style={{ margin: 'auto', borderRadius: '10px', padding: 15, background: 'white' }}>
-                                {authQR.source !== 'ManagerMode' && ((authQR.source !== 'PriceChange') || (authQR.source === 'PriceChange' && trxSlice.priceChangeReason)) &&
-                                    <QRCode value={JSON.stringify(authQR)} size={200} style={{ margin: '20px' }}
-                                    />}
-                                {authQR.source === 'ManagerMode' &&
-                                    <Input autoFocus={true} value={terminal.managerUser} onChange={(e) => { dispatch(setManagerUser(e)) }} type='password' style={{ width: '100%' }} />}
-                                {authQR.source === 'ManagerMode' &&
-                                    <Button style={{ fontSize: '20px', marginTop: '10px' }} appearance="primary" color="green"
-                                        disabled={!terminal.managerUser || terminal.managerUser.length < 10}
-                                        onClick={() => dispatch(verifyManagerMode())} >
-                                        <FontAwesomeIcon icon={faKey} style={{ marginRight: '8px' }} />
-                                        Verify Access
-                                    </Button>}
-
-                            </div>
-
-                            <span style={{ display: 'block', marginBottom: '14px' }}>[ {authQR.source} ]</span>
-
-                            {authQR.source === 'PriceChange' &&
-                                <SelectPicker value={trxSlice.priceChangeReason} placeholder="Price Change Reason" searchable={false} width={250}
-                                    menuStyle={{ zIndex: '1000' }} data={[
-                                        { label: 'Offer (Wrong Sign)', value: '1' },
-                                        { label: 'Offer (Facebook & No Cash)', value: '2' },
-                                        { label: 'Nearly Expired', value: '3' },
-                                        { label: 'Corrupted Item', value: '4' },
-                                    ]} onChange={(value) => { dispatch(setPriceChangeReason(value)) }}>
-                                </SelectPicker>
-                            }
-
-                            <Button style={{ fontSize: '24px', display: 'block', margin: 'auto', marginTop: '15px' }}
-                                onClick={() => dispatch(holdQrAuthCheck())} >
-                                <FontAwesomeIcon icon={faBan} style={{ marginRight: '8px' }} />
-                                Go Back to Transaction
-                            </Button>
-                        </h1>
-                    </div>
+                        );
+                    })()
                 }
             </FlexboxGrid.Item>
 
-            <FlexboxGrid.Item colspan={9} style={{ position: 'relative', left: '6px', height: '100vh' }}>
-                <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
-                    <h6 style={{ lineHeight: '5vh', textAlign: 'left', fontSize: '95%' }}>
-                        <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '20px', marginRight: '7px' }} /> {terminal.loggedInUser ?
-                            (terminal.loggedInUser.employeeNumber ? terminal.loggedInUser.employeeNumber.concat(' - ') : '').concat(terminal.loggedInUser.username) : 'No User'}</span>
-                        <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
-                        <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
+            <FlexboxGrid.Item colspan={10} style={{
+                position: 'relative',
+                height: 'calc(100vh / 0.9)',
+                background: '#F8FAFC',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+            }}>
+                <div style={{
+                    background: 'linear-gradient(135deg, #1F2937 0%, #111827 100%)',
+                    color: 'white',
+                    height: '5vh',
+                    width: '100%',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 16px',
+                    boxShadow: '0 2px 6px rgba(17, 24, 39, 0.12)',
+                    borderLeft: '1px solid #E5E7EB'
+                }}>
+                    <h6 style={{
+                        margin: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        letterSpacing: '0.3px',
+                        fontFamily: '"Inter", "Segoe UI", sans-serif'
+                    }}>
+                        <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '7px',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            padding: '4px 10px',
+                            borderRadius: '999px',
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                            <FontAwesomeIcon icon={faUser} style={{ fontSize: '11px', opacity: 0.85 }} />
+                            {terminal.loggedInUser ?
+                                (terminal.loggedInUser.employeeNumber ? terminal.loggedInUser.employeeNumber.concat(' · ') : '').concat(terminal.loggedInUser.username) : 'No User'}
+                        </span>
+                        <span style={{
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            fontSize: '12px',
+                            fontFamily: '"Inter", "Segoe UI", sans-serif',
+                            fontWeight: 700,
+                            letterSpacing: '0.5px'
+                        }}>
+                            {terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}
+                        </span>
                     </h6>
-                    <img src={Logo} onClick={handleLogoTap} style={{ position: 'fixed', right: '1vw', top: '0', zIndex: 1000, height: 'inherit', cursor: 'pointer' }} />
                 </div>
 
-                <div id='rightPosPanel' style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', }}>
-                    <span>
-                        <FontAwesomeIcon icon={faIdCard} style={{
-                            marginLeft: '7px', marginRight: '7px', fontSize: '18px'
-                        }} />
+                <div id='rightPosPanel' style={{
+                    background: '#FFFFFF',
+                    padding: '10px 12px',
+                    borderBottom: '1px solid #E5E7EB',
+                    flexShrink: 0
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                         <span style={{
-                            marginRight: '7px', fontFamily: 'Janna',
-                            fontSize: '18px'
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            background: '#F8FAFC',
+                            border: '1px solid #E5E7EB',
+                            padding: '6px 12px',
+                            borderRadius: '999px',
+                            color: '#111827',
+                            fontSize: '15px',
+                            fontFamily: 'Janna, "Inter", sans-serif',
+                            fontWeight: 600
                         }}>
+                            <FontAwesomeIcon icon={faIdCard} style={{ color: '#6B7280', fontSize: '14px' }} />
                             {terminal.customer ? terminal.customer.customerName : 'No Customer'}
                         </span>
-                        {/* </a> */}
-                    </span>
 
-                    {terminal.customer && terminal.customer.club && <Divider vertical /> &&
-                        <span style={{ color: '#fa8900' }}>
-                            <FontAwesomeIcon icon={faStar} style={{ marginLeft: '7px', marginRight: '7px' }} /> Club
-                            {terminal.customer && terminal.customer.employee && <span style={{ color: 'rgb(227,37,33)' }}> <b> (E)</b></span>}
-                            {terminal.customer.cashbackBalance && <b>  ({terminal.customer.cashbackBalance} <small>{config.systemCurrency === 'NIS' ? 'JD' : 'JD'}</small>)</b>}
-                        </span>}
-
-                    {terminal.managerMode && <Divider vertical /> &&
-                        <span style={{ color: '#db2417' }}>
-                            <FontAwesomeIcon icon={faShieldHalved} style={{ marginLeft: '7px', marginRight: '7px' }} /> Manager
-                        </span>}
-
-                    <Divider style={{ margin: '7px' }} />
-                    {!hasEshiniConnection && <span style={{ color: 'orangered' }}>
-                        <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginRight: '7px' }} />
-                        <b>WARNING:</b> NO CONNECTION TO E-SHINI
-                    </span>}
-                    
-                    {
-                        !terminal.paymentMode && config.scale &&
-                        (<h4 style={{ textAlign: 'center', cursor: 'pointer', }}>
-                            <Button size='lg' appearance='ghost' style={{ width: '200px' }}
-                                disabled={!scaleConnected} onClick={() => setScaleItemsOpen(true)}><FontAwesomeIcon icon={faScaleBalanced} /> Scale Items </Button>
-                        </h4>)
-                    }
-                    {
-                        terminal.paymentMode &&
-                        <FlexboxGrid>
-                            <FlexboxGrid.Item colspan={24} >
-                                <br />
-                                <div >
-                                    <small style={{ fontSize: '20px', marginRight: '5px' }}>
-                                        Paid =
-                                    </small>
-                                    <b>
-                                        <label id='Total' style={{ fontSize: '25px' }}>
-                                            {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
-                                        </label>
-                                    </b>
-                                </div>
-                            </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={24}>
-                            </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={24}>
-                                <div >
-                                    <small style={{ fontSize: '20px', marginRight: '5px' }}>
-                                        {trxSlice.trxChange > 0 ? 'Change = ' : 'Due = '}
-                                    </small>
-                                    <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
-                                        {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
-                                    </label>
-                                    </b>
-                                    {
-                                        terminal.paymentInput === 'numpad' && trxSlice.selectedCurrency !== config.systemCurrency &&
-                                        <small style={{ fontSize: '15px', marginLeft: '5px' }}>
-                                            ( {(Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)} {trxSlice.selectedCurrency} )
+                        {terminal.customer && terminal.customer.club && (
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'rgba(250, 137, 0, 0.10)',
+                                border: '1px solid rgba(250, 137, 0, 0.28)',
+                                padding: '5px 12px',
+                                borderRadius: '999px',
+                                color: '#B45309',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                letterSpacing: '0.3px',
+                                textTransform: 'uppercase'
+                            }}>
+                                <FontAwesomeIcon icon={faStar} />
+                                Club
+                                {terminal.customer && terminal.customer.employee && (
+                                    <b style={{ color: '#E11E26', marginLeft: 2 }}>(E)</b>
+                                )}
+                                {terminal.customer.cashbackBalance && (
+                                    <b style={{ marginLeft: 4, color: '#111827' }}>
+                                        <span style={{ fontFamily: '"DSDIGI", monospace' }}>{Math.round(Number(terminal.customer.cashbackBalance) * 10000) / 10000}</span>
+                                        <small style={{ color: '#6B7280', fontFamily: '"Inter", "Segoe UI", sans-serif', marginLeft: 3 }}>
+                                            {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
                                         </small>
-                                    }
-                                    {
-                                        (trxSlice.trx && trxSlice.trx.affectedByPlusTax && trxSlice.trx.totalPlusTaxAmt > 0) && <h5 style={{ fontSize: '15px', color: '#8B0000' }}>
-                                            *Required Plus Tax = <span style={{ fontFamily: 'DSDIGI' }}>{config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {trxSlice.trx.totalPlusTaxAmt}</span>
-                                        </h5>
-                                    }
-                                </div>
-                            </FlexboxGrid.Item>
-                        </FlexboxGrid>
-                    }
+                                    </b>
+                                )}
+                            </span>
+                        )}
+
+                        {terminal.managerMode && (
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'rgba(225, 30, 38, 0.10)',
+                                border: '1px solid rgba(225, 30, 38, 0.28)',
+                                padding: '5px 12px',
+                                borderRadius: '999px',
+                                color: '#B3141B',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                letterSpacing: '0.3px',
+                                textTransform: 'uppercase'
+                            }}>
+                                <FontAwesomeIcon icon={faShieldHalved} />
+                                Manager
+                            </span>
+                        )}
+
+                        {!hasEshiniConnection && (
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'rgba(217, 119, 6, 0.10)',
+                                border: '1px solid rgba(217, 119, 6, 0.28)',
+                                padding: '5px 12px',
+                                borderRadius: '999px',
+                                color: '#B45309',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                letterSpacing: '0.3px',
+                                textTransform: 'uppercase'
+                            }}>
+                                <FontAwesomeIcon icon={faExclamationTriangle} />
+                                No E-Shini Connection
+                            </span>
+                        )}
+                    </div>
+                    
+                    {terminal.paymentMode && trxSlice.trx && trxSlice.trx.affectedByPlusTax && trxSlice.trx.totalPlusTaxAmt > 0 && (
+                        <div style={{
+                            marginTop: '10px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: '#991B1B',
+                            background: 'rgba(220, 38, 38, 0.06)',
+                            border: '1px solid rgba(220, 38, 38, 0.2)',
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            textAlign: 'center'
+                        }}>
+                            * Required Plus Tax = {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} <span style={{ fontFamily: '"DSDIGI", monospace' }}>{trxSlice.trx.totalPlusTaxAmt}</span>
+                        </div>
+                    )}
 
                     {
-                        trxSlice.lastTrxPayment && <FlexboxGrid>
-                            <FlexboxGrid.Item colspan={24} >
-                                <div style={{ border: '1px solid #e1e1e1', padding: '3px', minWidth: '60%', margin: 'auto', marginTop: '10px', marginBot: '10px' }}>
-                                    <small style={{ fontSize: '20px', marginRight: '5px' }}>
-                                        Paid =
-                                    </small>
-                                    <b>
-                                        <label id='Total' style={{ fontSize: '25px' }}>
-                                            {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
-                                        </label>
-                                    </b>
-                                    <Divider vertical />
-                                    <small style={{ fontSize: '20px', marginRight: '5px' }}>
-                                        Change =
-                                    </small>
-                                    <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.lastTrxPayment.change < 0 ? 'red' : 'green' }} >
-                                        {(Math.round(trxSlice.lastTrxPayment.change * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
-                                    </label>
-                                    </b>
-                                </div>
-                            </FlexboxGrid.Item>
-                        </FlexboxGrid>
+                        trxSlice.lastTrxPayment &&
+                        <div style={{
+                            border: '1px solid #E5E7EB',
+                            borderRadius: '12px',
+                            padding: '10px 14px',
+                            margin: '12px auto',
+                            background: '#F8FAFC',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: '12px'
+                        }}>
+                            <div>
+                                <div style={{ fontSize: '10px', color: '#6B7280', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Last Paid</div>
+                                <label id='Total' style={{
+                                    fontSize: '20px',
+                                    fontWeight: 800,
+                                    color: '#111827',
+                                    fontFamily: '"DSDIGI", monospace'
+                                }}>
+                                    {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                </label>
+                            </div>
+                            <div style={{ width: 1, alignSelf: 'stretch', background: '#E5E7EB' }} />
+                            <div>
+                                <div style={{ fontSize: '10px', color: '#6B7280', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Change</div>
+                                <label id='Total' style={{
+                                    fontSize: '20px',
+                                    fontWeight: 800,
+                                    color: trxSlice.lastTrxPayment.change < 0 ? '#B91C1C' : '#047857',
+                                    fontFamily: '"DSDIGI", monospace'
+                                }}>
+                                    {(Math.round(trxSlice.lastTrxPayment.change * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                </label>
+                            </div>
+                        </div>
                     }
                 </div>
 
-                <div style={{ background: 'white', padding: '10px', position: 'absolute', bottom: '0%', width: '96.5%' }}>
+                {/* Mode Buttons — top row 3 TALL (Payment / Scale / Fast),
+                    bottom row 3 NORMAL (Suspended / Void / Change Price).
+                    Operations has been moved into the footer. */}
+                <div className={classes.ModeButtons}>
+                    {/* Top row — tall, 2× the height of a normal button */}
+                    <div className={classes.ModeButtonsRow}>
+                        <Button className={`${classes.POSButton} ${classes.ModeButton} ${classes.ModeButtonTall} ${actionsMode !== 'payment' ? classes.ModeButtonPayment : ''}`}
+                            appearance={actionsMode === 'payment' ? 'primary' : 'default'}
+                            color='red'
+                            onClick={() => { setActionsMode('payment') }} >
+                            <FontAwesomeIcon icon={faSackDollar} />
+                            <div>Payment</div>
+                        </Button>
+
+                        <Button className={`${classes.POSButton} ${classes.ModeButton} ${classes.ModeButtonTall}`}
+                            disabled={terminal.paymentMode || !config.scale || !scaleConnected}
+                            onClick={() => setScaleItemsOpen(true)} >
+                            <FontAwesomeIcon icon={faScaleBalanced} />
+                            <div>Scale Items</div>
+                        </Button>
+
+                        <Button className={`${classes.POSButton} ${classes.ModeButton} ${classes.ModeButtonTall}`}
+                            disabled={terminal.paymentMode}
+                            appearance={actionsMode === 'fastItems' ? 'primary' : 'default'}
+                            color='green'
+                            onClick={() => setActionsMode('fastItems')} >
+                            <FontAwesomeIcon icon={faCarrot} />
+                            <div>Fast Items</div>
+                        </Button>
+                    </div>
+
+                    {/* Bottom row — normal height, 3 buttons */}
+                    <div className={classes.ModeButtonsRow}>
+                        <Button className={`${classes.POSButton} ${classes.ModeButton}`}
+                            disabled={terminal.paymentMode}
+                            appearance={actionsMode === 'suspended' ? 'primary' : 'default'}
+                            color='green'
+                            onClick={() => setActionsMode('suspended')} >
+                            <FontAwesomeIcon icon={faHistory} />
+                            <div>Suspended</div>
+                        </Button>
+
+                        {terminal.paymentMode ? (
+                            <Button className={`${classes.POSButton} ${classes.ModeButton}`}
+                                onClick={handleVoidLine}
+                                disabled={!trxSlice.selectedPayment || !trxSlice.selectedPayment.key}
+                                appearance='primary' color='blue'>
+                                <FontAwesomeIcon icon={faEraser} />
+                                <div>Void Payment</div>
+                            </Button>
+                        ) : (
+                            <Button className={`${classes.POSButton} ${classes.ModeButton}`}
+                                onClick={handleVoidLine}
+                                disabled={!trxSlice.selectedLine || !trxSlice.selectedLine.key}
+                                appearance='primary' color='blue'>
+                                <FontAwesomeIcon icon={faEraser} />
+                                <div>Void Line</div>
+                            </Button>
+                        )}
+
+                        {terminal.paymentMode ? (
+                            <Button className={`${classes.POSButton} ${classes.ModeButton}`}
+                                onClick={handleAbort}
+                                appearance='primary' color='red'>
+                                <FontAwesomeIcon icon={faBan} />
+                                <div>
+                                    {(actionsMode === 'payment' && terminal.paymentType === 'none') ? 'Cancel'
+                                        : (actionsMode === 'payment' && terminal.paymentType !== 'none') ? 'Back'
+                                            : 'Abort'}
+                                </div>
+                            </Button>
+                        ) : (
+                            <Button className={`${classes.POSButton} ${classes.ModeButton}`}
+                                disabled={!trxSlice.selectedLine || !trxSlice.selectedLine.key}
+                                onClick={handlePriceChange}
+                                appearance='primary' color={trxSlice.priceChangeMode ? 'orange' : 'blue'}>
+                                <FontAwesomeIcon icon={faTags} />
+                                <div>{trxSlice.priceChangeMode ? 'Cancel' : 'Change Price'}</div>
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+                <div style={{
+                    background: 'white',
+                    padding: '8px 10px 10px 10px',
+                    marginTop: 'auto',
+                    flexShrink: 0
+                }}>
                     <Numpad setAuthQR={setAuthQR} incrementTrxCount={incrementTrxCount} />
+                </div>
+
+                {/* Transaction Summary — sits UNDER the numpad inside the middle
+                    column. Shows Grand Total, Paid / Change / Due in payment mode,
+                    and a pills row with item count + cashback + tax. */}
+                <div className={classes.TrxSummaryPanel}>
+                    <div className={classes.TrxSummaryRow}>
+                        {/* Grand Total (always visible) */}
+                        <div
+                            key={`gt-${trxSlice.trx ? trxSlice.trx.totalafterdiscount : 0}`}
+                            className={`${classes.FooterCell} ${classes.FooterCellTotal}`}
+                            style={{ alignItems: 'flex-start' }}
+                        >
+                            <span className={`${classes.FooterLabel} ${terminal.trxMode === 'Refund' ? classes.FooterLabelRed : classes.FooterLabelAccent}`}>
+                                {terminal.trxMode === 'Refund' ? 'Refund Total' : 'Grand Total'}
+                            </span>
+                            <div className={classes.FooterAmountRow}>
+                                <small className={classes.FooterCurrency}>
+                                    {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
+                                </small>
+                                <label id='Total' className={`${classes.FooterAmount} ${classes.FooterAmountGrand} ${terminal.trxMode === 'Refund' ? classes.FooterAmountRed : ''}`}>
+                                    {trxSlice.trx ? ((trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Payment-mode only: Paid stacked on top of Change/Due
+                            inside a single column so the pills on the right stay
+                            visible instead of getting clipped. */}
+                        {terminal.paymentMode && (
+                            <div className={classes.FooterCellPaidDue}>
+                                <div className={`${classes.FooterCell} ${classes.FooterCellPaid}`}>
+                                    <span className={classes.FooterLabel}>Paid</span>
+                                    <div className={classes.FooterAmountRow}>
+                                        <small className={classes.FooterCurrency}>
+                                            {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
+                                        </small>
+                                        <label id='PaidAmt' className={classes.FooterAmount}>
+                                            {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                        </label>
+                                    </div>
+                                </div>
+                                <div
+                                    key={`cd-${trxSlice.trxChange}`}
+                                    className={`${classes.FooterCell} ${trxSlice.trxChange < 0 ? classes.FooterCellDue : classes.FooterCellChange}`}
+                                >
+                                    <span className={`${classes.FooterLabel} ${trxSlice.trxChange < 0 ? classes.FooterLabelRed : classes.FooterLabelGreen}`}>
+                                        {trxSlice.trxChange > 0 ? 'Change' : 'Due'}
+                                    </span>
+                                    <div className={classes.FooterAmountRow}>
+                                        <small className={classes.FooterCurrency} style={{ color: trxSlice.trxChange < 0 ? '#B91C1C' : '#047857' }}>
+                                            {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
+                                        </small>
+                                        <label className={`${classes.FooterAmount} ${trxSlice.trxChange < 0 ? classes.FooterAmountRed : classes.FooterAmountGreen}`}>
+                                            {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Pills (items / cashback / tax) — pinned to the right
+                            of the same row so everything fits in one card. */}
+                        <div className={classes.TrxSummaryPills}>
+                            <div className={classes.FooterPills}>
+                                <span className={`${classes.FooterPill} ${classes.FooterPillItems}`}>
+                                    <FontAwesomeIcon icon={faList} style={{ fontSize: 10, opacity: 0.7 }} />
+                                    <b>{trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}</b>
+                                    Items
+                                </span>
+                                {trxSlice.trx && trxSlice.trx.totalcashbackamt > 0 && (
+                                    <span className={`${classes.FooterPill} ${classes.FooterPillCashback}`}>
+                                        <FontAwesomeIcon icon={faStar} style={{ fontSize: 10 }} />
+                                        Cashback
+                                        <b>{((trxSlice.trx.totalcashbackamt * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
+                                    </span>
+                                )}
+                                <span className={`${classes.FooterPill} ${trxSlice.trx && trxSlice.trx.isTaxExempt ? classes.FooterPillTaxExempt : classes.FooterPillTax}`}>
+                                    <FontAwesomeIcon icon={faTag} style={{ fontSize: 10 }} />
+                                    Tax
+                                    <b>{trxSlice.trx ? (((trxSlice.trx.totalTaxAmt) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : (0).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
             </FlexboxGrid.Item>
 
-            <FlexboxGrid.Item colspan={3} style={{ position: 'relative', right: '10px' }}>
-                <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '130%', right: '17px' }}>
-                    <h6 style={{ lineHeight: '5vh', textAlign: 'center' }}>
-                    </h6>
+            <FlexboxGrid.Item colspan={4} style={{
+                position: 'relative',
+                background: '#F8FAFC',
+                height: 'calc(100vh / 0.9)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                borderLeft: '1px solid #E5E7EB'
+            }}>
+                <div style={{
+                    background: 'linear-gradient(135deg, #1F2937 0%, #111827 100%)',
+                    color: 'white',
+                    height: '5vh',
+                    width: '100%',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 8px',
+                    boxShadow: '0 2px 6px rgba(17, 24, 39, 0.12)',
+                    overflow: 'hidden'
+                }}>
+                    <img
+                        src={Logo}
+                        onClick={handleLogoTap}
+                        alt="Shini Extra Jordan"
+                        style={{
+                            maxHeight: 'calc(5vh - 8px)',
+                            maxWidth: '100%',
+                            objectFit: 'contain',
+                            cursor: 'pointer',
+                            display: 'block'
+                        }}
+                    />
                 </div>
-                <div style={{ marginTop: 10 }}>
-                    <FlexboxGrid justify='space-between' style={{
-                        maxHeight: "90vh",
-                        overflowY: "hidden",
-                        width: "105%",
-                        marginLeft: '10px'
+                <div style={{ marginTop: 8, flex: 1, overflow: 'hidden' }}>
+                    <FlexboxGrid justify='space-between' className={`${classes.RailScroll} ${classes.RailScrollPadded}`} style={{
+                        height: "100%",
+                        overflowY: "auto",
+                        overflowX: "hidden",
+                        width: "100%"
                     }}>
 
                         <FlexboxGrid.Item colspan={24} style={{ overflow: 'hidden' }}>
@@ -2518,6 +3202,11 @@ const Terminal = (props) => {
 
                             {
                                 actionsMode === 'payment' && terminal.paymentType === 'mobiCash' &&
+                                buildMobiCashButtons()
+                            }
+
+                            {
+                                actionsMode === 'payment' && terminal.paymentType === 'talabat' &&
                                 buildMobiCashButtons()
                             }
 
@@ -2598,101 +3287,23 @@ const Terminal = (props) => {
                         </FlexboxGrid.Item>
                     </FlexboxGrid>
                 </div>
+
+                {/* Operations button docked to the bottom of the right rail.
+                    Sits inside its own backdrop panel so any actions behind
+                    it are visually hidden; RailScrollPadded adds matching
+                    bottom padding to the scroll area so those hidden actions
+                    can be scrolled up into view. */}
+                <div className={classes.FooterOpsBackdrop}>
+                    <Button
+                        className={`${classes.FooterOpsButton} ${classes.FooterOpsButtonFloating} ${actionsMode === 'operations' ? classes.FooterOpsButtonActive : ''}`}
+                        disabled={terminal.paymentMode}
+                        onClick={() => setActionsMode('operations')}
+                    >
+                        <FontAwesomeIcon icon={faShieldHalved} />
+                        <span>Operations</span>
+                    </Button>
+                </div>
             </FlexboxGrid.Item>
-            <FlexboxGridItem colspan={24}>
-                <span style={{ color: 'transparent', lineHeight: '1.5vh' }}>.</span>
-            </FlexboxGridItem>
-            <FlexboxGridItem colspan={24} style={{ left: '6px' }}>
-                <FlexboxGrid  >
-
-                    <FlexboxGrid.Item colspan={3}>
-
-                    </FlexboxGrid.Item>
-
-                    <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton}
-                            appearance={actionsMode === 'payment' ? 'primary' : 'default'}
-                            color='green'
-                            onClick={() => {
-                                setActionsMode('payment')
-                            }} >
-                            <FontAwesomeIcon icon={faSackDollar} style={{ marginRight: '5px' }} />
-                            <div>Payment</div>
-                        </Button>
-                    </FlexboxGrid.Item>
-
-                    <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton} disabled={terminal.paymentMode}
-                            appearance={actionsMode === 'fastItems' ? 'primary' : 'default'}
-                            color='green'
-                            onClick={() => setActionsMode('fastItems')} >
-                            <FontAwesomeIcon icon={faCarrot} style={{ marginRight: '5px' }} />
-                            <div>Fast Items</div>
-                        </Button>
-                    </FlexboxGrid.Item>
-
-                    <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton} disabled={terminal.paymentMode}
-                            appearance={actionsMode === 'operations' ? 'primary' : 'default'}
-                            color='green'
-                            onClick={() => setActionsMode('operations')} >
-                            <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '5px' }} />
-                            <div>Operations</div>
-                        </Button>
-                    </FlexboxGrid.Item>
-
-                    <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton} disabled={terminal.paymentMode}
-                            appearance={actionsMode === 'suspended' ? 'primary' : 'default'}
-                            color='green'
-                            onClick={() => setActionsMode('suspended')} >
-                            <FontAwesomeIcon icon={faHistory} style={{ marginRight: '5px' }} />
-                            <div>Suspended</div>
-                        </Button>
-                    </FlexboxGrid.Item>
-                    <FlexboxGrid.Item colspan={3}>
-                        {terminal.paymentMode &&
-                            <Button className={classes.POSButton}
-                                onClick={handleVoidLine}
-                                disabled={!trxSlice.selectedPayment || !trxSlice.selectedPayment.key}
-                                appearance='primary' color='blue'>
-                                <FontAwesomeIcon icon={faEraser} style={{ marginRight: '5px' }} />
-                                <div>Void Payment</div>
-                            </Button>
-                        }
-                        {!terminal.paymentMode &&
-                            <Button className={classes.POSButton}
-                                onClick={handleVoidLine}
-                                disabled={terminal.paymentMode || !trxSlice.selectedLine || !trxSlice.selectedLine.key}
-                                appearance='primary' color='blue'>
-                                <FontAwesomeIcon icon={faEraser} style={{ marginRight: '5px' }} />
-                                <div>Void Line</div>
-                            </Button>
-                        }
-                    </FlexboxGrid.Item>
-                    <FlexboxGrid.Item colspan={3}>
-                        <Button className={classes.POSButton}
-                            disabled={terminal.paymentMode || !trxSlice.selectedLine || !trxSlice.selectedLine.key}
-                            onClick={handlePriceChange}
-                            appearance='primary' color={trxSlice.priceChangeMode ? 'orange' : 'blue'}  >
-                            <FontAwesomeIcon icon={faTags} style={{ marginRight: '5px' }} />
-                            <div>{trxSlice.priceChangeMode ? 'CANCEL' : 'Change Price'}</div>
-                        </Button>
-                    </FlexboxGrid.Item>
-                    <FlexboxGrid.Item colspan={3}>
-                        {terminal.paymentMode && <Button className={classes.POSButton}
-                            onClick={handleAbort}
-                            appearance='primary' color='red'>
-                            <label style={{ fontSize: '12px' }}>
-                                {
-                                    (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType === 'none') ? 'Cancel Payment' :
-                                        (terminal.paymentMode && actionsMode === 'payment' && terminal.paymentType !== 'none') ? 'Back' : !terminal.paymentMode ? '' : ''
-                                }
-                            </label>
-                        </Button>}
-                    </FlexboxGrid.Item>
-                </FlexboxGrid>
-            </FlexboxGridItem >
 
             <Drawer style={{ width: '100vw' }} position='right' open={scaleItemsOpen}  >
                 <Grid style={{ padding: '0px' }}>
@@ -2796,11 +3407,35 @@ const Terminal = (props) => {
             </Drawer>
 
             <Modal open={settingsOpen} onClose={() => { setSettingsOpen(false) }}  >
-                <h4 style={{ padding: '0px', margin: '0px' }}>
-                    POS Settings
-                </h4>
-                <Divider style={{ margin: '5px' }} />
-                <Panel bordered header='Integrated Scale' style={{ margin: '10px' }}>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '14px'
+                }}>
+                    <div style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 12,
+                        background: 'linear-gradient(135deg, #E11E26 0%, #B3141B 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 6px 14px rgba(225, 30, 38, 0.25)'
+                    }}>
+                        <FontAwesomeIcon icon={faCogs} style={{ color: '#fff', fontSize: '17px' }} />
+                    </div>
+                    <div>
+                        <h4 style={{ margin: 0, fontWeight: 800, color: '#111827', letterSpacing: '0.2px' }}>
+                            POS Settings
+                        </h4>
+                        <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
+                            Device, scale, and maintenance
+                        </div>
+                    </div>
+                </div>
+                <Divider style={{ margin: '6px 0 12px 0' }} />
+                <Panel bordered header='Integrated Scale' style={{ margin: '10px 0', borderRadius: 12, background: '#F8FAFC' }}>
                     <ButtonToolbar >
                         <Button appearance='primary' onClick={openScalePort}
                             disabled={scaleConnected} >
@@ -2820,7 +3455,7 @@ const Terminal = (props) => {
                         </Button>
                     </ButtonToolbar>
                 </Panel>
-                <Panel bordered header='General' style={{ margin: '10px' }}>
+                <Panel bordered header='General' style={{ margin: '10px 0', borderRadius: 12, background: '#F8FAFC' }}>
                     <ButtonToolbar >
                         <Button color={terminal.managerMode ? 'red' : 'yellow'} appearance="primary" onClick={handleManagerMode} >
                             {terminal.managerMode ? 'Exit Manager' : 'Manager'}
@@ -2953,6 +3588,14 @@ const Terminal = (props) => {
             <CustomCustomerNameDialog
                 open={customCustomerNameDialogOpen}
                 onClose={() => setCustomCustomerNameDialogOpen(false)}
+            />
+            <CustomCustomerMobileDialog
+                open={customCustomerMobileDialogOpen}
+                onClose={() => setCustomCustomerMobileDialogOpen(false)}
+            />
+            <ReferenceNumberDialog
+                open={referenceNumberDialogOpen}
+                onClose={() => setReferenceNumberDialogOpen(false)}
             />
 
         </FlexboxGrid >

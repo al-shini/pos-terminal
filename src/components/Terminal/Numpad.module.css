@@ -1,12 +1,138 @@
+/* ==========================================================================
+   Numpad — Shini Extra Jordan Design System
+   Touch-friendly rounded keys with a clear, branded OK.
+   ========================================================================== */
+
 .NumpadButton {
-    width: 97%;
-    height: 70px !important;
-    font-size: 15px !important;
-    margin: 2px;
-    border-radius: 0px !important;
+    width: 96%;
+    height: 68px !important;
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px !important;
+    margin: 3px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 2px 6px rgba(17, 24, 39, 0.05) !important;
+    transition:
+        transform 0.08s ease,
+        box-shadow 0.15s ease,
+        border-color 0.15s ease !important;
 }
 
+/* Default (non-primary) keys only: white card-style look */
+.NumpadButton:not(:global(.rs-btn-primary)) {
+    background: #FFFFFF !important;
+    color: #111827 !important;
+    border: 1px solid #E5E7EB !important;
+}
 
+.NumpadButton:not(:global(.rs-btn-primary)):hover:not(:disabled) {
+    border-color: #FBC9CC !important;
+    background: #FFF7F7 !important;
+    box-shadow: 0 6px 16px rgba(225, 30, 38, 0.10) !important;
+    transform: translateY(-1px) !important;
+}
+
+.NumpadButton:not(:global(.rs-btn-primary)):active:not(:disabled) {
+    transform: translateY(0) scale(0.98) !important;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.08) !important;
+    background: #FBE4E6 !important;
+}
+
+/* rsuite primary (C / backspace / multiplier) — keep rsuite red/orange/blue bg,
+   just refine the shape, typography and shadow */
+.NumpadButton:global(.rs-btn-primary) {
+    color: #fff !important;
+    border: none !important;
+    box-shadow: 0 6px 16px rgba(17, 24, 39, 0.14) !important;
+}
+
+.NumpadButton:global(.rs-btn-primary):hover:not(:disabled) {
+    filter: brightness(1.06);
+    transform: translateY(-1px) !important;
+    box-shadow: 0 10px 22px rgba(17, 24, 39, 0.20) !important;
+}
+
+.NumpadButton:disabled {
+    opacity: 0.45 !important;
+}
+
+/* OK: spans the same vertical space as the two control buttons above it + one
+   numeric row, so right column height ≈ left column height (4 rows × 68px). */
 .OK {
-    height: 144px !important;
+    height: 148px !important;
+    font-size: 24px !important;
+    font-weight: 800 !important;
+    letter-spacing: 2px !important;
+    border-radius: 14px !important;
+    background: linear-gradient(135deg, #16A34A 0%, #128A3F 100%) !important;
+    color: #fff !important;
+    border: none !important;
+    box-shadow: 0 8px 22px rgba(22, 163, 74, 0.26) !important;
+    transition:
+        transform 0.1s ease,
+        box-shadow 0.15s ease,
+        filter 0.15s ease !important;
+}
+
+.OK:hover:not(:disabled) {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+    box-shadow: 0 14px 32px rgba(22, 163, 74, 0.35) !important;
+}
+
+.OK:active:not(:disabled) {
+    transform: translateY(0) scale(0.99);
+    box-shadow: 0 6px 18px rgba(22, 163, 74, 0.25) !important;
+}
+
+/* ==========================================================================
+   Refund mode — swap the numeric keys over to a soft refund-red palette
+   so the cashier's primary interaction area unambiguously signals that
+   the current transaction is a refund. Applied via the `Refund` class on
+   every NumpadButton when terminal.trxMode === 'Refund'.
+   Notes:
+     - Only the "card-style" keys (digits, ".", "0") get tinted. The rsuite
+       primary action keys (C / backspace / multiplier) keep their branded
+       colours because they carry independent meaning.
+     - The green OK is re-skinned to refund-red since in refund mode it
+       confirms a refund, not a sale.
+   ========================================================================== */
+
+.NumpadButton.Refund:not(:global(.rs-btn-primary)) {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FEF2F2 100%) !important;
+    color: #991B1B !important;
+    border: 1px solid rgba(225, 30, 38, 0.30) !important;
+    box-shadow:
+        0 2px 6px rgba(225, 30, 38, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.NumpadButton.Refund:not(:global(.rs-btn-primary)):hover:not(:disabled) {
+    background: linear-gradient(180deg, #FEF2F2 0%, #FEE2E2 100%) !important;
+    border-color: rgba(225, 30, 38, 0.55) !important;
+    box-shadow: 0 6px 16px rgba(225, 30, 38, 0.18) !important;
+    transform: translateY(-1px) !important;
+}
+
+.NumpadButton.Refund:not(:global(.rs-btn-primary)):active:not(:disabled) {
+    transform: translateY(0) scale(0.98) !important;
+    background: linear-gradient(180deg, #FEE2E2 0%, #FECACA 100%) !important;
+    color: #7F1D1D !important;
+    box-shadow: 0 1px 3px rgba(225, 30, 38, 0.18) !important;
+}
+
+/* OK in refund mode -> brand red instead of green, since the key now
+   confirms a refund operation. */
+.OK.Refund {
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%) !important;
+    box-shadow: 0 8px 22px rgba(225, 30, 38, 0.28) !important;
+}
+
+.OK.Refund:hover:not(:disabled) {
+    filter: brightness(1.05);
+    box-shadow: 0 14px 32px rgba(225, 30, 38, 0.38) !important;
+}
+
+.OK.Refund:active:not(:disabled) {
+    box-shadow: 0 6px 18px rgba(225, 30, 38, 0.28) !important;
 }

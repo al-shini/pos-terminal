@@ -1,122 +1,267 @@
-import React from 'react';
-import { useDispatch, useSelector } from 'react-redux'
-import { Button, FlexboxGrid, Divider } from 'rsuite';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faUser, faIdCard, faLock, faStar
-} from '@fortawesome/free-solid-svg-icons'
+    faUser, faStar, faLock, faCalendarDay, faUserTie,
+    faMoneyBillTransfer, faCashRegister, faPiggyBank
+} from '@fortawesome/free-solid-svg-icons';
 
-import Invoice from './Invoice';
-import 'react-slideshow-image/dist/styles.css'
+import classes from './CustomerDisplay.module.css';
+import axios from '../../axios';
+import config from '../../config';
 
 import Logo from '../../assets/full-logo.png';
-import Lock from '../../assets/lock.png';
-import Ad from '../../assets/ad.png'
-import config from '../../config';
-import ImageSlider from './ImageSlider';
 
+import CustomerInvoiceList from './CustomerInvoiceList';
+import CustomerImageCarousel from './CustomerImageCarousel';
+import CustomerNewsTicker from './CustomerNewsTicker';
 
+const CONFIG_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
 
-const Terminal = (props) => {
+const CURRENCY = config.systemCurrency === 'NIS' ? 'JD' : 'JD';
+const DECIMALS = config.systemCurrency === 'NIS' ? 2 : 3;
+const fmtAmount = (n) => (((Number(n) || 0) * 100) / 100).toFixed(DECIMALS);
+
+/**
+ * Customer-facing secondary display.
+ *
+ * Layout (CSS Grid in .Shell):
+ *   ┌────────────────────┬────────────────────┐
+ *   │  Left (invoice)    │  Right (carousel)  │
+ *   ├────────────────────┴────────────────────┤
+ *   │          News ticker (full width)       │
+ *   └─────────────────────────────────────────┘
+ *
+ * All customer-facing content (ads + news) is sourced from the head-office
+ * system parameters POS_CUSTOMER_IMAGES and POS_CUSTOMER_MESSAGES via
+ * GET /trx/customerDisplayConfig. We refetch periodically so updates made
+ * at head office roll out without restarting the display.
+ *
+ * The component is purely presentational — all transaction state comes
+ * from the shared Redux store (synced across windows via redux-state-sync),
+ * populated by the cashier-facing Terminal window.
+ */
+const CustomerDisplay = () => {
     const terminal = useSelector((state) => state.terminal);
     const trxSlice = useSelector((state) => state.trx);
 
+    const [displayConfig, setDisplayConfig] = useState({ images: [], messages: [] });
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchConfig = () => {
+            axios({
+                method: 'get',
+                url: '/trx/customerDisplayConfig'
+            }).then((response) => {
+                if (cancelled || !response || !response.data) return;
+                setDisplayConfig({
+                    images: Array.isArray(response.data.images) ? response.data.images : [],
+                    messages: Array.isArray(response.data.messages) ? response.data.messages : []
+                });
+            }).catch(() => {
+                // Silent — the display just falls back to defaults until the
+                // next retry. Showing an error popup to customers is worse
+                // than quietly showing nothing.
+            });
+        };
+
+        fetchConfig();
+        const id = setInterval(fetchConfig, CONFIG_REFRESH_MS);
+
+        return () => {
+            cancelled = true;
+            clearInterval(id);
+        };
+    }, []);
+
+    const isRefund = terminal.trxMode === 'Refund';
+    const isClub = Boolean(terminal.customer && terminal.customer.club);
+    const customerName = terminal.customer ? terminal.customer.customerName : null;
+
+    const clubBalance = useMemo(() => {
+        if (!isClub || !terminal.customer) return null;
+        const raw = Number(terminal.customer.cashbackBalance);
+        if (!raw) return null;
+        return Math.round(raw * 10000) / 10000;
+    }, [isClub, terminal.customer]);
+
+    const grandTotal = trxSlice.trx
+        ? fmtAmount(trxSlice.trx.totalafterdiscount)
+        : (0).toFixed(DECIMALS);
+
+    const paid = fmtAmount(Math.round((trxSlice.trxPaid || 0) * 100) / 100);
+    const change = Math.round((trxSlice.trxChange || 0) * 100) / 100;
+    const changeIsDue = change < 0;
+    const changeLabel = change > 0 ? 'Change' : 'Due';
+    const changeDisplay = fmtAmount(change);
+
+    const itemCount = trxSlice.scannedItems ? trxSlice.scannedItems.length : 0;
+    const cashback = trxSlice.trx && trxSlice.trx.totalcashbackamt > 0
+        ? fmtAmount(trxSlice.trx.totalcashbackamt)
+        : null;
+
+    // Total amount the customer saved this transaction. We only surface it
+    // on sales — refunds don't carry a "savings" narrative.
+    const amountSavedRaw = trxSlice.trx ? Number(trxSlice.trx.totaldiscount) || 0 : 0;
+    const amountSaved = !isRefund && amountSavedRaw > 0
+        ? fmtAmount(amountSavedRaw)
+        : null;
+
+    const isRefundMode = terminal.trxMode === 'Refund';
+
     return (
-        <FlexboxGrid  >
-            <FlexboxGrid.Item colspan={11} style={{ background: 'white', position: 'relative', left: '6px', width: '48.83333333%', height: '95vh' }}  >
-                <Invoice />
-            </FlexboxGrid.Item>
+        <div className={[classes.Shell, isRefundMode ? classes.RefundMode : ''].join(' ')}>
+            <div className={classes.LeftColumn}>
+                <div className={classes.Header}>
+                    <div className={classes.HeaderLeft}>
+                        <img src={Logo} alt="Shini Extra" className={classes.HeaderLogo} />
+                    </div>
+                    <div className={classes.HeaderRight}>
+                        <span className={classes.HeaderBadge}>
+                            <FontAwesomeIcon icon={faUserTie} />
+                            <b>{terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</b>
+                        </span>
+                        <span className={classes.HeaderBadge}>
+                            <FontAwesomeIcon icon={faCalendarDay} />
+                            <b>
+                                {terminal.till && terminal.till.workDay
+                                    ? terminal.till.workDay.businessDateAsString
+                                    : '—'}
+                            </b>
+                        </span>
+                        <span
+                            className={`${classes.HeaderStatus} ${isRefund ? classes.HeaderStatusRefund : ''}`}
+                        >
+                            <span className={classes.HeaderStatusDot} />
+                            {isRefund ? 'Refund' : (terminal.paymentMode ? 'Payment' : 'Sale')}
+                        </span>
+                    </div>
+                </div>
 
-            <FlexboxGrid.Item colspan={1} style={{ width: '1.166667%' }}>
-
-                {
-                    terminal.blockActions && <div style={{
-                        position: 'fixed',
-                        zIndex: '999',
-                        backgroundColor: 'rgba(0,0,0,0.6)', height: '100%', width: '100%', top: '0%', left: '0%'
-                    }}>
-                        <img src={Lock} style={{ margin: 'auto', display: 'block', top: '30%', position: 'relative' }} width='15%' />
-                        <div style={{ textAlign: 'center', color: 'white', top: '30%', position: 'relative', fontSize: '25px' }} >
-                            Terminal Locked
+                <div className={classes.CustomerBanner}>
+                    <div className={classes.CustomerBannerLeft}>
+                        <div className={`${classes.CustomerAvatar} ${isClub ? classes.CustomerAvatarClub : ''}`}>
+                            <FontAwesomeIcon icon={isClub ? faStar : faUser} />
+                        </div>
+                        <div className={classes.CustomerGreeting}>
+                            <span className={classes.CustomerGreetingLabel}>
+                                {customerName ? 'Welcome' : 'Hello'}
+                            </span>
+                            <span className={classes.CustomerGreetingName}>
+                                {customerName || 'Valued Customer'}
+                            </span>
                         </div>
                     </div>
-                }
-            </FlexboxGrid.Item>
 
-            <FlexboxGrid.Item colspan={12} style={{ position: 'relative', left: '6px', height: '95vh' }}>
-                <div style={{ background: '#303030', color: 'white', height: '5vh', position: 'relative', width: '120%', right: '12px' }}>
-                    <h6 style={{ lineHeight: '5vh', textAlign: 'left' }}>
-                        <span> <FontAwesomeIcon icon={faUser} style={{ marginLeft: '20px', marginRight: '7px' }} /> {terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</span>
-                        <span style={{ marginRight: '10px', marginLeft: '10px' }}>/</span>
-                        <span>{terminal.till && terminal.till.workDay ? terminal.till.workDay.businessDateAsString : 'No Work Day'}</span>
-                    </h6>
-                    <img src={Logo} style={{ position: 'fixed', right: '1vw', top: '0', zIndex: 1000, height: 'inherit' }} />
+                    {isClub && (
+                        <span className={classes.CustomerClubPill}>
+                            <FontAwesomeIcon icon={faStar} />
+                            Club
+                            {clubBalance !== null && (
+                                <span className={classes.CustomerClubBalance}>
+                                    {clubBalance}
+                                    <small>{CURRENCY}</small>
+                                </span>
+                            )}
+                        </span>
+                    )}
                 </div>
 
-                <div id='rightPosPanel' style={{ background: 'white', padding: '10px', position: 'absolute', top: '5vh', width: '96.5%', height: '90vh' }}>
-                    <span>
-                        <FontAwesomeIcon icon={faIdCard} style={{
-                            marginLeft: '7px', marginRight: '7px', fontSize: '18px'
-                        }} />
-                        <span style={{
-                            marginRight: '7px', fontFamily: 'Janna',
-                            fontSize: '18px'
-                        }}>
-                            {terminal.customer ? terminal.customer.customerName : 'No Customer'}
+                <CustomerInvoiceList />
+
+                <div className={classes.TotalsPanel}>
+                    <div className={classes.TotalsCell}>
+                        <span
+                            className={`${classes.TotalsLabel} ${isRefund ? classes.TotalsLabelAccent : classes.TotalsLabelAccentGreen}`}
+                        >
+                            {isRefund ? 'Refund Total' : 'Grand Total'}
                         </span>
-                    </span>
+                        <div className={classes.TotalsAmount}>
+                            <small>{CURRENCY}</small>
+                            <span
+                                className={`${classes.TotalsAmountGrand} ${isRefund ? classes.TotalsAmountRed : classes.TotalsAmountGreen}`}
+                            >
+                                {grandTotal}
+                            </span>
+                        </div>
+                    </div>
 
-                    {terminal.customer && terminal.customer.club && <Divider vertical /> &&
-                        <span style={{ color: '#fa8900' }}>
-                            <FontAwesomeIcon icon={faStar} style={{ marginLeft: '7px', marginRight: '7px' }} /> Club
-                        </span>}
+                    {terminal.paymentMode && (
+                        <div className={classes.TotalsStackCell}>
+                            <div className={classes.TotalsStackRow}>
+                                <span className={classes.TotalsStackLabel}>Paid</span>
+                                <span className={classes.TotalsStackAmount}>{paid}</span>
+                            </div>
+                            <div className={classes.TotalsStackRow}>
+                                <span
+                                    className={`${classes.TotalsStackLabel} ${changeIsDue ? classes.TotalsStackLabelRed : classes.TotalsStackLabelGreen}`}
+                                >
+                                    {changeLabel}
+                                </span>
+                                <span
+                                    className={`${classes.TotalsStackAmount} ${changeIsDue ? classes.TotalsStackAmountRed : classes.TotalsStackAmountGreen}`}
+                                >
+                                    {changeDisplay}
+                                </span>
+                            </div>
+                        </div>
+                    )}
 
-                    <Divider style={{ margin: '7px' }} />
-                    {
-                        terminal.paymentMode &&
-                        <FlexboxGrid>
-                            <FlexboxGrid.Item colspan={24} >
-                                <div style={{ border: '1px solid #e1e1e1', padding: '3px', minWidth: '60%', margin: 'auto' }}>
-                                    <small style={{ fontSize: '20px', marginRight: '5px' }}>
-                                        Paid =
-                                    </small>
-                                    <b>
-                                        <label id='Total' style={{ fontSize: '25px' }}>
-                                            {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.systemCurrency === 'NIS'  ?  2 : 3)}
-                                        </label>
-                                    </b>
-                                </div>
-                            </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={24}>
-                                <br />
-                            </FlexboxGrid.Item>
-                            <FlexboxGrid.Item colspan={24}>
-                                <div style={{ border: '1px solid #e1e1e1', padding: '3px', minwidth: '60%', margin: 'auto' }}>
-                                    <small style={{ fontSize: '20px', marginRight: '5px' }}>
-                                        Change =
-                                    </small>
-                                    <b> <label id='Total' style={{ fontSize: '25px', color: trxSlice.trxChange < 0 ? 'red' : 'green' }} >
-                                        {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.systemCurrency === 'NIS'  ?  2 : 3)}
-                                    </label>
-                                    </b>
-                                    {
-                                        terminal.paymentInput === 'numpad' && trxSlice.selectedCurrency !== 'NIS' &&
-                                        <small style={{ fontSize: '15px', marginLeft: '5px' }}>
-                                            ( {(Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systemCurrency === 'NIS'  ?  2 : 3)} {trxSlice.selectedCurrency} )
-                                        </small>
-                                    }
-                                </div>
-                            </FlexboxGrid.Item>
-                        </FlexboxGrid>
-                    }
-                    <br />
-                    <div className="slide-container">
-                        <ImageSlider config={config} />
+                    <div className={classes.TotalsPills}>
+                        <span className={classes.TotalsPill}>
+                            <FontAwesomeIcon icon={faCashRegister} style={{ fontSize: 10 }} />
+                            <b>{itemCount}</b>
+                            Items
+                        </span>
+                        {amountSaved && (
+                            <span className={`${classes.TotalsPill} ${classes.TotalsPillSaved}`}>
+                                <FontAwesomeIcon icon={faPiggyBank} style={{ fontSize: 14 }} />
+                                You Saved
+                                <b>{amountSaved}</b>
+                                <small>{CURRENCY}</small>
+                            </span>
+                        )}
+                        {cashback && (
+                            <span className={`${classes.TotalsPill} ${classes.TotalsPillCashback}`}>
+                                <FontAwesomeIcon icon={faStar} style={{ fontSize: 10 }} />
+                                Cashback
+                                <b>{cashback}</b>
+                            </span>
+                        )}
                     </div>
                 </div>
-            </FlexboxGrid.Item>
-        </FlexboxGrid >
-    );
-}
+            </div>
 
-export default Terminal;
+            <div className={classes.RightColumn}>
+                {terminal.paymentMode && (
+                    <div className={classes.PayBanner}>
+                        <FontAwesomeIcon icon={faMoneyBillTransfer} style={{ fontSize: 20 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <b>Processing Payment</b>
+                            <small>Please watch the left panel for your total</small>
+                        </div>
+                    </div>
+                )}
+                <CustomerImageCarousel images={displayConfig.images} />
+            </div>
+
+            <CustomerNewsTicker messages={displayConfig.messages} />
+
+            {terminal.blockActions && (
+                <div className={classes.LockOverlay}>
+                    <div className={classes.LockIcon}>
+                        <FontAwesomeIcon icon={faLock} />
+                    </div>
+                    <div className={classes.LockTitle}>Terminal Locked</div>
+                    <div className={classes.LockSub}>
+                        Please wait — the cashier will resume shortly.
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default CustomerDisplay;

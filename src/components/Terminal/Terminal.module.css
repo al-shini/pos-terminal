@@ -1,47 +1,1291 @@
-.Button {
-    line-height: 2 !important;
-    width: 100% !important;
-    display: block !important;
-    font-size: 15px !important;
-    border-radius: 0px !important;
+/* ==========================================================================
+   Terminal-Locked overlay — branded, animated, passive
+   ========================================================================== */
 
+@keyframes lockFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
-.MainActionButton {
-    height: 60px !important;
-    line-height: 2 !important;
+@keyframes lockCardRise {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.98);
+        filter: blur(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes lockRingSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes lockRingSpinReverse {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(-360deg); }
+}
+
+@keyframes lockHaloPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.55;
+    }
+    50% {
+        transform: scale(1.18);
+        opacity: 0.9;
+    }
+}
+
+@keyframes lockIconFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+@keyframes lockBadgeGlow {
+    0%, 100% {
+        box-shadow:
+            0 0 0 0 rgba(225, 30, 38, 0.55),
+            0 20px 50px rgba(225, 30, 38, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.20);
+    }
+    50% {
+        box-shadow:
+            0 0 0 22px rgba(225, 30, 38, 0),
+            0 24px 60px rgba(225, 30, 38, 0.50),
+            inset 0 1px 0 rgba(255, 255, 255, 0.30);
+    }
+}
+
+@keyframes lockScanLine {
+    0% { transform: translateY(-100%); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(100%); opacity: 0; }
+}
+
+@keyframes lockDotsBreathe {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 1; }
+}
+
+@keyframes lockShimmer {
+    0% { background-position: -200% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+.LockOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(ellipse at center, rgba(17, 24, 39, 0.78) 0%, rgba(0, 0, 0, 0.92) 100%);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    animation: lockFadeIn 0.35s ease-out both;
+    overflow: hidden;
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.LockOverlay::before {
+    /* Very subtle moving scan-line across the backdrop */
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 140px;
+    background: linear-gradient(180deg,
+        rgba(225, 30, 38, 0) 0%,
+        rgba(225, 30, 38, 0.06) 50%,
+        rgba(225, 30, 38, 0) 100%);
+    animation: lockScanLine 6s linear infinite;
+    pointer-events: none;
+}
+
+.LockCard {
+    position: relative;
+    width: 420px;
+    max-width: 90vw;
+    padding: 42px 28px 32px 28px;
+    border-radius: 24px;
+    background:
+        linear-gradient(180deg, rgba(31, 41, 55, 0.80) 0%, rgba(17, 24, 39, 0.92) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.55),
+        0 10px 20px rgba(0, 0, 0, 0.30),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    text-align: center;
+    animation: lockCardRise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: 0.05s;
+}
+
+.LockMedallionStage {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 20px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: lockIconFloat 5s ease-in-out infinite;
+}
+
+.LockHalo {
+    position: absolute;
+    inset: -14px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at center, rgba(225, 30, 38, 0.45) 0%, rgba(225, 30, 38, 0) 70%);
+    filter: blur(8px);
+    animation: lockHaloPulse 3s ease-in-out infinite;
+    pointer-events: none;
+}
+
+.LockRingOuter,
+.LockRingInner {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.LockRingOuter {
+    border: 2px dashed rgba(225, 30, 38, 0.55);
+    animation: lockRingSpin 22s linear infinite;
+}
+
+.LockRingInner {
+    inset: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-top-color: rgba(225, 30, 38, 0.90);
+    border-right-color: rgba(225, 30, 38, 0.45);
+    animation: lockRingSpinReverse 9s linear infinite;
+}
+
+.LockBadge {
+    width: 116px;
+    height: 116px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%);
+    color: #FFFFFF;
+    font-size: 48px;
+    position: relative;
+    animation: lockBadgeGlow 2.4s ease-in-out infinite;
+    box-shadow:
+        0 20px 50px rgba(225, 30, 38, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+
+.LockTitle {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    background: linear-gradient(90deg,
+        rgba(255, 255, 255, 0.65) 0%,
+        rgba(255, 255, 255, 1) 50%,
+        rgba(255, 255, 255, 0.65) 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: lockShimmer 3.5s linear infinite;
+}
+
+.LockSubtitle {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.LockDots {
+    display: inline-flex;
+    gap: 8px;
+    margin-top: 22px;
+    justify-content: center;
+}
+
+.LockDots span {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #E11E26;
+    box-shadow: 0 0 10px rgba(225, 30, 38, 0.55);
+    animation: lockDotsBreathe 1.4s ease-in-out infinite;
+}
+
+.LockDots span:nth-child(2) { animation-delay: 0.2s; }
+.LockDots span:nth-child(3) { animation-delay: 0.4s; }
+
+.LockFootnote {
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.40);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.LockFootnoteIcon {
+    color: #FCA5A5;
+    animation: lockDotsBreathe 2s ease-in-out infinite;
+}
+
+.LockActions {
+    display: flex;
+    gap: 10px;
+    margin-top: 26px;
+    justify-content: center;
+}
+
+.LockActionBtn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 50px;
+    padding: 0 16px;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    user-select: none;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.LockActionBtn:focus { outline: none; }
+
+.LockActionPrimary {
+    color: #FFFFFF;
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow:
+        0 14px 28px rgba(225, 30, 38, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.LockActionPrimary:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 18px 36px rgba(225, 30, 38, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+
+.LockActionPrimary:active {
+    transform: translateY(0);
+    box-shadow:
+        0 8px 18px rgba(225, 30, 38, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+
+.LockActionGhost {
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.LockActionGhost:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #FFFFFF;
+}
+
+.LockActionGhost:active {
+    transform: translateY(0);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.LockActionIcon {
+    font-size: 15px;
+}
+
+/* ==========================================================================
+   Terminal — Shini Extra Jordan Design System
+   Modernized styles for existing class names. JSX untouched; everything
+   here simply makes the terminal look & feel cleaner, softer, and
+   more touchscreen-friendly while keeping rsuite's appearance/color props
+   intact (primary / default / red / green / blue / orange / yellow).
+   ========================================================================== */
+
+/* ---------- Residual class — kept for compatibility ---------- */
+.Button {
     width: 100% !important;
     display: block !important;
     font-size: 14px !important;
-    text-align: left !important;
-    border-radius: 0px !important;
-    position: relative !important;
-    left: 20px !important
+    border-radius: 12px !important;
+    font-weight: 600 !important;
 }
+
+/* ==========================================================================
+   Right-rail action buttons
+   Used by: payment type buttons (Cash / Visa / Foreign / Voucher / On Account /
+   Cash Back / Employee / MobiCash / WFP) and the operations tab
+   (Suspend / Void TRX / Refund / Lock / Unlock / Sign Out / Tax Exempt /
+   Settings / Customer Name / Print Last TRX).
+   ========================================================================== */
+
+.MainActionButton {
+    height: 58px !important;
+    width: calc(100% - 12px) !important;
+    margin: 4px 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    padding: 0 14px !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.2px !important;
+    text-align: left !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04) !important;
+    transition:
+        transform 0.12s ease,
+        box-shadow 0.15s ease,
+        border-color 0.15s ease !important;
+    position: relative !important;
+    left: 0 !important; /* override legacy offset hack */
+}
+
+.MainActionButton:hover:not(:disabled) {
+    border-color: #FBC9CC !important;
+    box-shadow: 0 6px 16px rgba(225, 30, 38, 0.10) !important;
+    transform: translateY(-1px) !important;
+}
+
+.MainActionButton:active:not(:disabled) {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 6px rgba(17, 24, 39, 0.08) !important;
+}
+
+.MainActionButton:disabled {
+    opacity: 0.5 !important;
+}
+
+/* ==========================================================================
+   ActionButton
+   Used by: currency selectors, cashback/employeeExtra info panels,
+   fast-items buttons, auto-visa, suspended list entries.
+   Center-aligned, denser than MainActionButton.
+   ========================================================================== */
 
 .ActionButton {
-    height: 60px !important;
-    line-height: 2 !important;
-    width: 100% !important;
-    display: block !important;
-    font-size: 16px !important;
-    text-align: left !important;
-    border-radius: 0px !important;
+    height: 58px !important;
+    width: calc(100% - 12px) !important;
+    margin: 4px 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 12px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04) !important;
+    transition:
+        transform 0.12s ease,
+        box-shadow 0.15s ease,
+        border-color 0.15s ease !important;
     position: relative !important;
-    left: 15px !important
+    left: 0 !important;
 }
 
+.ActionButton:hover:not(:disabled) {
+    border-color: #FBC9CC !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 16px rgba(225, 30, 38, 0.10) !important;
+}
+
+.ActionButton:disabled {
+    opacity: 0.55 !important;
+}
+
+/* ==========================================================================
+   LongActionButton
+   Used by: employeeExtra balance info card, cashback balance info card.
+   ========================================================================== */
 
 .LongActionButton {
-    height: 100px !important;
-    line-height: 2 !important;
-    width: 100% !important;
-    display: block !important;
-    font-size: 15px !important;
-    text-align: left !important;
-    border-radius: 0px !important;
+    height: 96px !important;
+    width: calc(100% - 12px) !important;
+    margin: 4px 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 10px 14px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 14px !important;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04) !important;
+    text-align: center !important;
     position: relative !important;
-    left: 15px !important
+    left: 0 !important;
+}
+
+/* ==========================================================================
+   Panel
+   Used by: Numpad input row wrapper.
+   ========================================================================== */
+
+.Panel {
+    background: #F8FAFC !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 14px !important;
+    padding: 8px !important;
+    margin-bottom: 10px !important;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04) !important;
+}
+
+/* ==========================================================================
+   Bottom POS tab bar
+   Payment / Fast Items / Operations / Suspended / Void / Change Price / Abort
+   ========================================================================== */
+
+.POSButton {
+    height: 56px !important;
+    width: 96% !important;
+    margin: 0 2% !important;
+    padding: 0 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.15px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 14px !important;
+    box-shadow: 0 2px 6px rgba(17, 24, 39, 0.05) !important;
+    transition: all 0.15s ease !important;
+    text-transform: uppercase !important;
+}
+
+.POSButton > div {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.POSButton:hover:not(:disabled) {
+    border-color: #FBC9CC !important;
+    box-shadow: 0 8px 22px rgba(225, 30, 38, 0.12) !important;
+    transform: translateY(-1px) !important;
+}
+
+.POSButton:disabled {
+    opacity: 0.5 !important;
+}
+
+/* ==========================================================================
+   Mode Buttons — two stacked rows. Top row = 3 TALL buttons (Payment,
+   Scale Items, Fast Items) at 2× the height of a normal button. Bottom row
+   = 3 NORMAL buttons (Suspended, Void, Change Price). Operations has been
+   moved out of this grid into the footer.
+   ========================================================================== */
+
+.ModeButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E5E7EB;
+    flex-shrink: 0;
+}
+
+.ModeButtonsRow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.ModeButton {
+    width: 100% !important;
+    margin: 0 !important;
+    height: 50px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.15px !important;
+    padding: 0 8px !important;
+    border-radius: 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    text-transform: uppercase !important;
+}
+
+.ModeButton > div {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Tall variant for the top row. Stacks icon above label with larger font. */
+.ModeButtonTall {
+    height: 108px !important;
+    font-size: 14px !important;
+    letter-spacing: 0.3px !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    border-radius: 14px !important;
+}
+
+.ModeButtonTall > svg {
+    font-size: 24px !important;
+}
+
+.ModeButtonTall > div {
+    font-weight: 800 !important;
+}
+
+/* Primary-looking Payment styling so it still reads as the hero button
+   without needing extra colspan tricks. */
+.ModeButtonPayment {
+    background: linear-gradient(180deg, #FEF2F2 0%, #FFFFFF 65%) !important;
+    border: 1px solid rgba(225, 30, 38, 0.22) !important;
+    box-shadow: 0 6px 14px rgba(225, 30, 38, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.ModeButtonPayment > svg { color: #B3141B !important; }
+.ModeButtonPayment > div { color: #B3141B !important; }
+
+/* ==========================================================================
+   Footer Summary — bottom bar with total / paid / change / pills.
+   Rich padding, accent bar, passive animations.
+   ========================================================================== */
+
+@keyframes footerAccentSlide {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes footerTotalPulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.035); }
+    100% { transform: scale(1); }
+}
+
+@keyframes footerDueGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.0); }
+    50%      { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.12); }
+}
+
+@keyframes footerChangeGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.0); }
+    50%      { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.12); }
+}
+
+.FooterSummary {
+    position: relative;
+    width: 100%;
+    height: 108px;
+    padding: 14px 22px 16px 22px;
+    background:
+        radial-gradient(120% 160% at 0% 100%, rgba(225, 30, 38, 0.05) 0%, rgba(225, 30, 38, 0) 55%),
+        radial-gradient(120% 160% at 100% 100%, rgba(15, 118, 110, 0.04) 0%, rgba(15, 118, 110, 0) 55%),
+        linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    border-top: 1px solid #E5E7EB;
+    box-shadow:
+        0 -4px 14px rgba(17, 24, 39, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch;
+    gap: 14px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.FooterSummary::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+        90deg,
+        #E11E26 0%,
+        #F59E0B 25%,
+        #10B981 50%,
+        #3B82F6 75%,
+        #E11E26 100%
+    );
+    background-size: 200% 100%;
+    animation: footerAccentSlide 12s linear infinite;
+    opacity: 0.85;
+}
+
+.FooterCell {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 10px;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.FooterCellTotal {
+    padding: 6px 14px 6px 12px;
+    background: linear-gradient(135deg, rgba(225, 30, 38, 0.04) 0%, rgba(225, 30, 38, 0) 70%);
+    border: 1px solid rgba(225, 30, 38, 0.12);
+}
+
+.FooterCellPaid {
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+    border: 1px solid #E5E7EB;
+}
+
+.FooterCellChange {
+    padding: 6px 14px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0) 70%);
+    border: 1px solid rgba(16, 185, 129, 0.20);
+    animation: footerChangeGlow 2.4s ease-in-out infinite;
+}
+
+.FooterCellDue {
+    padding: 6px 14px;
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(220, 38, 38, 0) 70%);
+    border: 1px solid rgba(220, 38, 38, 0.22);
+    animation: footerDueGlow 1.6s ease-in-out infinite;
+}
+
+.FooterCellDivider {
+    width: 1px;
+    align-self: stretch;
+    background: linear-gradient(180deg, transparent 0%, #E5E7EB 20%, #E5E7EB 80%, transparent 100%);
+    margin: 2px 0;
+}
+
+.FooterLabel {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: #6B7280;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.FooterLabel::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.55;
+    flex-shrink: 0;
+}
+
+.FooterLabelAccent {
+    color: #B3141B;
+}
+
+.FooterLabelGreen {
+    color: #047857;
+}
+
+.FooterLabelRed {
+    color: #B91C1C;
+}
+
+.FooterAmountRow {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.FooterCurrency {
+    font-size: 13px;
+    font-weight: 700;
+    color: #6B7280;
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.FooterAmount {
+    font-size: 30px;
+    font-weight: 800;
+    color: #111827;
+    font-family: "DSDIGI", monospace;
+    line-height: 1.2;
+    letter-spacing: 0.3px;
+    transform-origin: left center;
+    animation: footerTotalPulse 0.35s ease;
+    padding-bottom: 4px;
+}
+
+.FooterAmountGrand {
+    font-size: 38px;
+    background: linear-gradient(180deg, #111827 0%, #1F2937 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.FooterAmountGreen {
+    color: #047857;
+    -webkit-text-fill-color: #047857;
+}
+
+.FooterAmountRed {
+    color: #B91C1C;
+    -webkit-text-fill-color: #B91C1C;
+}
+
+.FooterPills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.FooterPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid #E5E7EB;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: #6B7280;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.FooterPill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(17, 24, 39, 0.08);
+}
+
+.FooterPill b {
+    font-family: "DSDIGI", monospace;
+    font-size: 15px;
+    letter-spacing: 0;
+    color: #111827;
+    font-weight: 800;
+}
+
+.FooterPillItems {
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    border-color: #CBD5E1;
+}
+
+.FooterPillCashback {
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.10) 0%, rgba(37, 99, 235, 0.14) 100%);
+    border-color: rgba(37, 99, 235, 0.28);
+    color: #1D4ED8;
+}
+
+.FooterPillCashback b {
+    color: #1D4ED8;
+}
+
+.FooterPillTax {
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, rgba(217, 119, 6, 0.12) 100%);
+    border-color: rgba(217, 119, 6, 0.28);
+    color: #92400E;
+}
+
+.FooterPillTax b {
+    color: #92400E;
+}
+
+.FooterPillTaxExempt {
+    background: linear-gradient(180deg, rgba(220, 38, 38, 0.10) 0%, rgba(220, 38, 38, 0.14) 100%);
+    border-color: rgba(220, 38, 38, 0.28);
+    color: #B91C1C;
+    text-decoration: line-through;
+}
+
+.FooterPillTaxExempt b {
+    color: #B91C1C;
+}
+
+/* ==========================================================================
+   TrxSummary — compact transaction summary panel that sits UNDER the numpad
+   inside the middle column. Grand Total on the left, pills on the right —
+   all in ONE card so nothing gets clipped by the viewport bottom.
+   ========================================================================== */
+
+.TrxSummaryPanel {
+    position: relative;
+    flex-shrink: 0;
+    padding: 8px 12px 10px 12px;
+    background:
+        radial-gradient(140% 180% at 0% 100%, rgba(225, 30, 38, 0.05) 0%, rgba(225, 30, 38, 0) 55%),
+        linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    border-top: 1px solid #E5E7EB;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.TrxSummaryPanel::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        rgba(225, 30, 38, 0) 0%,
+        rgba(225, 30, 38, 0.7) 30%,
+        rgba(180, 20, 27, 1) 50%,
+        rgba(225, 30, 38, 0.7) 70%,
+        rgba(225, 30, 38, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: footerAccentSlide 6s linear infinite;
+    opacity: 0.7;
+}
+
+.TrxSummaryRow {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+
+/* Cell sizing tuned for a single-row layout: Grand Total on the left takes
+   only as much space as it needs; pills hug the right edge. */
+.TrxSummaryPanel .FooterCell { padding: 2px 6px; }
+.TrxSummaryPanel .FooterCellTotal { padding: 3px 10px; flex: 0 1 auto; }
+.TrxSummaryPanel .FooterCellPaid { padding: 3px 10px; flex: 0 1 auto; }
+.TrxSummaryPanel .FooterCellChange,
+.TrxSummaryPanel .FooterCellDue { padding: 3px 10px; flex: 0 1 auto; }
+
+.TrxSummaryPanel .FooterAmount { font-size: 24px; line-height: 1.1; padding-bottom: 2px; }
+.TrxSummaryPanel .FooterAmountGrand { font-size: 28px; }
+.TrxSummaryPanel .FooterLabel { font-size: 9px; letter-spacing: 1.2px; }
+
+.TrxSummaryPanel .FooterPills { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.TrxSummaryPanel .FooterPill { padding: 3px 8px; font-size: 10px; }
+.TrxSummaryPanel .FooterPill b { font-size: 11px; }
+
+.TrxSummaryPills {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
+/* Stack Paid + Due/Change vertically in payment mode so they take one column
+   instead of two, keeping the pills (items / cashback / tax) visible on the
+   right without clipping. */
+.TrxSummaryPanel .FooterCellPaidDue {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    row-gap: 4px;
+    padding: 4px 12px;
+    flex: 0 1 auto;
+    min-width: 0;
+    border-left: 1px dashed rgba(17, 24, 39, 0.08);
+    border-right: 1px dashed rgba(17, 24, 39, 0.08);
+}
+
+.TrxSummaryPanel .FooterCellPaidDue .FooterCell {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    align-items: center;
+    column-gap: 10px;
+}
+
+.TrxSummaryPanel .FooterCellPaidDue .FooterLabel {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-align: left;
+    grid-column: 1 / 2;
+}
+
+.TrxSummaryPanel .FooterCellPaidDue .FooterAmountRow {
+    display: contents;
+}
+
+.TrxSummaryPanel .FooterCellPaidDue .FooterCurrency {
+    display: none;
+}
+
+.TrxSummaryPanel .FooterCellPaidDue .FooterAmount {
+    font-size: 26px;
+    line-height: 1;
+    padding-bottom: 0;
+    text-align: right;
+    justify-self: end;
+    grid-column: 2 / 3;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Cashback Balance Card — modern info card shown at the top of the cashback
+   payment actions list. Replaces the old yellow disabled button with a
+   glossy amber card that clearly communicates "available balance".
+   ========================================================================== */
+
+.CashbackBalanceCard {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 92%;
+    margin: 4px auto 10px auto;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background:
+        radial-gradient(120% 160% at 0% 0%, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 55%),
+        linear-gradient(135deg, #FEF3C7 0%, #FDE68A 55%, #FBBF24 100%);
+    border: 1px solid rgba(180, 83, 9, 0.22);
+    box-shadow:
+        0 6px 18px rgba(180, 83, 9, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    overflow: hidden;
+}
+
+.CashbackBalanceCard::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        rgba(251, 191, 36, 0) 0%,
+        rgba(180, 83, 9, 0.6) 30%,
+        rgba(146, 64, 14, 0.9) 50%,
+        rgba(180, 83, 9, 0.6) 70%,
+        rgba(251, 191, 36, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: footerAccentSlide 5s linear infinite;
+    opacity: 0.7;
+}
+
+.CashbackBalanceIcon {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #F59E0B 0%, #B45309 100%);
+    color: #FFF8E1;
+    font-size: 16px;
+    box-shadow:
+        0 4px 10px rgba(180, 83, 9, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    animation: cashbackStarPulse 2.4s ease-in-out infinite;
+}
+
+.CashbackBalanceBody {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.CashbackBalanceLabel {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #92400E;
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.CashbackBalanceAmountRow {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.CashbackBalanceCurrency {
+    font-size: 11px;
+    font-weight: 700;
+    color: #92400E;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    letter-spacing: 0.4px;
+}
+
+.CashbackBalanceAmount {
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1;
+    letter-spacing: 0.5px;
+}
+
+@keyframes cashbackStarPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow:
+            0 4px 10px rgba(180, 83, 9, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+    50% {
+        transform: scale(1.06);
+        box-shadow:
+            0 6px 16px rgba(180, 83, 9, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+}
+
+/* ==========================================================================
+   Floating Operations Button — no footer container; the button sits inside
+   a small backdrop panel pinned to the bottom-right of the right rail. The
+   backdrop gives the button a solid surface so any action buttons behind
+   it are visually hidden, and .RailScrollPadded adds matching bottom
+   padding to the scroll area so those hidden buttons can be scrolled up
+   into view.
+   ========================================================================== */
+
+.FooterOpsBackdrop {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    padding: 10px 12px 12px 12px;
+    background:
+        linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.85) 35%, #F8FAFC 70%, #F8FAFC 100%);
+    border-top: 1px solid rgba(229, 231, 235, 0.6);
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    pointer-events: none;
+}
+
+.FooterOpsBackdrop > * {
+    pointer-events: auto;
+}
+
+.FooterOpsBackdrop::before {
+    content: "";
+    position: absolute;
+    top: -20px;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.9) 100%);
+    pointer-events: none;
+}
+
+.FooterOpsButtonFloating {
+    width: 100% !important;
+    box-shadow:
+        0 10px 24px rgba(17, 24, 39, 0.14),
+        0 2px 6px rgba(17, 24, 39, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Extra bottom padding on the rail scroll area so actions that would
+   otherwise sit behind the Operations backdrop can be scrolled into view. */
+.RailScrollPadded {
+    padding-bottom: 76px !important;
+}
+
+.FooterOpsButton {
+    height: 40px !important;
+    padding: 0 18px !important;
+    border-radius: 12px !important;
+    font-family: "Inter", "Segoe UI", sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.6px !important;
+    text-transform: uppercase !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    border: 1px solid #E5E7EB !important;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%) !important;
+    color: #374151 !important;
+    box-shadow: 0 2px 6px rgba(17, 24, 39, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+    transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.FooterOpsButton:hover:not(:disabled) {
+    border-color: #FBC9CC !important;
+    background: linear-gradient(180deg, #FFF7F7 0%, #FEF2F2 100%) !important;
+    color: #B3141B !important;
+    box-shadow: 0 6px 14px rgba(225, 30, 38, 0.14) !important;
+    transform: translateY(-1px) !important;
+}
+
+.FooterOpsButton:disabled {
+    opacity: 0.5 !important;
+}
+
+.FooterOpsButtonActive {
+    background: linear-gradient(180deg, #E11E26 0%, #B3141B 100%) !important;
+    border-color: rgba(180, 20, 27, 0.8) !important;
+    color: #FFFFFF !important;
+    box-shadow:
+        0 6px 16px rgba(225, 30, 38, 0.30),
+        inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+}
+
+.FooterOpsButtonActive:hover:not(:disabled) {
+    background: linear-gradient(180deg, #B3141B 0%, #7F1D1D 100%) !important;
+    color: #FFFFFF !important;
+}
+
+/* ==========================================================================
+   Right-rail action list: thin, subtle scrollbar so currency/bill images
+   are not clipped on the right edge.
+   ========================================================================== */
+
+.RailScroll {
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+}
+
+.RailScroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.RailScroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.RailScroll::-webkit-scrollbar-thumb {
+    background-color: #CBD5E1;
+    border-radius: 999px;
+}
+
+.RailScroll::-webkit-scrollbar-thumb:hover {
+    background-color: #94A3B8;
+}
+
+/* ==========================================================================
+   Scroll arrows used in Invoice / Payments list footers
+   ========================================================================== */
+
+.ScrollButton {
+    width: 58px !important;
+    height: 62px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 16px !important;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%) !important;
+    color: #374151 !important;
+    border: 1px solid #E2E8F0 !important;
+    font-size: 20px !important;
+    box-shadow:
+        0 2px 4px rgba(17, 24, 39, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    transition:
+        transform 0.12s ease,
+        box-shadow 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
+        background 0.18s ease !important;
+    position: relative !important;
+}
+
+.ScrollButton::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: radial-gradient(120% 140% at 50% 0%, rgba(225, 30, 38, 0) 0%, rgba(225, 30, 38, 0) 60%, rgba(225, 30, 38, 0.08) 100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.ScrollButton:hover:not(:disabled) {
+    background: linear-gradient(180deg, #FFF7F7 0%, #FFEAEC 100%) !important;
+    border-color: #F5A7AC !important;
+    color: #B3141B !important;
+    transform: translateY(-2px) !important;
+    box-shadow:
+        0 10px 22px rgba(225, 30, 38, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.ScrollButton:hover:not(:disabled)::before {
+    opacity: 1;
+}
+
+.ScrollButton:active:not(:disabled) {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 6px rgba(225, 30, 38, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.ScrollButton:disabled {
+    opacity: 0.5 !important;
+}
+
+/* ==========================================================================
+   Legacy utility classes — retained for compatibility
+   ========================================================================== */
+
+.TotalInvoice {
+    border-radius: 12px !important;
+    line-height: 2 !important;
 }
 
 .NumpadButton {
@@ -50,67 +1294,576 @@
     font-size: 15px !important;
     margin: 1%;
     margin-left: 5px;
-    border-radius: 0px !important;
-}
-
-.POSButton {
-    height: 60px !important;
-    border-radius: 0px !important;
-    width: 90%;
-}
-
-.ScrollButton {
-    width: 50px !important;
-    height: 80px !important;
-    display: inline-block !important;
-    border-radius: 0px !important;
-}
-
-
-.TotalInvoice {
-    height: 6vh !important;
-    border-radius: 0px !important;
-    line-height: 2 !important;
-}
-
-
-
-.Panel {
-    border-radius: 0px !important;
-    background: white !important;
-    position: relative !important;
+    border-radius: 12px !important;
 }
 
 .ClearCustomerButton {
     position: absolute !important;
     bottom: 5% !important;
     right: 1% !important;
-    border-radius: 0px !important;
+    border-radius: 12px !important;
 }
 
+/* ==========================================================================
+   Invoice & Payments list rows
+   ========================================================================== */
+
 .EvenRow {
-    font-weight: bold !important;
-    font-size: 17px;
-    color: #000000;
-    background-color: white !important;
-    border-top: 1px solid #e1e1e1
+    font-weight: 600 !important;
+    font-size: 15px;
+    color: #111827;
+    background-color: #FFFFFF !important;
+    border-top: 1px solid #F1F5F9;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
 }
 
 .OddRow {
-    font-weight: bold !important;
-    font-size: 17px;
-    color: #000000;
-    background-color: white !important;
-    border-top: 1px solid #e1e1e1
+    font-weight: 600 !important;
+    font-size: 15px;
+    color: #111827;
+    background-color: #FAFBFC !important;
+    border-top: 1px solid #F1F5F9;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.InvoiceQtyChip {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 3px;
+    min-width: 40px;
+    padding: 3px 7px;
+    background: #F1F5F9;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    color: #111827;
+    font-family: "DSDIGI", monospace;
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.2;
+}
+
+.InvoiceQtyChipMult {
+    font-size: 12px;
+    color: #6B7280;
+}
+
+.InvoicePill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.InvoicePillAmount {
+    font-family: "DSDIGI", monospace;
+    font-size: 13px;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.InvoicePillDiscount {
+    color: #15803D;
+    background: rgba(34, 197, 94, 0.10);
+    border: 1px solid rgba(34, 197, 94, 0.28);
+}
+
+.InvoicePillExtra {
+    color: #B91C1C;
+    background: rgba(225, 30, 38, 0.08);
+    border: 1px solid rgba(225, 30, 38, 0.22);
+}
+
+.InvoicePillPriceChange {
+    color: #B45309;
+    background: rgba(250, 137, 0, 0.10);
+    border: 1px solid rgba(250, 137, 0, 0.28);
+}
+
+.InvoicePillCashback {
+    color: #1D4ED8;
+    background: rgba(37, 99, 235, 0.08);
+    border: 1px solid rgba(37, 99, 235, 0.22);
+}
+
+/* Latest scan highlight card — sits above the invoice list.
+   Styled with a premium blue accent + animated shimmer so the most
+   recently scanned item visually pops for the cashier. */
+@keyframes latestScanPulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50%      { transform: scale(1.6); opacity: 0; }
+}
+
+@keyframes latestScanFlash {
+    0% {
+        transform: translateY(-4px);
+        opacity: 0;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.28),
+                    0 8px 24px rgba(17, 24, 39, 0.10);
+    }
+    40% {
+        opacity: 1;
+        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.14),
+                    0 10px 26px rgba(37, 99, 235, 0.15);
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0),
+                    0 6px 18px rgba(37, 99, 235, 0.12);
+    }
+}
+
+/* Ambient breathing glow so the card keeps drawing the eye even after
+   the initial flash-in animation finishes. */
+@keyframes latestScanBreathe {
+    0%, 100% {
+        box-shadow:
+            0 6px 18px rgba(37, 99, 235, 0.14),
+            0 0 0 0 rgba(37, 99, 235, 0.00);
+        border-color: rgba(37, 99, 235, 0.30);
+    }
+    50% {
+        box-shadow:
+            0 10px 28px rgba(37, 99, 235, 0.22),
+            0 0 0 4px rgba(37, 99, 235, 0.10);
+        border-color: rgba(37, 99, 235, 0.48);
+    }
+}
+
+/* Moving gradient stripe along the left accent bar. */
+@keyframes latestScanBarSlide {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 0% 200%; }
+}
+
+/* Shimmer sweep across the card surface. */
+@keyframes latestScanShimmer {
+    0%   { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+    25%  { opacity: 0.55; }
+    60%  { opacity: 0.55; }
+    100% { transform: translateX(280%) skewX(-18deg); opacity: 0; }
+}
+
+.LatestScanCard {
+    margin: 8px 10px 6px 10px;
+    border-radius: 16px;
+    background:
+        radial-gradient(120% 180% at 0% 0%, rgba(37, 99, 235, 0.10) 0%, rgba(37, 99, 235, 0) 55%),
+        radial-gradient(120% 180% at 100% 100%, rgba(56, 189, 248, 0.10) 0%, rgba(56, 189, 248, 0) 55%),
+        linear-gradient(180deg, #F5FAFF 0%, #ECF4FF 100%);
+    border: 1px solid rgba(37, 99, 235, 0.32);
+    box-shadow:
+        0 6px 18px rgba(37, 99, 235, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.2s ease;
+    animation: latestScanBreathe 2.6s ease-in-out infinite;
+}
+
+.LatestScanCard:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        0 12px 28px rgba(37, 99, 235, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+/* Left accent bar — vertical moving blue gradient. */
+.LatestScanCard::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    background: linear-gradient(
+        180deg,
+        #60A5FA 0%,
+        #2563EB 25%,
+        #1D4ED8 50%,
+        #2563EB 75%,
+        #60A5FA 100%
+    );
+    background-size: 100% 200%;
+    animation: latestScanBarSlide 3.2s linear infinite;
+}
+
+/* Diagonal shimmer sweep that travels across the card periodically. */
+.LatestScanCard::after {
+    content: '';
+    position: absolute;
+    top: -20%;
+    left: 0;
+    width: 40%;
+    height: 140%;
+    pointer-events: none;
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.55) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    filter: blur(4px);
+    animation: latestScanShimmer 3.6s ease-in-out infinite;
+    animation-delay: 0.8s;
+}
+
+/* Discount variant — keep the green identity but retain the blue breathe. */
+.LatestScanCardDiscount::before {
+    background: linear-gradient(
+        180deg,
+        #4ADE80 0%,
+        #22C55E 25%,
+        #15803D 50%,
+        #22C55E 75%,
+        #4ADE80 100%
+    );
+    background-size: 100% 200%;
+}
+
+/* Voided variant — mute the ambient animation, gray accent bar, no shimmer. */
+.LatestScanCardVoided {
+    animation: none;
+    border-color: #E5E7EB;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    box-shadow: 0 8px 22px rgba(17, 24, 39, 0.08);
+}
+
+.LatestScanCardVoided::before {
+    background: linear-gradient(180deg, #9CA3AF 0%, #6B7280 100%);
+    animation: none;
+}
+
+.LatestScanCardVoided::after {
+    display: none;
+}
+
+.LatestScanInner {
+    position: relative;
+    z-index: 1;
+    padding: 12px 18px 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    animation: latestScanFlash 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.LatestScanLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #1D4ED8;
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.LatestScanCardVoided .LatestScanLabel {
+    color: #6B7280;
+}
+
+.LatestScanLabelDot {
+    position: relative;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #2563EB;
+    box-shadow: 0 0 8px rgba(37, 99, 235, 0.75);
+}
+
+.LatestScanLabelDot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(37, 99, 235, 0.55);
+    animation: latestScanPulse 1.8s ease-out infinite;
+}
+
+.LatestScanCardVoided .LatestScanLabelDot {
+    background: #9CA3AF;
+    box-shadow: none;
+}
+
+.LatestScanCardVoided .LatestScanLabelDot::after {
+    animation: none;
+    background: transparent;
+}
+
+/* Voided invoice row — diagonal red stripe pattern + VOIDED stamp */
+@keyframes voidStampPulse {
+    0%, 100% { transform: rotate(-6deg) scale(1); }
+    50%      { transform: rotate(-6deg) scale(1.04); }
+}
+
+.VoidedRow {
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            rgba(225, 30, 38, 0.05) 0px,
+            rgba(225, 30, 38, 0.05) 10px,
+            rgba(225, 30, 38, 0.11) 10px,
+            rgba(225, 30, 38, 0.11) 20px
+        ) !important;
+    border-left: 3px solid #E11E26 !important;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.VoidedRow:hover {
+    filter: brightness(0.98);
+}
+
+.VoidedQtyChip {
+    background: rgba(225, 30, 38, 0.08) !important;
+    border: 1px solid rgba(225, 30, 38, 0.25) !important;
+    color: #9CA3AF !important;
+}
+
+.VoidedText {
+    color: #94A3B8 !important;
+    font-style: italic;
+}
+
+.VoidedPrice {
+    color: #94A3B8 !important;
+    text-decoration: line-through;
+    text-decoration-color: rgba(225, 30, 38, 0.55);
+    text-decoration-thickness: 2px;
+}
+
+.InvoicePillVoided {
+    color: #B91C1C;
+    background: rgba(225, 30, 38, 0.08);
+    border: 1px solid rgba(225, 30, 38, 0.22);
+}
+
+/* ==========================================================================
+   Payment list rows — modern card-style rows with a colored payment-method
+   badge on the left, method + currency + amount in the middle/right, and a
+   voided state that desaturates the card without an ugly strike-through.
+   ========================================================================== */
+
+.PaymentRow {
+    display: grid;
+    grid-template-columns: 46px 1fr auto;
+    column-gap: 12px;
+    align-items: center;
+    padding: 10px 14px 12px 12px;
+    min-height: 60px;
+}
+
+.PaymentIcon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    font-size: 16px;
+    flex-shrink: 0;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.PaymentRow:hover .PaymentIcon {
+    transform: translateY(-1px);
+}
+
+.PaymentBody {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.PaymentTopRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.PaymentMethod {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.PaymentCurrencyChip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    background: #F1F5F9;
+    color: #334155;
+    border: 1px solid #E2E8F0;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.PaymentCurrencyChipMuted {
+    background: #F8FAFC;
+    color: #94A3B8;
+    border-color: #E2E8F0;
+}
+
+.PaymentVoidedBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #B91C1C;
+    background: rgba(225, 30, 38, 0.08);
+    border: 1px solid rgba(225, 30, 38, 0.22);
+    line-height: 1.4;
+}
+
+.PaymentConversion {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 12px;
+    color: #6B7280;
+    font-weight: 500;
+}
+
+.PaymentConversionNum {
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 13px;
+    color: #374151;
+    font-weight: 700;
+}
+
+.PaymentConversionOp {
+    color: #9CA3AF;
+    font-weight: 600;
+}
+
+.PaymentAmount {
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 26px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+    padding-left: 8px;
+    white-space: nowrap;
+}
+
+.PaymentAmountVoided {
+    color: #94A3B8;
+    text-decoration: line-through;
+    text-decoration-color: rgba(225, 30, 38, 0.55);
+    text-decoration-thickness: 2px;
+}
+
+.PaymentTextMuted {
+    color: #94A3B8 !important;
+}
+
+.PaymentRowVoided {
+    opacity: 0.72;
+    background: linear-gradient(90deg, rgba(248, 250, 252, 0) 0%, rgba(241, 245, 249, 0.55) 100%) !important;
+}
+
+.PaymentRowVoided:hover {
+    background: linear-gradient(90deg, rgba(248, 250, 252, 0) 0%, rgba(226, 232, 240, 0.7) 100%) !important;
+}
+
+.EvenRow:hover,
+.OddRow:hover {
+    background-color: #FFF7F7 !important;
 }
 
 .SelectedRow {
-    font-size: 17px;
-    color: #000000;
-    font-weight: bold !important;
+    font-size: 15px;
+    color: #111827;
+    font-weight: 700 !important;
 }
 
 .SelectedRowBG {
-    color: #000000;
-    background-color: rgba(115, 168, 189, 0.479) !important;
+    color: #111827;
+    background-color: #E2E8F0 !important;
+    border-left: 3px solid #64748B;
+    border-top: 1px solid #CBD5E1;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
 }
+
+/* ==========================================================================
+   Refund mode cue.
+   When terminal.trxMode === 'Refund', the root gets this class. We draw
+   a non-interactive red ring around the whole viewport that breathes
+   softly — that alone is visible enough on CCTV without tinting the
+   background (which the cashiers found straining).
+   Key-level refund colouring is handled inside the Numpad module so the
+   cashier's primary interaction area also signals refund mode clearly.
+   ========================================================================== */
+
+@keyframes refundAmbientPulse {
+    0%, 100% {
+        box-shadow:
+            inset 0 0 0 4px rgba(225, 30, 38, 0.55),
+            inset 0 0 60px rgba(225, 30, 38, 0.06);
+    }
+    50% {
+        box-shadow:
+            inset 0 0 0 4px rgba(225, 30, 38, 0.82),
+            inset 0 0 90px rgba(225, 30, 38, 0.10);
+    }
+}
+
+.RefundMode {
+    position: relative !important;
+}
+
+.RefundMode::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9998;
+    border-radius: inherit;
+    box-shadow:
+        inset 0 0 0 4px rgba(225, 30, 38, 0.55),
+        inset 0 0 60px rgba(225, 30, 38, 0.06);
+    animation: refundAmbientPulse 2.6s ease-in-out infinite;
+}
+
