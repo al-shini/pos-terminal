@@ -149,8 +149,11 @@ function createWindow() {
             customerScreen.webContents.openDevTools();
         }
 
-        // and load the index.html of the app.
-        customerScreen.loadURL(isDev ? `http://localhost:3000/#/customer?${params}` : `file://${__dirname}/../build/index.html#/customer?${params}`);
+        // IMPORTANT: the query string must come BEFORE the hash fragment,
+        // otherwise `location.search` is empty and `config.js` falls back to
+        // serverIp=127.0.0.1, which breaks any HTTP call the customer window
+        // makes (e.g. /trx/customerDisplayConfig for the images + news bar).
+        customerScreen.loadURL(isDev ? `http://localhost:3000/?${params}#/customer` : `file://${__dirname}/../build/index.html?${params}#/customer`);
         customerScreen.show();
     }
 

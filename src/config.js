@@ -9,7 +9,23 @@ let autoUpdate = null;
 let arabiVisaCom = null;
 let systemCurrency = null;
 
-let query = new URLSearchParams(global.location.search);
+// Collect query params from BOTH the normal search string AND the hash
+// fragment. The customer display window is opened with a HashRouter URL
+// like "…/index.html#/customer?serverIp=…&deviceId=…", which means the
+// "?" ends up inside the hash and `location.search` is empty. Without this,
+// the customer window falls back to serverIp=127.0.0.1 and can't talk to
+// the backend (all other state reaches it via redux-state-sync, which is
+// why only HTTP-backed features — the images/news carousel — were broken).
+const searchParams = new URLSearchParams(global.location.search);
+const hash = global.location.hash || '';
+const hashQueryIndex = hash.indexOf('?');
+const hashParams = hashQueryIndex >= 0
+    ? new URLSearchParams(hash.substring(hashQueryIndex + 1))
+    : new URLSearchParams();
+
+const query = {
+    get: (key) => searchParams.get(key) || hashParams.get(key)
+};
 
 if (query.get("deviceId")) {
     deviceId = query.get("deviceId");
