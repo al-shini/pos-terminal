@@ -33,7 +33,16 @@ const initialState = {
     managerUser: '',
     _managerUser: '',
     actionState: 'free',
-    
+
+    // Optional one-shot broadcast message pushed to any open customer display.
+    // Cleared from the back-office with clearCustomerBroadcast. Synced to the
+    // customer window via redux-state-sync.
+    customerBroadcast: null, // { message, imageUrl, at } | null
+
+    // Bumped whenever the back-office saves new customer display params;
+    // the CustomerDisplay window refetches /customerDisplayConfig when this
+    // value changes so changes feel instant instead of waiting 5 minutes.
+    customerConfigVersion: 0,
 }
 
 /**
@@ -341,6 +350,24 @@ export const terminalSlice = createSlice({
         setCustomer: (state, action) => {
             state.customer = action.payload;
         },
+        setCustomerBroadcast: (state, action) => {
+            const payload = action.payload;
+            if (!payload) {
+                state.customerBroadcast = null;
+                return;
+            }
+            state.customerBroadcast = {
+                message: payload.message || '',
+                imageUrl: payload.imageUrl || null,
+                at: Date.now(),
+            };
+        },
+        clearCustomerBroadcast: (state) => {
+            state.customerBroadcast = null;
+        },
+        bumpCustomerConfigVersion: (state) => {
+            state.customerConfigVersion = (state.customerConfigVersion || 0) + 1;
+        },
         setStoreCustomer: (state, action) => {
             state.storeCustomer = action.payload;
         },
@@ -550,5 +577,6 @@ export const terminalSlice = createSlice({
 
 export const { logout, seemlessLogin, updateBalance, exitNumpadEntry, setTrxMode, blockActions, unblockActions, setCustomer, setStoreCustomer, resetCustomer,
     uploadCurrencies, beginPayment, endPaymentMode, uploadForeignButtons, uploadPaymentMethods, abort, reset, uploadFastItems, verifyManagerMode,
-    uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound, setManagerMode, setManagerUser, lockState, freeState, setTerminal } = terminalSlice.actions
+    uploadExchangeRates, uploadCashButtons, setPaymentType, triggerErrorSound, setManagerMode, setManagerUser, lockState, freeState, setTerminal,
+    setCustomerBroadcast, clearCustomerBroadcast, bumpCustomerConfigVersion } = terminalSlice.actions
 export default terminalSlice.reducer

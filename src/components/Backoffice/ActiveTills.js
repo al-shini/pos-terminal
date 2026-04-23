@@ -1,63 +1,136 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux'
+import React, { useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import axios from '../../axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faLock, faUser, faUsersGear, faRotate, faCheck, faArrowLeft } from '@fortawesome/free-solid-svg-icons'
-import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
-import Divider from 'rsuite/esm/Divider';
-import { Drawer, FlexboxGrid, Button, Table, Panel, InputNumber, Dropdown } from 'rsuite';
+import {
+    faLock, faUsersGear, faRotate, faCheck, faArrowLeft,
+    faCashRegister, faMoneyBillWave, faCoins, faScaleBalanced,
+    faCircleExclamation, faCircleCheck, faEllipsisH,
+    faShieldHalved, faXmark,
+} from '@fortawesome/free-solid-svg-icons';
+import { Table, InputNumber } from 'rsuite';
 import { notify } from '../../store/uiSlice';
-import { setTills, setSelectedTill, updateBalance, submitTillCounts, closeTill } from '../../store/backofficeSlice';
+import {
+    setTills, setSelectedTill, updateBalance, submitTillCounts, closeTill,
+    forceCloseTill,
+} from '../../store/backofficeSlice';
 import confirm from '../../components/UI/ConfirmDlg';
+import classes from './Admin.module.css';
 
 const { Column, HeaderCell, Cell } = Table;
 
-const ActiveTills = (props) => {
-    const dispatch = useDispatch();
+const STATUS_META = {
+    O: { label: 'Open',   className: 'StatusChipOpen' },
+    L: { label: 'Locked', className: 'StatusChipLocked' },
+    R: { label: 'Review', className: 'StatusChipReview' },
+    C: { label: 'Closed', className: 'StatusChipClosed' }
+};
 
+const translateStatus = (status) => (STATUS_META[status] ? STATUS_META[status].label : status);
+
+const StatusChip = ({ status }) => {
+    const meta = STATUS_META[status] || { label: status, className: 'StatusChipClosed' };
+    return (
+        <span className={`${classes.StatusChip} ${classes[meta.className]}`}>
+            {meta.label}
+        </span>
+    );
+};
+
+const initials = (name) => {
+    if (!name) return '?';
+    const parts = String(name).trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+};
+
+const UserCell = ({ rowData }) => (
+    <span className={classes.UserCell}>
+        <span className={classes.UserAvatar}>{initials(rowData.user && rowData.user.username)}</span>
+        <span>{rowData.user ? rowData.user.username : '—'}</span>
+    </span>
+);
+
+const NumberCell = ({ value, muted }) => (
+    <span className={`${classes.CellNumber} ${muted ? classes.CellNumberMuted : ''}`}>
+        {value === undefined || value === null ? '0' : value}
+    </span>
+);
+
+const CurrencyIcon = ({ currency }) => {
+    const key = (currency || '').toUpperCase();
+    if (key === 'JOD') return <FontAwesomeIcon icon={faCoins} />;
+    if (key === 'USD') return <FontAwesomeIcon icon={faMoneyBillWave} />;
+    if (key === 'EUR') return <FontAwesomeIcon icon={faMoneyBillWave} />;
+    return <FontAwesomeIcon icon={faCoins} />;
+};
+
+const ActiveTills = ({ superAdmin } = {}) => {
+    const dispatch = useDispatch();
     const backofficeSlice = useSelector((state) => state.backoffice);
     const terminalSlice = useSelector((state) => state.terminal);
 
-    const [closeMode, setCloseMode] = useState(false);
-const data = (backofficeSlice.selectedTill && backofficeSlice.selectedTill.balances)
-    ? backofficeSlice.selectedTill.balances.map((bv, i) => ({
-        key: i, // Use index as key
+    const [closeMode, setCloseMode] = React.useState(false);
+    const [forcePrompt, setForcePrompt] = React.useState(false);
+    const [forcePwd, setForcePwd] = React.useState('');
+    const [forceError, setForceError] = React.useState('');
+
+    const selectedTill = backofficeSlice.selectedTill;
+    const balances = selectedTill && selectedTill.balances ? selectedTill.balances : [];
+
+    // Keep the exact same data shape mapping as before.
+    const rows = useMemo(() => balances.map((bv, i) => ({
+        key: i,
         paymentMethod: bv.paymentMethodDescription,
+        paymentMethodKey: bv.paymentMethodKey,
+        currency: bv.currency,
         closingBalance: bv.closingBalance + ' ' + bv.currency,
         counted: {
             value: bv.closingBalance,
-            editable: backofficeSlice.selectedTill.status !== 'C',
+            editable: selectedTill && selectedTill.status !== 'C',
             currency: bv.currency,
         },
         actual: {
             value:
                 bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash'
-                    ? backofficeSlice.selectedTill.actualBalance
+                    ? (selectedTill && selectedTill.actualBalance)
                     : bv.actualBalance,
             editable: false,
         },
         variance: {
             value:
                 bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash'
-                    ? backofficeSlice.selectedTill.variance
+                    ? (selectedTill && selectedTill.variance)
                     : bv.ogCurrencyVariance,
             editable: false,
         },
-    }))
-    : [];
+    })), [balances, selectedTill]);
+
+    // Group rows by currency, preserving first-seen order.
+    const currencyGroups = useMemo(() => {
+        const order = [];
+        const map = new Map();
+        rows.forEach((row) => {
+            const cur = row.currency || '—';
+            if (!map.has(cur)) {
+                order.push(cur);
+                map.set(cur, []);
+            }
+            map.get(cur).push(row);
+        });
+        return order.map((cur) => ({ currency: cur, rows: map.get(cur) }));
+    }, [rows]);
 
     const handleChange = (e, i) => {
-        dispatch(updateBalance({ i: i, balance: e }));
-    }
+        dispatch(updateBalance({ i, balance: e }));
+    };
 
     const loadActiveTills = () => {
         if (terminalSlice.store && backofficeSlice.workDay) {
             axios({
                 method: 'post',
                 url: '/bo/loadTills',
-                headers: {
-                    workDayKey: backofficeSlice.workDay.key
-                }
+                headers: { workDayKey: backofficeSlice.workDay.key }
             }).then((response) => {
                 if (response && response.data) {
                     dispatch(setTills(response.data));
@@ -70,8 +143,7 @@ const data = (backofficeSlice.selectedTill && backofficeSlice.selectedTill.balan
                         dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     } else if (error.response.status === 404) {
                         dispatch(notify({ msg: 'No Open Work Day For Store', sev: 'warning' }));
-                    }
-                    else {
+                    } else {
                         dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     }
                 } else {
@@ -79,232 +151,471 @@ const data = (backofficeSlice.selectedTill && backofficeSlice.selectedTill.balan
                 }
             });
         }
-    }
+    };
 
     useEffect(() => {
-        if (backofficeSlice.workDay)
-            loadActiveTills();
+        if (backofficeSlice.workDay) loadActiveTills();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
 
     const handleCloseTill = (till) => {
         dispatch(setSelectedTill(till));
         setCloseMode(true);
-    }
+    };
 
     const handleSubmitCount = () => {
-        if (!backofficeSlice.selectedTill) {
-            alert('No valid selected Till!');
+        if (!selectedTill) {
+            dispatch(notify({ msg: 'No valid selected till', sev: 'error' }));
             return;
         }
-        dispatch(submitTillCounts(backofficeSlice.selectedTill.balances));
-    }
+        dispatch(submitTillCounts(selectedTill.balances));
+    };
+
+    const handleForceClose = () => {
+        if (!selectedTill) {
+            dispatch(notify({ msg: 'No valid selected till', sev: 'error' }));
+            return;
+        }
+        if (!forcePwd) {
+            setForceError('Super admin password required');
+            return;
+        }
+        dispatch(forceCloseTill({ tillKey: selectedTill.key, password: forcePwd }))
+            .unwrap()
+            .then(() => {
+                setForcePrompt(false);
+                setForcePwd('');
+                setForceError('');
+                setCloseMode(false);
+            })
+            .catch((err) => {
+                setForceError(typeof err === 'string' ? err : 'Incorrect password');
+            });
+    };
 
     const handleFinalCloseTill = () => {
-        if (!backofficeSlice.selectedTill) {
-            alert('No valid selected Till!');
+        if (!selectedTill) {
+            dispatch(notify({ msg: 'No valid selected till', sev: 'error' }));
             return;
         }
-        if (backofficeSlice.selectedTill.status === 'R') {
+        if (selectedTill.status === 'R') {
             dispatch(closeTill());
             setCloseMode(false);
         } else {
-            alert('Till not submitted');
+            dispatch(notify({ msg: 'Till not submitted', sev: 'warning' }));
         }
+    };
+
+    /* -------------------- LIST MODE -------------------- */
+
+    if (!closeMode) {
+        return (
+            <>
+                <div className={classes.SectionHeader}>
+                    <h3 className={classes.SectionTitle}>
+                        <span className={classes.SectionTitleIcon}>
+                            <FontAwesomeIcon icon={faUsersGear} />
+                        </span>
+                        Active Tills
+                    </h3>
+                </div>
+
+                <div className={classes.TillsCard}>
+                    <div className={classes.TillsCardHeader}>
+                        <h4 className={classes.TillsCardTitle}>
+                            <FontAwesomeIcon icon={faCashRegister} />
+                            Tills for this work day
+                        </h4>
+                        <button
+                            type="button"
+                            className={classes.IconBtn}
+                            onClick={loadActiveTills}
+                            title="Refresh tills"
+                            aria-label="Refresh tills"
+                        >
+                            <FontAwesomeIcon icon={faRotate} />
+                        </button>
+                    </div>
+
+                    <div className={classes.TableWrap}>
+                        <Table
+                            autoHeight
+                            rowHeight={60}
+                            headerHeight={44}
+                            data={backofficeSlice.tills || []}
+                            rowClassName="bo-tills-row"
+                        >
+                            <Column width={180} align="center">
+                                <HeaderCell>Action</HeaderCell>
+                                <Cell>
+                                    {(rowData) => {
+                                        const disabled = rowData.status !== 'L' && rowData.status !== 'R';
+                                        return (
+                                            <button
+                                                type="button"
+                                                className={`${classes.PillBtn} ${classes.PillBtnDanger} ${classes.PillBtnSmall}`}
+                                                onClick={() => handleCloseTill(rowData)}
+                                                disabled={disabled}
+                                                title={disabled ? 'Till must be Locked or in Review' : 'Close this till'}
+                                            >
+                                                <span className={classes.PillBtnIcon}>
+                                                    <FontAwesomeIcon icon={faLock} />
+                                                </span>
+                                                Close Till
+                                            </button>
+                                        );
+                                    }}
+                                </Cell>
+                            </Column>
+                            <Column width={140} align="center">
+                                <HeaderCell>Status</HeaderCell>
+                                <Cell>
+                                    {(rowData) => <StatusChip status={rowData.status} />}
+                                </Cell>
+                            </Column>
+                            <Column flexGrow={1} minWidth={220} align="left">
+                                <HeaderCell>User</HeaderCell>
+                                <Cell>
+                                    {(rowData) => <UserCell rowData={rowData} />}
+                                </Cell>
+                            </Column>
+                            <Column width={160} align="center">
+                                <HeaderCell>Sale Trx</HeaderCell>
+                                <Cell>
+                                    {(rowData) => (
+                                        <NumberCell
+                                            value={rowData.currentSaleTrxCount}
+                                            muted={!rowData.currentSaleTrxCount}
+                                        />
+                                    )}
+                                </Cell>
+                            </Column>
+                            <Column width={160} align="center">
+                                <HeaderCell>Refund Trx</HeaderCell>
+                                <Cell>
+                                    {(rowData) => (
+                                        <NumberCell
+                                            value={rowData.currentRefundTrxCount}
+                                            muted={!rowData.currentRefundTrxCount}
+                                        />
+                                    )}
+                                </Cell>
+                            </Column>
+                            <Column width={160} align="center">
+                                <HeaderCell>Voided</HeaderCell>
+                                <Cell>
+                                    {(rowData) => (
+                                        <NumberCell
+                                            value={rowData.currentVoidedCount}
+                                            muted={!rowData.currentVoidedCount}
+                                        />
+                                    )}
+                                </Cell>
+                            </Column>
+                            <Column width={160} align="center">
+                                <HeaderCell>Suspended</HeaderCell>
+                                <Cell>
+                                    {(rowData) => (
+                                        <NumberCell
+                                            value={rowData.currentSuspendedCount}
+                                            muted={!rowData.currentSuspendedCount}
+                                        />
+                                    )}
+                                </Cell>
+                            </Column>
+                        </Table>
+
+                        {(!backofficeSlice.tills || backofficeSlice.tills.length === 0) && (
+                            <div className={classes.EmptyState} style={{ margin: 12 }}>
+                                <span className={classes.EmptyStateIcon}>
+                                    <FontAwesomeIcon icon={faEllipsisH} />
+                                </span>
+                                <span className={classes.EmptyStateTitle}>No tills yet</span>
+                                <span className={classes.EmptyStateText}>
+                                    Tills will appear here once cashiers open them.
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </>
+        );
     }
 
+    /* -------------------- CLOSE-TILL WORKSPACE -------------------- */
 
-    const translateStatus = (status) => {
-        switch (status) {
-            case 'O': return 'Open';
-            case 'R': return 'Review';
-            case 'L': return 'Locked';
-            case 'C': return 'Closed';
-        }
-    }
-
+    const username = selectedTill && selectedTill.user ? selectedTill.user.username : '—';
+    const terminalKey = selectedTill && selectedTill.terminal ? (selectedTill.terminal.description || selectedTill.terminal.key) : null;
+    const openingBalance = selectedTill && selectedTill.openingBalance;
+    const variance = selectedTill ? selectedTill.totalNisVariance : 0;
+    const hasReview = selectedTill && selectedTill.status === 'R';
+    const varianceIsPositive = Number(variance) >= 0;
 
     return (
-        <React.Fragment>
-            {!closeMode && <FlexboxGrid style={{ padding: '10px' }}>
-                <FlexboxGridItem colspan={24}>
-                    <h4 style={{ borderBottom: '1px solid #e1e1e1', paddingBottom: '5px' }}>
-                        <FontAwesomeIcon icon={faUsersGear} />
-                        <Divider vertical />
-                        Active Tills
-                    </h4>
-                </FlexboxGridItem>
-                <FlexboxGridItem colspan={24}>
-                    <br />
-                    <Button appearance='primary' color='green' onClick={loadActiveTills}>
-                        <FontAwesomeIcon icon={faRotate} style={{ marginRight: '7px' }} />
-                        Refresh Data
-                    </Button>
-                </FlexboxGridItem>
-                <FlexboxGridItem colspan={24}>
-                    <Table height={400}
-                        rowHeight={60}
-                        data={backofficeSlice.tills}
-                    >
-                        <Table.Column width={150} align='center'>
-                            <Table.HeaderCell>
-                                Close Till
-                            </Table.HeaderCell>
-                            <Table.Cell>
-                                {rowData => <Button appearance='ghost' color='red'
-                                    onClick={() => { handleCloseTill(rowData) }} disabled={rowData.status !== 'L' && rowData.status !== 'R'} >
-                                    <FontAwesomeIcon icon={faLock} style={{ marginRight: '6px' }} />
-                                    Close Till
-                                </Button>
-                                }
-                            </Table.Cell>
-                        </Table.Column>
-                        <Table.Column align='center'>
-                            <Table.HeaderCell>Status</Table.HeaderCell>
-                            <Table.Cell>
-                                {rowData => translateStatus(rowData.status)}
-                            </Table.Cell>
-                        </Table.Column>
-                        <Table.Column width={300} align='left'>
-                            <Table.HeaderCell>User</Table.HeaderCell>
-                            <Table.Cell dataKey="user.username" />
-                        </Table.Column>
-                        <Table.Column width={200} align='center'>
-                            <Table.HeaderCell>Trx Sale Count</Table.HeaderCell>
-                            <Table.Cell dataKey="currentSaleTrxCount" />
-                        </Table.Column>
-                        <Table.Column width={200} align='center'>
-                            <Table.HeaderCell>Refund Sale Count</Table.HeaderCell>
-                            <Table.Cell dataKey="currentRefundTrxCount" />
-                        </Table.Column>
-                        <Table.Column width={200} align='center'>
-                            <Table.HeaderCell>Voided Trx Count</Table.HeaderCell>
-                            <Table.Cell dataKey="currentVoidedCount" />
-                        </Table.Column>
-                        <Table.Column width={200} align='center'>
-                            <Table.HeaderCell>Suspended Trx Count</Table.HeaderCell>
-                            <Table.Cell dataKey="currentSuspendedCount" />
-                        </Table.Column>
-                    </Table>
-                </FlexboxGridItem>
-            </FlexboxGrid >}
+        <div className={classes.CloseTillShell}>
+            <div className={classes.CloseTillHeader}>
+                <button
+                    type="button"
+                    className={classes.BackChip}
+                    onClick={() => setCloseMode(false)}
+                >
+                    <FontAwesomeIcon icon={faArrowLeft} />
+                    Back to tills
+                </button>
 
-            {closeMode && <div style={{ padding: '15px' }}>
-                <div>
-                    {backofficeSlice.selectedTill && backofficeSlice.selectedTill.user && backofficeSlice.selectedTill.terminal &&
-                        <div>
-                            <h3>Close Till For User <i style={{ color: '#1787e8' }}>{backofficeSlice.selectedTill.user.username}</i></h3>
-                            <hr />
-                            <h3>
-                                {
-                                    backofficeSlice.selectedTill.status === 'R' &&
-                                    <span>Final Till Variance in JOD is =
-                                        <span style={{ color: backofficeSlice.selectedTill.totalNisVariance >= 0 ? '#34db16' : '#f12121', fontFamily: 'DSDIGI', marginLeft: '5px', fontSize: '40px' }}>
-                                            {backofficeSlice.selectedTill.totalNisVariance}JD
+                <div className={classes.CloseTillCashier}>
+                    <span className={classes.CloseTillCashierLabel}>Cashier</span>
+                    <span className={classes.CloseTillCashierName}>
+                        <span className={classes.UserAvatar}>{initials(username)}</span>
+                        {username}
+                        {selectedTill && <StatusChip status={selectedTill.status} />}
+                    </span>
+                </div>
+
+                <div className={classes.CloseTillMeta}>
+                    {terminalKey && (
+                        <span className={classes.CloseTillMetaPill}>
+                            <FontAwesomeIcon icon={faCashRegister} style={{ color: '#6B7280' }} />
+                            Terminal <b>{terminalKey}</b>
+                        </span>
+                    )}
+                    {openingBalance !== undefined && openingBalance !== null && (
+                        <span className={classes.CloseTillMetaPill}>
+                            <FontAwesomeIcon icon={faCoins} style={{ color: '#6B7280' }} />
+                            Opening <b>{openingBalance}</b>
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {hasReview && (
+                <div
+                    className={`${classes.VarianceBanner} ${varianceIsPositive ? classes.VarianceBannerPositive : classes.VarianceBannerNegative}`}
+                >
+                    <span className={classes.VarianceBannerIcon}>
+                        <FontAwesomeIcon icon={varianceIsPositive ? faCircleCheck : faCircleExclamation} />
+                    </span>
+                    <div>
+                        <div className={classes.VarianceBannerLabel}>Final till variance</div>
+                        <div className={classes.VarianceBannerTitle}>
+                            {varianceIsPositive
+                                ? 'Till balances within tolerance.'
+                                : 'Cash shortage detected — please re-verify the counts.'}
+                        </div>
+                    </div>
+                    <div className={classes.VarianceBannerAmount}>
+                        {variance} <span style={{ fontSize: 18, marginLeft: 6, letterSpacing: 1 }}>JD</span>
+                    </div>
+                </div>
+            )}
+
+            {currencyGroups.length === 0 && (
+                <div className={classes.EmptyState}>
+                    <span className={classes.EmptyStateIcon}>
+                        <FontAwesomeIcon icon={faScaleBalanced} />
+                    </span>
+                    <span className={classes.EmptyStateTitle}>No balances to count</span>
+                    <span className={classes.EmptyStateText}>
+                        This till has no balance rows. Go back and re-load the tills list.
+                    </span>
+                </div>
+            )}
+
+            <div className={classes.CurrencyGroups}>
+                {currencyGroups.map((group) => (
+                    <div className={classes.CurrencyGroup} key={group.currency}>
+                        <div className={classes.CurrencyGroupHeader}>
+                            <h4 className={classes.CurrencyGroupTitle}>
+                                <CurrencyIcon currency={group.currency} />
+                                {group.currency}
+                            </h4>
+                            <span className={classes.CurrencyBadge}>{group.currency}</span>
+                        </div>
+
+                        <div className={classes.CurrencyGroupBody}>
+                            <div className={classes.CountRowHeader}>
+                                <span>Payment Method</span>
+                                <span>Counted</span>
+                                {hasReview && <span>Actual</span>}
+                                {hasReview && <span>Variance</span>}
+                            </div>
+
+                            {group.rows.map((row) => (
+                                <div className={classes.CountRow} key={row.key}>
+                                    <span className={classes.CountRowLabel}>
+                                        <span className={classes.CountRowLabelIcon}>
+                                            <FontAwesomeIcon icon={faCoins} />
                                         </span>
+                                        {row.paymentMethod}
                                     </span>
-                                }
-                            </h3>
-                        </div>
-                    }
-                </div>
-                <hr />
-                <div>
-                    {backofficeSlice.selectedTill &&
-                        <div>
-                            <Button onClick={() => setCloseMode(false)}
-                                appearance="primary" color={'orange'}>
-                                <FontAwesomeIcon icon={faArrowLeft} style={{ marginRight: '6px' }} />
-                                Go Back
-                            </Button>
 
-                            <Button style={{ float: 'right' }} disabled={backofficeSlice.selectedTill.status !== 'R'} onClick={() => {
-                                confirm('Close Till?', '', () => {
-                                    handleFinalCloseTill()
-                                })
+                                    <span className={classes.CountInputWrap}>
+                                        <InputNumber
+                                            disabled={!row.counted.editable}
+                                            prefix={row.counted.currency}
+                                            value={row.counted.value}
+                                            onChange={(value) => handleChange(value, row.key)}
+                                        />
+                                    </span>
+
+                                    {hasReview && (
+                                        <span className={classes.CountInputWrap}>
+                                            <InputNumber
+                                                disabled
+                                                prefix={row.counted.currency}
+                                                value={row.actual.value}
+                                            />
+                                        </span>
+                                    )}
+
+                                    {hasReview && (
+                                        <span className={classes.CountInputWrap}>
+                                            <InputNumber
+                                                disabled
+                                                prefix={row.counted.currency}
+                                                value={row.variance.value}
+                                            />
+                                        </span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className={classes.ActionBar}>
+                <div className={classes.ActionBarGroup}>
+                    <button
+                        type="button"
+                        className={classes.GhostBtn}
+                        onClick={() => setCloseMode(false)}
+                    >
+                        <FontAwesomeIcon icon={faArrowLeft} />
+                        Back
+                    </button>
+                    <span className={classes.ActionBarStatus}>
+                        {selectedTill && (
+                            <>
+                                <span>Status</span>
+                                <StatusChip status={selectedTill.status} />
+                            </>
+                        )}
+                    </span>
+                </div>
+
+                <div className={classes.ActionBarGroup}>
+                    {superAdmin && selectedTill && selectedTill.status !== 'C' && (
+                        <button
+                            type="button"
+                            className={`${classes.PillBtn} ${classes.PillBtnWarning}`}
+                            onClick={() => {
+                                setForcePwd('');
+                                setForceError('');
+                                setForcePrompt(true);
                             }}
-                                appearance="primary" color={'red'}>
-                                <FontAwesomeIcon icon={faLock} style={{ marginRight: '6px' }} />
-                                Close Till
-                            </Button>
-                            <Button style={{ float: 'right', marginRight: '10px' }} onClick={handleSubmitCount}
-                                appearance="primary" color={'blue'}>
-                                <FontAwesomeIcon icon={faCheck} style={{ marginRight: '6px' }} />
-                                Submit Counting
-                            </Button>
-                        </div>
-                    }
+                            title="Super-admin override: close till regardless of status"
+                        >
+                            <span className={classes.PillBtnIcon}>
+                                <FontAwesomeIcon icon={faShieldHalved} />
+                            </span>
+                            Force Close
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className={`${classes.PillBtn} ${classes.PillBtnSuccess}`}
+                        onClick={handleSubmitCount}
+                        disabled={!selectedTill || selectedTill.status === 'C'}
+                        title={
+                            !selectedTill || selectedTill.status === 'C'
+                                ? 'Till already closed'
+                                : 'Submit the counted balances for review'
+                        }
+                    >
+                        <span className={classes.PillBtnIcon}>
+                            <FontAwesomeIcon icon={faCheck} />
+                        </span>
+                        Submit Counting
+                    </button>
+                    <button
+                        type="button"
+                        className={`${classes.PillBtn} ${classes.PillBtnDanger}`}
+                        disabled={!hasReview}
+                        title={
+                            hasReview
+                                ? 'Permanently close this till for the work day'
+                                : 'Submit the counting first (till must be in Review)'
+                        }
+                        onClick={() => {
+                            confirm(
+                                'Close Till?',
+                                'The till will be permanently closed for this work day.',
+                                () => { handleFinalCloseTill(); },
+                                'danger'
+                            );
+                        }}
+                    >
+                        <span className={classes.PillBtnIcon}>
+                            <FontAwesomeIcon icon={faLock} />
+                        </span>
+                        Close Till
+                    </button>
                 </div>
-                <hr />
-                {backofficeSlice.selectedTill && backofficeSlice.selectedTill.balances && <div style={{height:'70vh', overflowY: 'auto' }} >
-                    <Table data={data} bordered rowHeight={60} fillHeight >
-                        {/* Payment Method Column */}
-                        {/* <Column flexGrow={1} align="center">
-                            <HeaderCell>Payment Method</HeaderCell>
-                            <Cell dataKey="paymentMethod" />
-                        </Column> */}
+            </div>
 
-                        {/* Closing Balance Column */}
-                        {/* <Column flexGrow={1} align="center">
-                            <HeaderCell>Closing Balance</HeaderCell>
-                            <Cell dataKey="closingBalance" />
-                        </Column> */}
-
-                        {/* Counted Column */}
-                        <Column flexGrow={2} align="center">
-                            <HeaderCell>Counted</HeaderCell>
-                    
-                            <Cell>
-                                {rowData => (
-                                    <InputNumber
-                                        disabled={!rowData.counted.editable}
-                                        prefix={<span><b>[ {rowData.paymentMethod} ]</b>  <span>{rowData.counted.currency}</span></span>}
-                                        value={rowData.counted.value}
-                                        onChange={value => handleChange(value, rowData.key)}
-                                    />
-                                )}
-                            </Cell>
-                        </Column>
-
-                        {/* Actual Column */}
-                        {backofficeSlice.selectedTill.status === 'R' && (
-                            <Column flexGrow={2} align="center">
-                                <HeaderCell>Actual</HeaderCell>
-                                <Cell>
-                                    {rowData => (
-                                        <InputNumber
-                                            disabled={!rowData.actual.editable}
-                                            style={{ color: 'black', opacity: '1' }}
-                                            prefix={rowData.counted.currency}
-                                            value={rowData.actual.value}
-                                        />
-                                    )}
-                                </Cell>
-                            </Column>
-                        )}
-
-                        {/* Variance Column */}
-                        {backofficeSlice.selectedTill.status === 'R' && (
-                            <Column flexGrow={2} align="center">
-                                <HeaderCell>Variance (Currency)</HeaderCell>
-                                <Cell>
-                                    {rowData => (
-                                        <InputNumber
-                                            disabled={!rowData.variance.editable}
-                                            style={{ color: 'black', opacity: '1' }}
-                                            prefix={rowData.counted.currency}
-                                            value={rowData.variance.value}
-                                        />
-                                    )}
-                                </Cell>
-                            </Column>
-                        )}
-                    </Table>
-                </div>}
-            </div>}
-        </React.Fragment>
-
+            {forcePrompt && (
+                <div className={classes.SuperAdminOverlay}>
+                    <div className={classes.SuperAdminDialog}>
+                        <div className={classes.SuperAdminDialogHeader}>
+                            <FontAwesomeIcon icon={faShieldHalved} />
+                            Force Close Till
+                        </div>
+                        <div className={classes.SuperAdminDialogBody}>
+                            <label>Super Admin Password</label>
+                            <input
+                                type="password"
+                                autoFocus
+                                value={forcePwd}
+                                onChange={(e) => {
+                                    setForcePwd(e.target.value);
+                                    if (forceError) setForceError('');
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleForceClose();
+                                    if (e.key === 'Escape') setForcePrompt(false);
+                                }}
+                            />
+                            {forceError && (
+                                <div style={{ color: '#B3141B', fontSize: 12, fontWeight: 600 }}>{forceError}</div>
+                            )}
+                            <div className={classes.SuperAdminDialogHint}>
+                                This bypasses the normal Locked/Review requirement and marks the till as Closed.
+                                The action will be recorded in the audit log.
+                            </div>
+                        </div>
+                        <div className={classes.SuperAdminDialogActions}>
+                            <button
+                                className={`${classes.PillBtn} ${classes.PillBtnGhost} ${classes.PillBtnSmall}`}
+                                onClick={() => setForcePrompt(false)}
+                            >
+                                <span className={classes.PillBtnIcon}><FontAwesomeIcon icon={faXmark} /></span>
+                                Cancel
+                            </button>
+                            <button
+                                className={`${classes.PillBtn} ${classes.PillBtnWarning} ${classes.PillBtnSmall}`}
+                                onClick={handleForceClose}
+                            >
+                                <span className={classes.PillBtnIcon}><FontAwesomeIcon icon={faCheck} /></span>
+                                Force Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
-}
+};
 
+export { translateStatus };
 export default ActiveTills;

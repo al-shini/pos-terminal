@@ -1,35 +1,53 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux'
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import axios from '../../axios';
 import classes from './Admin.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCalendarDay, faLock, faLockOpen, faCashRegister, faHourglassEnd, faBan, faSackDollar, faHandHoldingDollar, faPause } from '@fortawesome/free-solid-svg-icons'
-import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
-import Divider from 'rsuite/esm/Divider';
-import { Panel, FlexboxGrid, Button } from 'rsuite';
+import {
+    faCalendarDay, faHourglassEnd, faCashRegister, faLockOpen, faLock,
+    faSackDollar, faHandHoldingDollar, faBan, faPause, faReceipt, faTriangleExclamation,
+    faBusinessTime
+} from '@fortawesome/free-solid-svg-icons';
 import { notify } from '../../store/uiSlice';
 import { setWorkDay, endDay } from '../../store/backofficeSlice';
 import confirm from '../../components/UI/ConfirmDlg';
+import HourlySalesChart from './HourlySalesChart';
 
-const WorkDaySetup = (props) => {
+const fmtAmount = (val) => {
+    if (val === undefined || val === null || val === '') return '0.00';
+    const num = Number(val);
+    if (Number.isNaN(num)) return String(val);
+    return num.toFixed(2);
+};
+
+const KpiStat = ({ icon, label, value, caption, variant }) => (
+    <div className={classes.KpiStat}>
+        <span className={classes.KpiStatLabel}>
+            {icon && <FontAwesomeIcon icon={icon} />}
+            {label}
+        </span>
+        <span className={`${classes.KpiStatValue} ${variant === 'small' ? classes.KpiStatValueSmall : ''}`}>
+            {value}
+        </span>
+        {caption && <span className={classes.KpiStatCaption}>{caption}</span>}
+    </div>
+);
+
+const WorkDaySetup = () => {
     const dispatch = useDispatch();
-
     const backofficeSlice = useSelector((state) => state.backoffice);
     const terminalSlice = useSelector((state) => state.terminal);
-
 
     const loadOpenWorkDay = () => {
         if (terminalSlice.store) {
             axios({
                 method: 'post',
                 url: '/bo/checkOpenWorkday',
-                headers: {
-                    storeKey: terminalSlice.store.key
-                }
+                headers: { storeKey: terminalSlice.store.key }
             }).then((response) => {
                 if (response && response.data) {
                     dispatch(setWorkDay(response.data));
-                    window.setTimeout(loadOpenWorkDay.workDay, 60000);
+                    window.setTimeout(loadOpenWorkDay, 60000);
                 } else {
                     dispatch(notify({ msg: 'Incorrect server response', sev: 'error' }));
                 }
@@ -39,8 +57,7 @@ const WorkDaySetup = (props) => {
                         dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     } else if (error.response.status === 404) {
                         dispatch(notify({ msg: 'No Open Work Day For Store', sev: 'warning' }));
-                    }
-                    else {
+                    } else {
                         dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
                     }
                 } else {
@@ -48,97 +65,178 @@ const WorkDaySetup = (props) => {
                 }
             });
         }
-    }
+    };
 
     useEffect(() => {
         loadOpenWorkDay();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const workDay = backofficeSlice.workDay;
+    const hasWorkDay = !!(workDay && workDay.businessDate);
+
     const handleCloseDay = () => {
-        confirm('End Day?', 'Are you sure you want to close day ' + backofficeSlice.workDay.description, () => {
-            dispatch(endDay());
-        })
+        if (!hasWorkDay) return;
+        confirm(
+            'End Day?',
+            'Are you sure you want to close day ' + workDay.description + '?',
+            () => { dispatch(endDay()); },
+            'danger'
+        );
+    };
+
+    if (!hasWorkDay) {
+        return (
+            <div className={classes.EmptyState}>
+                <span className={classes.EmptyStateIcon}>
+                    <FontAwesomeIcon icon={faBusinessTime} />
+                </span>
+                <span className={classes.EmptyStateTitle}>No open work day</span>
+                <span className={classes.EmptyStateText}>
+                    Once a work day is opened for this store, the overview will appear here.
+                </span>
+            </div>
+        );
     }
 
+    const totalTills = Number(workDay.totalTills || 0);
+    const closedTills = Number(workDay.closedTills || 0);
+    const openTills = Number(workDay.openTills || 0);
+    const closedRatio = totalTills > 0 ? Math.min(100, Math.round((closedTills / totalTills) * 100)) : 0;
+    const endDisabled = openTills > 0;
+
     return (
-        <FlexboxGrid style={{ padding: '10px' }}>
-            <FlexboxGridItem colspan={24}>
-                <h4 style={{ borderBottom: '1px solid #e1e1e1', paddingBottom: '5px' }}>
-                    <FontAwesomeIcon icon={faCalendarDay} />
-                    <Divider vertical />
-                    Work Day Setup
-                </h4>
-            </FlexboxGridItem>
-            <FlexboxGridItem colspan={5} style={{ marginRight: '10px' }}>
-                <br />
-                {backofficeSlice.workDay && backofficeSlice.workDay.businessDate &&
-                    <Panel bordered header="Work Day Header" >
-                        <label className={classes.Label}>Business Date: </label>
-                        <span className={classes.Value}>{backofficeSlice.workDay.businessDateAsString}</span>
-                        <Divider />
-                        <label className={classes.Label}>Description: </label>
-                        <span className={classes.Value}>{backofficeSlice.workDay.description}</span>
-                        <Divider />
-                        <Button appearance='primary' color='red' style={{ fontSize: '25px', padding: '15px', width: '100%' }}
-                            onClick={handleCloseDay} disabled={backofficeSlice.workDay.openTills > 0} >
-                            <FontAwesomeIcon icon={faHourglassEnd} style={{ marginRight: '6px' }} />
+        <>
+            <div className={classes.SectionHeader}>
+                <h3 className={classes.SectionTitle}>
+                    <span className={classes.SectionTitleIcon}>
+                        <FontAwesomeIcon icon={faCalendarDay} />
+                    </span>
+                    Day Overview
+                </h3>
+            </div>
+
+            <div className={classes.OverviewGrid}>
+                {/* ---- Hero: Work Day card ---- */}
+                <div className={classes.HeroCard}>
+                    <div className={classes.HeroTop}>
+                        <div>
+                            <div className={classes.HeroLabel}>Work Day</div>
+                            <div className={classes.HeroDate}>{workDay.businessDateAsString}</div>
+                            <div className={classes.HeroDescription}>{workDay.description}</div>
+                        </div>
+                        <span className={classes.HeroChip}>
+                            <FontAwesomeIcon icon={faLockOpen} />
+                            Open
+                        </span>
+                    </div>
+
+                    <div className={classes.HeroCta}>
+                        <button
+                            type="button"
+                            className={`${classes.PillBtn} ${classes.PillBtnDanger}`}
+                            onClick={handleCloseDay}
+                            disabled={endDisabled}
+                            title={endDisabled ? 'Close all tills first' : 'End the current work day'}
+                        >
+                            <span className={classes.PillBtnIcon}>
+                                <FontAwesomeIcon icon={faHourglassEnd} />
+                            </span>
                             End Day
-                        </Button>
+                        </button>
+                        {endDisabled && (
+                            <span className={classes.HeroCtaHint}>
+                                <FontAwesomeIcon icon={faTriangleExclamation} />
+                                Close all tills first
+                            </span>
+                        )}
+                    </div>
+                </div>
 
-                    </Panel>}
-            </FlexboxGridItem>
-            <FlexboxGridItem colspan={6} style={{ marginRight: '10px' }}>
-                <br />
-                {backofficeSlice.workDay && backofficeSlice.workDay.businessDate &&
-                    <Panel bordered header="Till Summary" >
-                        <label className={classes.Label}><FontAwesomeIcon icon={faCashRegister} style={{ marginRight: '6px' }} /> Total Tills: </label>
-                        <span className={classes.Value}>{backofficeSlice.workDay.totalTills}</span>
-                        <Divider />
-                        <label className={classes.Label}><FontAwesomeIcon icon={faLockOpen} style={{ marginRight: '6px' }} /> Open Tills: </label>
-                        <span className={classes.Value}>{backofficeSlice.workDay.openTills}</span>
-                        <Divider />
-                        <label className={classes.Label}><FontAwesomeIcon icon={faLock} style={{ marginRight: '6px' }} /> Closed Tills: </label>
-                        <span className={classes.Value}>{backofficeSlice.workDay.closedTills}</span>
-                    </Panel>}
-            </FlexboxGridItem>
-            <FlexboxGridItem colspan={6} style={{ marginRight: '10px' }}>
-                <br />
-                {backofficeSlice.workDay && backofficeSlice.workDay.businessDate &&
-                    <Panel bordered header="Sales / Refund Summary" >
-                        <label className={classes.Label}><FontAwesomeIcon icon={faSackDollar} style={{ marginRight: '6px' }} />  Sale Trx Count: </label>
-                        <span className={classes.Value}>{backofficeSlice.workDay.currentSaleTrxCount}</span>
-                        <Divider />
-                        {/* <label className={classes.Label}><FontAwesomeIcon icon={faSackDollar} style={{ marginRight: '6px' }} />  Sales Amount: </label>
-                        <span className={classes.Value}>JD {backofficeSlice.workDay.currentSaleTrxValue}</span>
-                        <Divider /> */}
-                        <label className={classes.Label}><FontAwesomeIcon icon={faHandHoldingDollar} style={{ marginRight: '6px' }} /> Refund Trx Count: </label>
-                        <span className={classes.Value}>{backofficeSlice.workDay.currentRefundTrxCount}</span>
-                        <Divider />
-                        <label className={classes.Label}><FontAwesomeIcon icon={faHandHoldingDollar} style={{ marginRight: '6px' }} /> Refund Amount: </label>
-                        <span className={classes.Value}>JD {backofficeSlice.workDay.currentRefundTrxValue}</span>
-                    </Panel>}
-            </FlexboxGridItem>
-            <FlexboxGridItem colspan={6} style={{ marginRight: '10px' }}>
-                <br />
-                {backofficeSlice.workDay && backofficeSlice.workDay.businessDate &&
-                    <Panel bordered header="Void / Suspend Summary" >
-                        <label className={classes.Label}><FontAwesomeIcon icon={faBan} style={{ marginRight: '6px' }} /> Voided Trx Count: </label>
-                        <span className={classes.Value}>{backofficeSlice.workDay.currentVoidedCount}</span>
-                        <Divider />
-                        <label className={classes.Label}><FontAwesomeIcon icon={faBan} style={{ marginRight: '6px' }} /> Voided Amount: </label>
-                        <span className={classes.Value}>JD {backofficeSlice.workDay.currentVoidedValue}</span>
-                        <Divider />
-                        <label className={classes.Label}><FontAwesomeIcon icon={faPause} style={{ marginRight: '6px' }} /> Suspended Trx Count: </label>
-                        <span className={classes.Value}>{backofficeSlice.workDay.currentSuspendedCount}</span>
-                        <Divider />
-                        <label className={classes.Label}><FontAwesomeIcon icon={faPause} style={{ marginRight: '6px' }} /> Suspended Amount: </label>
-                        <span className={classes.Value}>JD {backofficeSlice.workDay.currentSuspendedValue}</span>
-                    </Panel>}
+                {/* ---- KPI row ---- */}
+                <div className={classes.KpiRow}>
+                    <div className={classes.KpiCard}>
+                        <div className={classes.KpiHeader}>
+                            <span className={`${classes.KpiHeaderIcon} ${classes.KpiHeaderIconBrand}`}>
+                                <FontAwesomeIcon icon={faCashRegister} />
+                            </span>
+                            <h4 className={classes.KpiTitle}>Tills</h4>
+                        </div>
+                        <div className={`${classes.KpiStats} ${classes.KpiStatsThree}`}>
+                            <KpiStat icon={faCashRegister} label="Total" value={totalTills} variant="small" />
+                            <KpiStat icon={faLockOpen}    label="Open"  value={openTills}   variant="small" />
+                            <KpiStat icon={faLock}        label="Closed" value={closedTills} variant="small" />
+                        </div>
+                        <div className={classes.KpiProgress} title={`${closedRatio}% closed`}>
+                            <div
+                                className={classes.KpiProgressFill}
+                                style={{ width: `${closedRatio}%` }}
+                            />
+                        </div>
+                        <span className={classes.KpiStatCaption}>
+                            {closedTills} of {totalTills} tills closed ({closedRatio}%)
+                        </span>
+                    </div>
 
-            </FlexboxGridItem>
+                    <div className={classes.KpiCard}>
+                        <div className={classes.KpiHeader}>
+                            <span className={`${classes.KpiHeaderIcon} ${classes.KpiHeaderIconGreen}`}>
+                                <FontAwesomeIcon icon={faSackDollar} />
+                            </span>
+                            <h4 className={classes.KpiTitle}>Sales &amp; Refunds</h4>
+                        </div>
+                        <div className={classes.KpiStats}>
+                            <KpiStat
+                                icon={faReceipt}
+                                label="Sale Trx"
+                                value={workDay.currentSaleTrxCount || 0}
+                            />
+                            <KpiStat
+                                icon={faHandHoldingDollar}
+                                label="Refund Trx"
+                                value={workDay.currentRefundTrxCount || 0}
+                            />
+                            <KpiStat
+                                icon={faHandHoldingDollar}
+                                label="Refund Amount"
+                                value={fmtAmount(workDay.currentRefundTrxValue)}
+                                caption="JD"
+                                variant="small"
+                            />
+                        </div>
+                    </div>
 
-        </FlexboxGrid >
+                    <div className={classes.KpiCard}>
+                        <div className={classes.KpiHeader}>
+                            <span className={`${classes.KpiHeaderIcon} ${classes.KpiHeaderIconAmber}`}>
+                                <FontAwesomeIcon icon={faTriangleExclamation} />
+                            </span>
+                            <h4 className={classes.KpiTitle}>Incidents</h4>
+                        </div>
+                        <div className={classes.KpiStats}>
+                            <KpiStat
+                                icon={faBan}
+                                label="Voided"
+                                value={workDay.currentVoidedCount || 0}
+                                caption={`JD ${fmtAmount(workDay.currentVoidedValue)}`}
+                            />
+                            <KpiStat
+                                icon={faPause}
+                                label="Suspended"
+                                value={workDay.currentSuspendedCount || 0}
+                                caption={`JD ${fmtAmount(workDay.currentSuspendedValue)}`}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <HourlySalesChart
+                defaultDateFrom={workDay.businessDateAsString}
+                defaultDateTo={workDay.businessDateAsString}
+            />
+        </>
     );
-}
+};
 
 export default WorkDaySetup;

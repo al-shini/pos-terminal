@@ -1,10 +1,2415 @@
-.Label{
+/* ==========================================================================
+   Admin / Back-Office design system
+   Aligned with Terminal.module.css / CustomerDisplay.module.css brand tokens.
+   ========================================================================== */
+
+/* ---- Animations -------------------------------------------------------- */
+
+@keyframes shellFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes accentShimmer {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+@keyframes reviewPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.45); }
+    50%      { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0);    }
+}
+
+@keyframes varianceCountIn {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+@keyframes kpiCardIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ---- Shell / top bar --------------------------------------------------- */
+
+.Shell {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 40%, #F8FAFC 100%);
+    color: #111827;
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    animation: shellFadeIn 260ms ease-out both;
+}
+
+.TopBar {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 12px 22px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #F1F3F5;
+}
+
+.BrandBlock {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex-shrink: 0;
+    padding-right: 16px;
+    border-right: 1px solid #F1F3F5;
+}
+
+.BrandLogo {
+    height: 38px;
+    width: auto;
+    display: block;
+}
+
+.BrandTitle {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+    min-width: 0;
+}
+
+.BrandTitle b {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    color: #111827;
+}
+
+.BrandTitle small {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    color: #B3141B;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+.StorePill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 14px;
+    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+    border: 1px solid #E5E7EB;
+    border-radius: 999px;
+    color: #111827;
+    font-size: 13px;
+    white-space: nowrap;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    flex-shrink: 0;
+}
+
+.StorePill .StorePillLabel {
+    font-weight: 600;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-size: 10px;
+}
+
+.StorePill .StorePillValue {
+    font-weight: 700;
+    color: #111827;
+}
+
+.StorePillDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #E5E7EB;
+}
+
+.StorePillDate {
+    font-family: "DSDIGI", "Courier New", monospace;
+    font-size: 15px;
+    color: #B3141B;
+    letter-spacing: 1px;
+}
+
+.TopBarRight {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+    margin-left: auto;
+}
+
+/* Second row: primary navigation tabs */
+.NavBar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 22px 10px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E5E7EB;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.NavBar::-webkit-scrollbar { height: 6px; }
+.NavBar::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 3px; }
+
+/* Pill-style tab switcher (wraps MUI Tabs) */
+.TabSwitch {
+    background: #F3F4F6;
+    border: 1px solid #E5E7EB;
+    border-radius: 999px;
+    padding: 4px;
+    min-height: unset;
+    max-width: 100%;
+}
+
+.TabSwitch :global(.MuiTabs-indicator) { display: none !important; }
+.TabSwitch :global(.MuiTabs-flexContainer) { gap: 2px; }
+
+.TabSwitch :global(.MuiTab-root) {
+    min-height: 36px !important;
+    min-width: unset !important;
+    padding: 0 16px !important;
+    border-radius: 999px !important;
+    text-transform: none !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    color: #6B7280 !important;
+    letter-spacing: 0.2px;
+    transition: all 160ms ease;
+}
+
+.TabSwitch :global(.MuiTab-root:hover) {
+    color: #111827 !important;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.TabSwitch :global(.MuiTab-root.Mui-selected) {
+    color: #FFFFFF !important;
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%) !important;
+    box-shadow: 0 4px 12px rgba(225, 30, 38, 0.28);
+}
+
+.TabLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ExitBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: #FFFFFF;
+    color: #B91C1C;
+    border: 1px solid #FBC9CC;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 140ms ease;
+}
+
+.ExitBtn:hover {
+    background: linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%);
+    border-color: #E11E26;
+    color: #B3141B;
+    box-shadow: 0 4px 10px rgba(225, 30, 38, 0.15);
+}
+
+.AccentBar {
+    height: 3px;
+    background: linear-gradient(
+        90deg,
+        #E11E26 0%,
+        #F59E0B 25%,
+        #10B981 50%,
+        #3B82F6 75%,
+        #E11E26 100%
+    );
+    background-size: 200% 100%;
+    animation: accentShimmer 9s linear infinite;
+    opacity: 0.9;
+}
+
+.ContentScroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 22px 24px 32px;
+}
+
+/* ---- Shared primitives -------------------------------------------------- */
+
+.SectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.SectionTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: 0.2px;
+    margin: 0;
+}
+
+.SectionTitle .SectionTitleIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(225, 30, 38, 0.12) 0%, rgba(179, 20, 27, 0.08) 100%);
+    color: #B3141B;
+}
+
+/* ---- Work Day Overview -------------------------------------------------- */
+
+.OverviewGrid {
+    display: grid;
+    grid-template-columns: minmax(320px, 420px) 1fr;
+    gap: 18px;
+    align-items: stretch;
+}
+
+.HeroCard {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(225, 30, 38, 0.08) 0%, transparent 55%),
+        linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    border: 1px solid #E5E7EB;
+    border-radius: 18px;
+    box-shadow: 0 4px 14px rgba(17, 24, 39, 0.04);
+    position: relative;
+    overflow: hidden;
+    animation: kpiCardIn 260ms ease-out both;
+}
+
+.HeroCard::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: linear-gradient(180deg, #E11E26 0%, #B3141B 100%);
+}
+
+.HeroTop {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.HeroLabel {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #6B7280;
+    margin-bottom: 6px;
+}
+
+.HeroDate {
+    font-family: "DSDIGI", "Courier New", monospace;
+    font-size: 36px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: 2px;
+    line-height: 1;
+}
+
+.HeroDescription {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #6B7280;
+    font-weight: 500;
+}
+
+.HeroChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.HeroCta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.HeroCtaHint {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    color: #B45309;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.KpiRow {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.KpiCard {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 18px 20px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 18px;
+    box-shadow: 0 4px 14px rgba(17, 24, 39, 0.04);
+    position: relative;
+    overflow: hidden;
+    animation: kpiCardIn 320ms ease-out both;
+}
+
+.KpiCard:nth-child(2) { animation-delay: 60ms; }
+.KpiCard:nth-child(3) { animation-delay: 120ms; }
+
+.KpiHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.KpiHeaderIcon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+}
+
+.KpiHeaderIconBrand   { background: rgba(225, 30, 38, 0.12); color: #B3141B; }
+.KpiHeaderIconGreen   { background: rgba(16, 185, 129, 0.12); color: #047857; }
+.KpiHeaderIconAmber   { background: rgba(245, 158, 11, 0.14); color: #B45309; }
+
+.KpiTitle {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: 0.2px;
+}
+
+.KpiStats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 20px;
+}
+
+.KpiStats.KpiStatsThree {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.KpiStat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.KpiStatLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    color: #6B7280;
+    text-transform: uppercase;
+}
+
+.KpiStatValue {
+    font-family: "DSDIGI", "Courier New", monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: 1.2px;
+    line-height: 1.05;
+}
+
+.KpiStatValueSmall { font-size: 20px; letter-spacing: 1px; }
+
+.KpiStatCaption {
+    font-size: 11px;
+    color: #6B7280;
+    font-weight: 500;
+}
+
+.KpiProgress {
+    margin-top: 4px;
+    height: 6px;
+    border-radius: 999px;
+    background: #F1F5F9;
+    overflow: hidden;
+    border: 1px solid #E5E7EB;
+}
+
+.KpiProgressFill {
+    height: 100%;
+    background: linear-gradient(90deg, #10B981 0%, #047857 100%);
+    border-radius: inherit;
+    transition: width 320ms ease;
+}
+
+/* Empty state when there's no open work day */
+.EmptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 24px;
+    background: #FFFFFF;
+    border: 1px dashed #E5E7EB;
+    border-radius: 18px;
+    color: #6B7280;
+    text-align: center;
+}
+
+.EmptyStateIcon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+    border: 1px solid #E5E7EB;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #9CA3AF;
+    font-size: 22px;
+}
+
+.EmptyStateTitle {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.EmptyStateText { font-size: 12px; color: #6B7280; }
+
+/* ---- Active Tills list ------------------------------------------------- */
+
+.TillsCard {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 18px;
+    box-shadow: 0 4px 14px rgba(17, 24, 39, 0.04);
+    overflow: hidden;
+    animation: kpiCardIn 320ms ease-out both;
+}
+
+.TillsCardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid #E5E7EB;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+}
+
+.TillsCardTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.IconBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    color: #374151;
+    cursor: pointer;
+    transition: all 140ms ease;
+}
+
+.IconBtn:hover {
+    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+    color: #B3141B;
+    border-color: #FBC9CC;
+    box-shadow: 0 2px 6px rgba(17, 24, 39, 0.05);
+}
+
+.IconBtn:active { transform: translateY(1px); }
+
+.TableWrap {
+    padding: 6px 6px 10px;
+}
+
+/* rsuite Table restyle */
+.TableWrap :global(.rs-table) {
+    border: none !important;
+}
+
+.TableWrap :global(.rs-table-row-header),
+.TableWrap :global(.rs-table-cell-header) {
+    background: #F8FAFC !important;
+    color: #6B7280 !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
+    letter-spacing: 0.8px !important;
+    text-transform: uppercase !important;
+    border-color: #E5E7EB !important;
+}
+
+.TableWrap :global(.rs-table-cell) {
+    border-color: #EEF2F7 !important;
+    background: #FFFFFF !important;
+}
+
+.TableWrap :global(.rs-table-row:nth-child(even) .rs-table-cell) {
+    background: #FAFBFD !important;
+}
+
+.TableWrap :global(.rs-table-row:hover .rs-table-cell) {
+    background: #FEF2F2 !important;
+}
+
+.TableWrap :global(.rs-table-cell-content) {
+    display: flex;
+    align-items: center;
+    justify-content: inherit;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+}
+
+.UserCell {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #111827;
+    font-weight: 600;
+}
+
+.UserAvatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(225, 30, 38, 0.14) 0%, rgba(179, 20, 27, 0.08) 100%);
+    color: #B3141B;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+
+.CellNumber {
+    font-family: "DSDIGI", "Courier New", monospace;
+    font-size: 18px;
+    color: #111827;
+    letter-spacing: 1px;
+}
+
+.CellNumberMuted { color: #9CA3AF; }
+
+/* ---- Status chips ------------------------------------------------------ */
+
+.StatusChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    border: 1px solid transparent;
+}
+
+.StatusChip::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.9;
+}
+
+.StatusChipOpen {
+    background: rgba(59, 130, 246, 0.10);
+    color: #1D4ED8;
+    border-color: rgba(59, 130, 246, 0.28);
+}
+
+.StatusChipLocked {
+    background: rgba(245, 158, 11, 0.12);
+    color: #B45309;
+    border-color: rgba(245, 158, 11, 0.32);
+}
+
+.StatusChipReview {
+    background: rgba(139, 92, 246, 0.10);
+    color: #6D28D9;
+    border-color: rgba(139, 92, 246, 0.28);
+    animation: reviewPulse 2.2s ease-in-out infinite;
+}
+
+.StatusChipClosed {
+    background: #F1F5F9;
+    color: #6B7280;
+    border-color: #E5E7EB;
+}
+
+/* ---- Buttons ----------------------------------------------------------- */
+
+.PrimaryBtn,
+.DangerBtn,
+.GhostBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 160ms ease;
+    white-space: nowrap;
+}
+
+.PrimaryBtn {
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%);
+    color: #FFFFFF;
+    box-shadow: 0 6px 16px rgba(225, 30, 38, 0.24);
+}
+
+.PrimaryBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(225, 30, 38, 0.32);
+}
+
+.PrimaryBtn:active:not(:disabled) { transform: translateY(0); }
+
+.DangerBtn {
+    background: #FFFFFF;
+    color: #B91C1C;
+    border-color: #FBC9CC;
+    box-shadow: 0 2px 6px rgba(17, 24, 39, 0.04);
+}
+
+.DangerBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%);
+    border-color: #E11E26;
+    color: #B3141B;
+    box-shadow: 0 6px 14px rgba(225, 30, 38, 0.14);
+}
+
+.DangerBtnSolid {
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%);
+    color: #FFFFFF;
+    border-color: transparent;
+    box-shadow: 0 6px 16px rgba(225, 30, 38, 0.24);
+}
+
+.DangerBtnSolid:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(225, 30, 38, 0.32);
+}
+
+.GhostBtn {
+    background: #FFFFFF;
+    color: #111827;
+    border-color: #E5E7EB;
+}
+
+.GhostBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+    color: #111827;
+    border-color: #CBD5E1;
+}
+
+.PrimaryBtn:disabled,
+.DangerBtn:disabled,
+.DangerBtnSolid:disabled,
+.GhostBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.BtnSmall {
+    padding: 7px 12px;
+    font-size: 12px;
+    border-radius: 10px;
+}
+
+/* ----------------------------------------------------------------------
+   Pill buttons with a circular icon badge.
+   Shared shape; .PillBtnDanger and .PillBtnSuccess set the palette.
+   ---------------------------------------------------------------------- */
+.PillBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px 6px 6px;
+    height: 38px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    position: relative;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.PillBtnIcon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+    color: #FFFFFF;
+    font-size: 12px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+    transition: background 160ms ease;
+    flex-shrink: 0;
+}
+
+.PillBtn:hover:not(:disabled)  { transform: translateY(-1px); }
+.PillBtn:active:not(:disabled) { transform: translateY(0); }
+
+.PillBtn:hover:not(:disabled) .PillBtnIcon {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.PillBtnSmall {
+    height: 34px;
+    padding: 5px 14px 5px 5px;
+    font-size: 12.5px;
+}
+
+.PillBtnSmall .PillBtnIcon {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+}
+
+/* Danger variant (destructive / final) — brand red */
+.PillBtnDanger {
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%);
+    box-shadow:
+        0 4px 12px rgba(225, 30, 38, 0.26),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.PillBtnDanger:hover:not(:disabled) {
+    box-shadow:
+        0 8px 20px rgba(225, 30, 38, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.PillBtnDanger:active:not(:disabled) {
+    box-shadow:
+        0 3px 8px rgba(225, 30, 38, 0.26),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* Success variant (safe / progress) — emerald */
+.PillBtnSuccess {
+    background: linear-gradient(135deg, #10B981 0%, #047857 100%);
+    box-shadow:
+        0 4px 12px rgba(16, 185, 129, 0.26),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.PillBtnSuccess:hover:not(:disabled) {
+    box-shadow:
+        0 8px 20px rgba(16, 185, 129, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.PillBtnSuccess:active:not(:disabled) {
+    box-shadow:
+        0 3px 8px rgba(16, 185, 129, 0.26),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* Unified disabled treatment for all pill variants */
+.PillBtn:disabled {
+    cursor: not-allowed;
+    background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);
+    color: #9CA3AF;
+    border-color: #E5E7EB;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.PillBtn:disabled .PillBtnIcon {
+    background: #FFFFFF;
+    color: #9CA3AF;
+    box-shadow: inset 0 0 0 1px #E5E7EB;
+}
+
+/* ---- Close-till workspace ---------------------------------------------- */
+
+.CloseTillShell {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: shellFadeIn 260ms ease-out both;
+    padding-bottom: 100px; /* leaves room for sticky ActionBar */
+}
+
+.CloseTillHeader {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 16px 18px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 18px;
+    box-shadow: 0 4px 14px rgba(17, 24, 39, 0.04);
+}
+
+.BackChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #F1F5F9;
+    border: 1px solid #E5E7EB;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 140ms ease;
+}
+
+.BackChip:hover {
+    background: #FFFFFF;
+    color: #B3141B;
+    border-color: #FBC9CC;
+    box-shadow: 0 2px 6px rgba(17, 24, 39, 0.05);
+}
+
+.CloseTillCashier {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.CloseTillCashier .CloseTillCashierLabel {
+    font-size: 11px;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+}
+
+.CloseTillCashier .CloseTillCashierName {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.CloseTillMeta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.CloseTillMetaPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+    border: 1px solid #E5E7EB;
+    font-size: 12px;
+    color: #374151;
+}
+
+.CloseTillMetaPill b {
+    font-family: "DSDIGI", "Courier New", monospace;
+    color: #111827;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+}
+
+.VarianceBanner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 18px 22px;
+    border-radius: 18px;
+    border: 1px solid #E5E7EB;
+    background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+    box-shadow: 0 4px 14px rgba(17, 24, 39, 0.04);
+    animation: varianceCountIn 320ms ease-out both;
+}
+
+.VarianceBannerIcon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.VarianceBannerPositive .VarianceBannerIcon {
+    background: rgba(16, 185, 129, 0.14);
+    color: #047857;
+}
+
+.VarianceBannerNegative .VarianceBannerIcon {
+    background: rgba(225, 30, 38, 0.14);
+    color: #B3141B;
+}
+
+.VarianceBannerLabel {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    color: #6B7280;
+    margin-bottom: 4px;
+}
+
+.VarianceBannerTitle {
+    font-size: 14px;
+    color: #111827;
+    font-weight: 600;
+}
+
+.VarianceBannerAmount {
+    font-family: "DSDIGI", "Courier New", monospace;
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    line-height: 1;
+}
+
+.VarianceBannerPositive .VarianceBannerAmount { color: #047857; }
+.VarianceBannerNegative .VarianceBannerAmount { color: #B91C1C; }
+
+/* Currency groups */
+.CurrencyGroups {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.CurrencyGroup {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(17, 24, 39, 0.04);
+}
+
+.CurrencyGroupHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 18px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.CurrencyGroupTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.CurrencyBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(225, 30, 38, 0.10) 0%, rgba(179, 20, 27, 0.06) 100%);
+    color: #B3141B;
+    font-family: "DSDIGI", "Courier New", monospace;
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    border: 1px solid rgba(225, 30, 38, 0.18);
+}
+
+.CurrencyGroupBody {
+    padding: 6px 10px 12px;
+}
+
+.CountRow {
+    display: grid;
+    grid-template-columns: minmax(140px, 1.2fr) 1.6fr 1.2fr 1.2fr;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 8px;
+    border-bottom: 1px dashed #EEF2F7;
+}
+
+.CountRow:last-child { border-bottom: none; }
+
+.CountRowLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.CountRowLabelIcon {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+    border: 1px solid #E5E7EB;
+    color: #6B7280;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.CountRowHeader {
+    display: grid;
+    grid-template-columns: minmax(140px, 1.2fr) 1.6fr 1.2fr 1.2fr;
+    gap: 12px;
+    padding: 8px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #6B7280;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+/* rsuite InputNumber restyle inside count rows */
+.CountInputWrap :global(.rs-input-number) {
+    border-radius: 10px !important;
+    border-color: #E5E7EB !important;
+    overflow: hidden;
+    background: #FFFFFF;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.CountInputWrap :global(.rs-input-number:focus-within) {
+    border-color: #E11E26 !important;
+    box-shadow: 0 0 0 3px rgba(225, 30, 38, 0.12) !important;
+}
+
+.CountInputWrap :global(.rs-input) {
+    font-family: "DSDIGI", "Courier New", monospace !important;
+    font-size: 15px !important;
+    color: #111827 !important;
+    letter-spacing: 1px !important;
+    background: #FFFFFF !important;
+}
+
+.CountInputWrap :global(.rs-input[disabled]) {
+    background: #F8FAFC !important;
+    color: #374151 !important;
+    -webkit-text-fill-color: #374151 !important;
+    opacity: 1 !important;
+}
+
+.CountInputWrap :global(.rs-input-group-addon) {
+    background: #F1F5F9 !important;
+    color: #6B7280 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.6px !important;
+    border-right: 1px solid #E5E7EB !important;
+}
+
+.CountInputWrap :global(.rs-input-number-btn-group-vertical) {
+    border-left: 1px solid #E5E7EB !important;
+}
+
+/* Sticky action bar */
+.ActionBar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 22px;
+    background: #FFFFFF;
+    border-top: 1px solid #E5E7EB;
+    box-shadow: 0 -6px 16px rgba(17, 24, 39, 0.05);
+}
+
+.ActionBarGroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ActionBarStatus {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #6B7280;
+    font-weight: 600;
+}
+
+/* ----------------------------------------------------------------------
+   Admin expansion — lookups / audit / reports / broadcast
+   ---------------------------------------------------------------------- */
+
+.TopBarSearch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex: 1 1 320px;
+    min-width: 220px;
+    max-width: 440px;
+}
+
+.TopBarSearch input {
+    width: 100%;
+    height: 38px;
+    padding: 0 14px 0 38px;
+    border-radius: 999px;
+    border: 1px solid #E5E7EB;
+    background: #F8FAFC;
+    font-size: 13px;
+    color: #111827;
+    outline: none;
+    transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.TopBarSearch input:focus {
+    border-color: #E11E26;
+    background: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(225, 30, 38, 0.12);
+}
+
+.TopBarSearchIcon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9CA3AF;
+    font-size: 13px;
+    pointer-events: none;
+}
+
+.TopBarSearchSpinner {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9CA3AF;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+.SuperAdminShield {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(245, 158, 11, 0.06) 100%);
+    color: #B45309;
+    border: 1px solid rgba(245, 158, 11, 0.32);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 140ms ease;
+}
+
+.SuperAdminShield:hover {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(245, 158, 11, 0.1) 100%);
+    color: #92400E;
+}
+
+.SuperAdminShieldActive {
+    background: linear-gradient(135deg, #F59E0B 0%, #B45309 100%);
+    color: #FFFFFF;
+    border-color: transparent;
+    box-shadow: 0 4px 10px rgba(245, 158, 11, 0.35);
+}
+
+.SuperAdminShieldActive:hover {
+    color: #FFFFFF;
+    background: linear-gradient(135deg, #D97706 0%, #92400E 100%);
+}
+
+/* ---- Lookup card / filter strip --------------------------------------- */
+
+.LookupCard {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 18px;
+    box-shadow: 0 4px 14px rgba(17, 24, 39, 0.04);
+    overflow: hidden;
+    animation: kpiCardIn 320ms ease-out both;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.LookupCardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #E5E7EB;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    flex-wrap: wrap;
+}
+
+.LookupCardTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.LookupCardActions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.LookupCardBody {
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+}
+
+.FilterStrip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+
+.FilterStripActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.FilterField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.FilterFieldLabel {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #6B7280;
+}
+
+.FilterFieldInput {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid #E5E7EB;
+    background: #FFFFFF;
+    font-size: 13px;
+    color: #111827;
+    outline: none;
+    transition: all 140ms ease;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.FilterFieldInput:focus {
+    border-color: #E11E26;
+    box-shadow: 0 0 0 3px rgba(225, 30, 38, 0.12);
+}
+
+.FilterChipGroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.FilterChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid #E5E7EB;
+    background: #F8FAFC;
+    color: #374151;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 140ms ease;
+    user-select: none;
+}
+
+.FilterChip:hover {
+    background: #FFFFFF;
+    border-color: #CBD5E1;
+    color: #111827;
+}
+
+.FilterChipActive {
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%);
+    color: #FFFFFF;
+    border-color: transparent;
+    box-shadow: 0 4px 10px rgba(225, 30, 38, 0.26);
+}
+
+.FilterChipActive:hover {
+    color: #FFFFFF;
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%);
+}
+
+/* ---- Data table -------------------------------------------------------- */
+
+.DataTableWrap {
+    border: 1px solid #E5E7EB;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #FFFFFF;
+}
+
+.DataTableScroll {
+    overflow: auto;
+    max-height: 58vh;
+}
+
+.DataTable {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.DataTable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    text-align: left;
+    padding: 10px 12px;
+    background: #F8FAFC;
+    color: #6B7280;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #E5E7EB;
+    white-space: nowrap;
+}
+
+.DataTable tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #EEF2F7;
+    vertical-align: middle;
+    color: #111827;
+}
+
+.DataTableRow {
+    cursor: pointer;
+    transition: background 120ms ease;
+}
+
+.DataTableRow:hover td {
+    background: #FEF2F2;
+}
+
+.DataTableRowSelected td {
+    background: #FEF2F2 !important;
+    box-shadow: inset 3px 0 0 #E11E26;
+}
+
+.DataTableEmpty {
+    padding: 36px 18px;
+    text-align: center;
+    color: #6B7280;
+    font-size: 13px;
+}
+
+.AmountPositive {
+    color: #047857;
+    font-family: "DSDIGI", "Courier New", monospace;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+}
+
+.AmountNegative {
+    color: #B91C1C;
+    font-family: "DSDIGI", "Courier New", monospace;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+}
+
+.AmountNeutral {
+    color: #111827;
+    font-family: "DSDIGI", "Courier New", monospace;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+}
+
+.PagerBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-top: 1px solid #E5E7EB;
+    background: #F8FAFC;
+    font-size: 12px;
+    color: #6B7280;
+}
+
+.PagerBar button {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid #E5E7EB;
+    background: #FFFFFF;
+    color: #374151;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 140ms ease;
+}
+
+.PagerBar button:hover:not(:disabled) {
+    border-color: #CBD5E1;
+    color: #111827;
+}
+
+.PagerBar button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- Type / status chips ---------------------------------------------- */
+
+.TypeChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+}
+
+.TypeChipSale   { background: rgba(16, 185, 129, 0.10); color: #047857; border-color: rgba(16, 185, 129, 0.28); }
+.TypeChipRefund { background: rgba(225, 30, 38, 0.10);  color: #B3141B; border-color: rgba(225, 30, 38, 0.28); }
+.TypeChipVoid   { background: #F1F5F9; color: #6B7280; border-color: #E5E7EB; }
+.TypeChipPrice  { background: rgba(245, 158, 11, 0.14); color: #B45309; border-color: rgba(245, 158, 11, 0.32); }
+
+/* ---- Detail drawer ---------------------------------------------------- */
+
+.DetailDrawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(820px, 96vw);
+    z-index: 50;
+    background: #FFFFFF;
+    box-shadow: -12px 0 40px rgba(17, 24, 39, 0.15);
+    border-left: 1px solid #E5E7EB;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 260ms ease;
+}
+
+.DetailDrawerOpen { transform: translateX(0); }
+
+.DetailDrawerBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+    background: rgba(17, 24, 39, 0);
+    pointer-events: none;
+    transition: background 260ms ease;
+}
+
+.DetailDrawerBackdropOpen {
+    background: rgba(17, 24, 39, 0.36);
+    pointer-events: auto;
+    backdrop-filter: blur(1px);
+}
+
+.DetailDrawerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #E5E7EB;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.DetailDrawerTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.DetailDrawerActions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.DetailDrawerBody {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 18px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.DetailSection {
+    border: 1px solid #E5E7EB;
+    border-radius: 14px;
+    background: #FFFFFF;
+    overflow: hidden;
+}
+
+.DetailSectionHeader {
+    padding: 10px 14px;
+    background: #F8FAFC;
+    border-bottom: 1px solid #E5E7EB;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #6B7280;
+}
+
+.DetailSectionBody { padding: 12px 14px; }
+
+.DetailGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px 18px;
+}
+
+.DetailKv { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.DetailKvLabel {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #6B7280;
+}
+
+.DetailKvValue {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    word-break: break-word;
+}
+
+.DetailKvValueMono {
+    font-family: "DSDIGI", "Courier New", monospace;
+    letter-spacing: 1px;
+}
+
+/* ---- Hourly chart ----------------------------------------------------- */
+
+.HourlyChart {
+    display: grid;
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+    align-items: end;
+    gap: 4px;
+    height: 180px;
+    padding: 14px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    border: 1px solid #E5E7EB;
+    border-radius: 14px;
+}
+
+.HourlyChartBarCell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    height: 100%;
+    position: relative;
+}
+
+.HourlyChartBar {
+    width: 100%;
+    min-height: 2px;
+    border-radius: 6px 6px 2px 2px;
+    background: linear-gradient(180deg, #E11E26 0%, #B3141B 100%);
+    transition: height 320ms ease, background 160ms ease;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.HourlyChartBar:hover { background: linear-gradient(180deg, #F43F5E 0%, #B3141B 100%); }
+
+.HourlyChartBarEmpty {
+    background: #E5E7EB;
+    box-shadow: none;
+}
+
+.HourlyChartLabel {
+    font-size: 9px;
+    font-weight: 700;
+    color: #9CA3AF;
+    letter-spacing: 0.3px;
+}
+
+.HourlyChartTip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%) translateY(2px);
+    padding: 4px 8px;
+    background: #111827;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease, transform 120ms ease;
+    white-space: nowrap;
+    z-index: 2;
+}
+
+.HourlyChartBarCell:hover .HourlyChartTip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ---- CSV button ------------------------------------------------------- */
+
+.CsvBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    color: #047857;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 140ms ease;
+}
+
+.CsvBtn:hover:not(:disabled) {
+    background: rgba(16, 185, 129, 0.10);
+    border-color: rgba(16, 185, 129, 0.32);
+    color: #065F46;
+}
+
+.CsvBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- Warning variant for pill buttons --------------------------------- */
+
+.PillBtnWarning {
+    background: linear-gradient(135deg, #F59E0B 0%, #B45309 100%);
+    box-shadow:
+        0 4px 12px rgba(245, 158, 11, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.PillBtnWarning:hover:not(:disabled) {
+    box-shadow:
+        0 8px 20px rgba(245, 158, 11, 0.36),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.PillBtnGhost {
+    background: #FFFFFF;
+    color: #374151;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 2px 6px rgba(17, 24, 39, 0.04);
+}
+
+.PillBtnGhost:hover:not(:disabled) {
+    border-color: #CBD5E1;
+    color: #111827;
+    box-shadow: 0 4px 10px rgba(17, 24, 39, 0.06);
+}
+
+.PillBtnGhost .PillBtnIcon {
+    background: #F1F5F9;
+    color: #374151;
+    box-shadow: inset 0 0 0 1px #E5E7EB;
+}
+
+.PillBtnGhost:hover:not(:disabled) .PillBtnIcon {
+    background: #FFFFFF;
+    color: #B3141B;
+    box-shadow: inset 0 0 0 1px #FBC9CC;
+}
+
+/* ---- Reports / audit rows --------------------------------------------- */
+
+.AuditRow {
+    display: grid;
+    grid-template-columns: 110px 1fr 160px 120px;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #EEF2F7;
+    font-size: 13px;
+    align-items: center;
+}
+
+.AuditRow:last-child { border-bottom: none; }
+
+/* ---- Broadcast panel -------------------------------------------------- */
+
+.BroadcastCard {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(16, 185, 129, 0.05) 100%);
+    border: 1px solid rgba(59, 130, 246, 0.18);
+    border-radius: 18px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    animation: kpiCardIn 320ms ease-out both;
+}
+
+.BroadcastField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.BroadcastField textarea,
+.BroadcastField input {
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #111827;
+    background: #FFFFFF;
+    outline: none;
+    resize: vertical;
+    transition: all 140ms ease;
+}
+
+.BroadcastField textarea:focus,
+.BroadcastField input:focus {
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.BroadcastPreview {
+    padding: 12px 14px;
+    border: 1px dashed #CBD5E1;
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: #111827;
+    font-size: 13px;
+    line-height: 1.4;
+    min-height: 40px;
+}
+
+.BroadcastActions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* ---- Customer params panel ------------------------------------------- */
+
+.ParamRow {
+    display: grid;
+    grid-template-columns: 180px 1fr auto;
+    gap: 14px;
+    align-items: start;
+    padding: 14px 0;
+    border-bottom: 1px dashed #EEF2F7;
+}
+
+.ParamRow:last-child { border-bottom: none; }
+
+.ParamRowLabel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ParamRowLabelTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.ParamRowLabelHint {
+    font-size: 11px;
+    color: #6B7280;
+    font-weight: 500;
+}
+
+.ParamRowInput {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #E5E7EB;
+    background: #FFFFFF;
+    font-size: 13px;
+    color: #111827;
+    outline: none;
+    font-family: "Inter", "Segoe UI", system-ui, monospace;
+    resize: vertical;
+    transition: all 140ms ease;
+}
+
+.ParamRowInput:focus {
+    border-color: #E11E26;
+    box-shadow: 0 0 0 3px rgba(225, 30, 38, 0.12);
+}
+
+.ParamRowSource {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.ParamRowSourceLocal {
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+}
+
+.ParamRowSourceHo {
+    background: rgba(59, 130, 246, 0.12);
+    color: #1D4ED8;
+}
+
+/* ---- Super admin prompt overlay -------------------------------------- */
+
+.SuperAdminOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(17, 24, 39, 0.55);
+    backdrop-filter: blur(3px);
+    animation: shellFadeIn 180ms ease-out both;
+}
+
+.SuperAdminDialog {
+    width: min(420px, 92vw);
+    background: #FFFFFF;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(17, 24, 39, 0.35);
+    overflow: hidden;
+    border: 1px solid rgba(245, 158, 11, 0.24);
+    animation: kpiCardIn 220ms ease-out both;
+}
+
+.SuperAdminDialogHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(245, 158, 11, 0.04) 100%);
+    border-bottom: 1px solid rgba(245, 158, 11, 0.24);
+    font-weight: 700;
+    color: #92400E;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+}
+
+.SuperAdminDialogBody {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.SuperAdminDialogBody label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #6B7280;
+}
+
+.SuperAdminDialogBody input {
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid #E5E7EB;
+    background: #F8FAFC;
+    font-size: 15px;
+    outline: none;
+    font-family: "Inter", system-ui, sans-serif;
+    color: #111827;
+    letter-spacing: 0.4px;
+    transition: all 140ms ease;
+}
+
+.SuperAdminDialogBody input:focus {
+    background: #FFFFFF;
+    border-color: #F59E0B;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+
+.SuperAdminDialogActions {
+    padding: 12px 18px 18px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    background: #FFFFFF;
+    border-top: 1px solid #F1F5F9;
+}
+
+.SuperAdminDialogHint {
+    font-size: 11px;
+    color: #6B7280;
+    line-height: 1.4;
+}
+
+/* ---- Loading skeleton ------------------------------------------------- */
+
+.Skeleton {
+    animation: shimmer 1.2s ease-in-out infinite;
+    background: linear-gradient(90deg, #F1F5F9 0%, #E5E7EB 40%, #F1F5F9 100%);
+    background-size: 200% 100%;
+    border-radius: 6px;
+}
+
+@keyframes shimmer {
+    0%   { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* ---- Broadcast overlay on customer display ---------------------------- */
+
+.CustomerBroadcastOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.96) 0%, rgba(139, 92, 246, 0.96) 100%);
+    color: #FFFFFF;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 48px;
+    gap: 24px;
+    animation: shellFadeIn 320ms ease-out both;
+}
+
+.CustomerBroadcastMsg {
+    font-size: 44px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: 0.5px;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    max-width: 80%;
+}
+
+.CustomerBroadcastImg {
+    max-width: 60%;
+    max-height: 50vh;
+    border-radius: 18px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+    object-fit: contain;
+    background: #FFFFFF;
+}
+
+/* ---- Print view (A4 invoice reprint) ---------------------------------- */
+
+.PrintShell {
+    background: #FFFFFF;
+    color: #111827;
+    padding: 28mm 20mm;
+    max-width: 210mm;
+    margin: 0 auto;
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    font-size: 12pt;
+    line-height: 1.4;
+}
+
+.PrintHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    border-bottom: 2px solid #E11E26;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+}
+
+.PrintBrand {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.PrintBrand h1 {
+    font-size: 22pt;
+    margin: 0;
+    letter-spacing: 0.5px;
+    color: #B3141B;
+}
+
+.PrintBrand small {
+    font-size: 10pt;
+    color: #6B7280;
+    letter-spacing: 0.4px;
+}
+
+.PrintMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: right;
+    font-size: 11pt;
+}
+
+.PrintMeta b {
+    color: #6B7280;
+    font-weight: 600;
+    font-size: 9pt;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.PrintTitle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.PrintTitle h2 {
+    font-size: 16pt;
+    margin: 0;
+    color: #111827;
+}
+
+.PrintBadgeRefund {
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: rgba(225, 30, 38, 0.12);
+    color: #B3141B;
+    font-size: 10pt;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.PrintCustomer {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 20px;
+    margin: 12px 0 18px;
+    padding: 12px 16px;
+    background: #F8FAFC;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+    font-size: 11pt;
+}
+
+.PrintCustomer dl { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.PrintCustomer dt { font-size: 9pt; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
+.PrintCustomer dd { margin: 0; font-weight: 600; color: #111827; }
+
+.PrintLineTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 18px;
+    font-size: 11pt;
+}
+
+.PrintLineTable th {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 2px solid #111827;
+    font-size: 9pt;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #6B7280;
+}
+
+.PrintLineTable td {
+    padding: 8px 6px;
+    border-bottom: 1px solid #E5E7EB;
+    vertical-align: top;
+}
+
+.PrintLineTable td.num,
+.PrintLineTable th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.PrintTotals {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-left: auto;
+    width: 300px;
+    max-width: 100%;
+}
+
+.PrintTotalRow {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 4px 0;
+    font-size: 11pt;
+}
+
+.PrintTotalRow b { color: #6B7280; font-weight: 600; }
+
+.PrintGrandTotal {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 10px 0 6px;
+    border-top: 2px solid #111827;
+    border-bottom: 4px double #111827;
+    margin-top: 6px;
+    font-size: 13pt;
+    font-weight: 800;
+}
+
+.PrintPayments {
+    margin-top: 22px;
+    padding: 10px 14px;
+    background: #F8FAFC;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+    font-size: 11pt;
+}
+
+.PrintPayments h3 {
+    margin: 0 0 6px;
+    font-size: 10pt;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.PrintPaymentRow {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+}
+
+.PrintFooter {
+    margin-top: 36px;
+    padding-top: 14px;
+    border-top: 1px dashed #CBD5E1;
+    text-align: center;
+    font-size: 10pt;
+    color: #6B7280;
+}
+
+.PrintFooter b { color: #B3141B; letter-spacing: 0.4px; }
+
+.PrintOnlyButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #E11E26;
+    color: #FFFFFF;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    margin: 14px auto 0;
+}
+
+.PrintScreenActions {
+    max-width: 210mm;
+    margin: 0 auto 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 20mm 0;
+}
+
+/* In-app fullscreen print overlay — covers the admin shell while the user
+   reviews / prints the invoice. The admin stays mounted underneath, so
+   closing the overlay restores the exact previous tab + scroll position. */
+.PrintInvoiceOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: #F3F4F6;
+    overflow: auto;
+    animation: piOverlayIn 180ms ease-out both;
+}
+
+@keyframes piOverlayIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@media print {
+    body { background: #FFFFFF !important; }
+    .PrintScreenActions { display: none !important; }
+
+    @page {
+        size: A4;
+        margin: 16mm 12mm;
+    }
+
+    /* When the overlay is active, hide the entire admin shell below it so
+       only the invoice prints. We flag the overlay body with .PrintActive;
+       a sibling :not(.PrintActive) is the admin shell, which we collapse. */
+    body > div > :not(.PrintActive):not(.PrintInvoiceOverlay) {
+        display: none !important;
+    }
+
+    .PrintInvoiceOverlay {
+        position: static !important;
+        background: #FFFFFF !important;
+        overflow: visible !important;
+    }
+
+    .PrintShell {
+        padding: 0;
+        max-width: none;
+    }
+}
+
+/* ---- Legacy (kept for any existing consumers) -------------------------- */
+
+.Label {
     font-size: 2vh;
     font-weight: bold;
     margin-right: 8px;
 }
 
-.Value{
+.Value {
     font-size: 2.2vh;
     font-style: italic;
+}
+
+/* ---- Responsive -------------------------------------------------------- */
+
+@media (max-width: 1200px) {
+    .OverviewGrid { grid-template-columns: 1fr; }
+    .KpiRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .CountRow,
+    .CountRowHeader { grid-template-columns: minmax(120px, 1fr) 1.4fr 1fr 1fr; }
+}
+
+@media (max-width: 860px) {
+    .TopBar { grid-template-columns: 1fr; gap: 10px; }
+    .TopBarRight { justify-content: flex-start; flex-wrap: wrap; }
+    .KpiRow { grid-template-columns: 1fr; }
+    .CountRow,
+    .CountRowHeader { grid-template-columns: 1fr 1fr; }
 }

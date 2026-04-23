@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown, faCogs,
-    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck, faArrowRightFromBracket, faQrcode, faMobileScreenButton, faHashtag, faMotorcycle
+    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck, faArrowRightFromBracket, faQrcode, faMobileScreenButton, faHashtag, faMotorcycle, faBullhorn, faHourglassHalf, faBoxOpen
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -2573,34 +2573,97 @@ const Terminal = (props) => {
                                     {/* Body */}
                                     <div style={{ padding: '22px' }}>
                                         {/* PriceChange: need reason first */}
-                                        {authQR.source === 'PriceChange' && (
-                                            <div style={{ marginBottom: 18 }}>
-                                                <div style={{
-                                                    fontSize: 12,
-                                                    fontWeight: 700,
-                                                    color: '#6B7280',
-                                                    textTransform: 'uppercase',
-                                                    letterSpacing: 0.4,
-                                                    marginBottom: 8
-                                                }}>
-                                                    Price Change Reason
+                                        {authQR.source === 'PriceChange' && (() => {
+                                            const reasonOptions = [
+                                                { value: '1', label: 'Offer (Wrong Sign)',        icon: faTag },
+                                                { value: '2', label: 'Offer (Facebook & No Cash)', icon: faBullhorn },
+                                                { value: '3', label: 'Nearly Expired',             icon: faHourglassHalf },
+                                                { value: '4', label: 'Corrupted Item',             icon: faBoxOpen }
+                                            ];
+                                            return (
+                                                <div style={{ marginBottom: 18 }}>
+                                                    <div style={{
+                                                        fontSize: 12,
+                                                        fontWeight: 700,
+                                                        color: '#6B7280',
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: 0.4,
+                                                        marginBottom: 10
+                                                    }}>
+                                                        Price Change Reason
+                                                    </div>
+                                                    <div
+                                                        role="radiogroup"
+                                                        aria-label="Price change reason"
+                                                        style={{
+                                                            display: 'grid',
+                                                            gridTemplateColumns: '1fr 1fr',
+                                                            gap: 10
+                                                        }}
+                                                    >
+                                                        {reasonOptions.map((opt) => {
+                                                            const selected = trxSlice.priceChangeReason === opt.value;
+                                                            return (
+                                                                <button
+                                                                    key={opt.value}
+                                                                    type="button"
+                                                                    role="radio"
+                                                                    aria-checked={selected}
+                                                                    onClick={() => dispatch(setPriceChangeReason(opt.value))}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: 10,
+                                                                        padding: '10px 12px',
+                                                                        borderRadius: 12,
+                                                                        border: selected
+                                                                            ? '1px solid #E11E26'
+                                                                            : '1px solid #E5E7EB',
+                                                                        background: selected
+                                                                            ? 'linear-gradient(135deg, rgba(225, 30, 38, 0.08) 0%, rgba(179, 20, 27, 0.04) 100%)'
+                                                                            : '#FFFFFF',
+                                                                        color: selected ? '#B3141B' : '#111827',
+                                                                        boxShadow: selected
+                                                                            ? '0 6px 14px rgba(225, 30, 38, 0.15), inset 0 0 0 1px rgba(225, 30, 38, 0.25)'
+                                                                            : '0 1px 2px rgba(17, 24, 39, 0.04)',
+                                                                        cursor: 'pointer',
+                                                                        textAlign: 'left',
+                                                                        transition: 'all 150ms ease',
+                                                                        fontFamily: 'inherit'
+                                                                    }}
+                                                                >
+                                                                    <span style={{
+                                                                        width: 22,
+                                                                        height: 22,
+                                                                        borderRadius: '50%',
+                                                                        border: selected ? '6px solid #E11E26' : '2px solid #CBD5E1',
+                                                                        background: '#FFFFFF',
+                                                                        flexShrink: 0,
+                                                                        transition: 'border 150ms ease'
+                                                                    }} />
+                                                                    <FontAwesomeIcon
+                                                                        icon={opt.icon}
+                                                                        style={{
+                                                                            color: selected ? '#B3141B' : '#6B7280',
+                                                                            fontSize: 14,
+                                                                            flexShrink: 0
+                                                                        }}
+                                                                    />
+                                                                    <span style={{
+                                                                        fontSize: 13,
+                                                                        fontWeight: 700,
+                                                                        letterSpacing: 0.2,
+                                                                        lineHeight: 1.25
+                                                                    }}>
+                                                                        {opt.label}
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
-                                                <SelectPicker
-                                                    value={trxSlice.priceChangeReason}
-                                                    placeholder="Select a reason to generate QR"
-                                                    searchable={false}
-                                                    block
-                                                    menuStyle={{ zIndex: 1200 }}
-                                                    data={[
-                                                        { label: 'Offer (Wrong Sign)', value: '1' },
-                                                        { label: 'Offer (Facebook & No Cash)', value: '2' },
-                                                        { label: 'Nearly Expired', value: '3' },
-                                                        { label: 'Corrupted Item', value: '4' },
-                                                    ]}
-                                                    onChange={(value) => { dispatch(setPriceChangeReason(value)) }}
-                                                />
-                                            </div>
-                                        )}
+                                            );
+                                        })()}
 
                                         {/* QR code */}
                                         {showQR && (

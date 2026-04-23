@@ -7,6 +7,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 import classes from './CustomerDisplay.module.css';
+import adminClasses from '../Backoffice/Admin.module.css';
 import axios from '../../axios';
 import config from '../../config';
 
@@ -44,6 +45,7 @@ const fmtAmount = (n) => (((Number(n) || 0) * 100) / 100).toFixed(DECIMALS);
 const CustomerDisplay = () => {
     const terminal = useSelector((state) => state.terminal);
     const trxSlice = useSelector((state) => state.trx);
+    const customerConfigVersion = useSelector((state) => state.terminal.customerConfigVersion || 0);
 
     const [displayConfig, setDisplayConfig] = useState({ images: [], messages: [] });
 
@@ -74,7 +76,7 @@ const CustomerDisplay = () => {
             cancelled = true;
             clearInterval(id);
         };
-    }, []);
+    }, [customerConfigVersion]);
 
     const isRefund = terminal.trxMode === 'Refund';
     const isClub = Boolean(terminal.customer && terminal.customer.club);
@@ -258,6 +260,24 @@ const CustomerDisplay = () => {
                     <div className={classes.LockSub}>
                         Please wait — the cashier will resume shortly.
                     </div>
+                </div>
+            )}
+
+            {terminal.customerBroadcast && (terminal.customerBroadcast.message || terminal.customerBroadcast.imageUrl) && (
+                <div className={adminClasses.CustomerBroadcastOverlay}>
+                    {terminal.customerBroadcast.imageUrl && (
+                        <img
+                            src={terminal.customerBroadcast.imageUrl}
+                            alt=""
+                            className={adminClasses.CustomerBroadcastImg}
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                    )}
+                    {terminal.customerBroadcast.message && (
+                        <div className={adminClasses.CustomerBroadcastMsg}>
+                            {terminal.customerBroadcast.message}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

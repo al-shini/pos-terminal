@@ -69,8 +69,9 @@ const TouchKeyboard = ({
             if (e.key.length === 1) {
                 const isDigit = /\d/.test(e.key);
                 const isAlpha = /[a-zA-Z]/.test(e.key);
+                const isSymbol = /[!@#$%^&*()\-_=+.,?/:;'"`~\\|{}\[\]<>]/.test(e.key);
                 if (numericOnly && !isDigit) return;
-                if (isAlpha || isDigit || e.key === ' ' || e.key === '-' || e.key === '_' || e.key === '.') {
+                if (isAlpha || isDigit || isSymbol || e.key === ' ') {
                     push(e.key);
                 }
             }
@@ -80,6 +81,7 @@ const TouchKeyboard = ({
     }, [open, push, backspace, onClose, onSubmit, numericOnly]);
 
     const digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+    const symbols = ['!', '@', '#', '$', '%', '&', '*', '-', '_', '.'];
     const letterRows = [
         ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
         ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
@@ -142,6 +144,15 @@ const TouchKeyboard = ({
                                 <Button key={d} onClick={() => push(d)} sx={styles.key}>{d}</Button>
                             ))}
                         </Box>
+
+                        {/* Symbols row — hidden in numeric-only mode */}
+                        {!numericOnly && (
+                            <Box sx={styles.row}>
+                                {symbols.map((s) => (
+                                    <Button key={s} onClick={() => push(s)} sx={styles.keySymbol}>{s}</Button>
+                                ))}
+                            </Box>
+                        )}
 
                         {/* Letters — hidden in numeric-only mode */}
                         {!numericOnly && letterRows.map((row, i) => (
@@ -288,6 +299,31 @@ const styles = {
         transition: 'transform .08s ease, box-shadow .15s ease, background .15s ease',
         '&:hover': {
             background: brand.colors.bgAlt,
+            borderColor: brand.colors.borderStrong,
+        },
+        '&:active': {
+            transform: 'scale(0.95)',
+            background: brand.colors.primaryLight,
+            borderColor: brand.colors.primary,
+            color: brand.colors.primary,
+        },
+    },
+    keySymbol: {
+        flex: 1,
+        minWidth: 0,
+        height: KEY_H,
+        fontSize: 20,
+        fontWeight: brand.typography.weights.bold,
+        textTransform: 'none',
+        color: brand.colors.textMuted,
+        background: brand.colors.bgAlt,
+        border: `1px solid ${brand.colors.border}`,
+        borderRadius: `${brand.radii.md}px`,
+        boxShadow: '0 1px 0 rgba(17,24,39,0.04)',
+        transition: 'transform .08s ease, background .15s ease, color .15s ease',
+        '&:hover': {
+            background: brand.colors.bg,
+            color: brand.colors.ink,
             borderColor: brand.colors.borderStrong,
         },
         '&:active': {

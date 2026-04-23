@@ -83,6 +83,29 @@ function createWindow() {
 
     fs.promises.writeFile(logFilePath, '');
 
+    // Printing the A4 invoice reprint from the renderer via `window.print()` is
+    // unreliable in Electron with nodeIntegration enabled: cancelling the native
+    // print dialog can tear the BrowserWindow down and — because this window is
+    // the only one — `window-all-closed` then quits the whole app. Driving the
+    // print from the main process with `webContents.print()` keeps the renderer
+    // untouched so the overlay stays open and the app never quits.
+    ipcMain.on('print-active-window', (event) => {
+        try {
+            const sender = event.sender;
+            const hostWindow = BrowserWindow.fromWebContents(sender);
+            if (!hostWindow) {
+                return;
+            }
+            hostWindow.webContents.print({ silent: false, printBackground: true }, (success, failureReason) => {
+                if (!success && failureReason && failureReason !== 'cancelled') {
+                    logger.error(`print-active-window failed: ${failureReason}`);
+                }
+            });
+        } catch (ex) {
+            logger.error(`print-active-window exception: ${ex && ex.message}`);
+        }
+    });
+
     let params = `serverIp=${localConfig.serverIp}&deviceId=${localConfig.deviceId}`;
 
     if (localConfig.admin) {
