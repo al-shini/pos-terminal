@@ -27,7 +27,11 @@ const initialState = {
     priceChangeReason: '',
     scrollAction: 'none',
     // refund reference
-    originalTrxReference: null
+    originalTrxReference: null,
+    // re-entrancy guard for the cashier tapping OK multiple times during
+    // /trx/closeTrxPayment (previously could produce duplicate CASHBACK_BALANCE_CONSUME
+    // queue rows and double-deduct points_balance in shini me)
+    closingTrx: false
 }
 
 /**
@@ -336,7 +340,6 @@ export const submitPayment = createAsyncThunk(
 export const closeTrxPayment = createAsyncThunk(
     'closeTrxPayment',
     async (payload, thunkAPI) => {
-
         return axios({
             method: 'post',
             url: '/trx/closeTrxPayment',
@@ -397,6 +400,18 @@ export const closeTrxPayment = createAsyncThunk(
             }
 
         });
+    },
+    {
+        // Hard-stop re-entrancy: if a close is already in flight, ignore the
+        // new dispatch. Prevents cashier double-tap/Enter-chord from creating
+        // a second CASHBACK_BALANCE_CONSUME row on the backend.
+        condition: (payload, { getState }) => {
+            const state = getState();
+            if (state && state.trx && state.trx.closingTrx) {
+                return false;
+            }
+            return true;
+        }
     }
 )
 
@@ -1208,6 +1223,9 @@ export const trxSlice = createSlice({
         })
 
         /* closeTrxPayment thunk */
+        builder.addCase(closeTrxPayment.pending, (state, action) => {
+            state.closingTrx = true;
+        })
         builder.addCase(closeTrxPayment.fulfilled, (state, action) => {
             // reset trx state (prepare to start new one)
             state.lastTrxPayment = {
@@ -1226,10 +1244,11 @@ export const trxSlice = createSlice({
             state.trxPaid = 0;
             state.trxChange = 0;
             state.originalTrxReference = null;
+            state.closingTrx = false;
         })
 
         builder.addCase(closeTrxPayment.rejected, (state, action) => {
-
+            state.closingTrx = false;
         })
 
         /* voidPayment thunk */

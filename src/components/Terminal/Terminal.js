@@ -151,6 +151,14 @@ const Terminal = (props) => {
 
 
     useEffect(() => {
+        // The ShiniMe / eShini connectivity probe is only wired into the Jordan
+        // backend (`/trx/hasEshiniConnection`); the Palestine backend doesn't
+        // expose it and loyalty cashback is disabled for PS anyway, so we short
+        // circuit to `true` for tenants without the flag.
+        if (!config.features.eshiniConnectionCheck) {
+            setHasEshiniConnection(true);
+            return;
+        }
         axios({
             method: 'post',
             url: '/trx/hasEshiniConnection'
@@ -159,7 +167,10 @@ const Terminal = (props) => {
                 setHasEshiniConnection(response.data);
             }
         }).catch((error) => {
-            dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+            // Non-fatal: we just fall back to "connected" so the cashier UI
+            // doesn't permanently block cashback operations on transient errors.
+            setHasEshiniConnection(true);
+            dispatch(notify({ msg: 'ShiniMe probe failed, assuming online', sev: 'warning' }));
         });
     }, [])
 
@@ -749,14 +760,14 @@ const Terminal = (props) => {
                 }
                 case 'USD': {
                     cur = 840;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3);
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.decimals);
                     break;
                 }
             }
 
             let integerPart = Math.floor(amt);
             let decimalPart = amt - integerPart;
-            decimalPart = decimalPart.toFixed(config.systemCurrency === 'NIS' ? 2 : 3);
+            decimalPart = decimalPart.toFixed(config.decimals);
 
             amt = integerPart * 100;
             amt += parseFloat(decimalPart) * 100;
@@ -842,14 +853,14 @@ const Terminal = (props) => {
                 }
                 case 'USD': {
                     cur = 840;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3);
+                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.decimals);
                     break;
                 }
             }
 
             let integerPart = Math.floor(amt);
             let decimalPart = amt - integerPart;
-            decimalPart = decimalPart.toFixed(config.systemCurrency === 'NIS' ? 2 : 3);
+            decimalPart = decimalPart.toFixed(config.decimals);
 
             amt = integerPart * 100;
             amt += parseFloat(decimalPart) * 100;
@@ -1474,8 +1485,15 @@ const Terminal = (props) => {
     const handleSwitchToRefund = () => {
         confirm(`Refund Mode ?`, '',
             () => {
-                // First, show the refund reference dialog
-                setRefundReferenceDialogOpen(true);
+                // Jordan cashiers must scan the original receipt serial before
+                // refunding (audit + duplicate-refund guard). The Palestine
+                // backend doesn't expose that lookup endpoint, so we skip the
+                // dialog and proceed straight to QR / manager authorization.
+                if (config.features.refundReference) {
+                    setRefundReferenceDialogOpen(true);
+                } else {
+                    handleRefundReferenceValidated(null);
+                }
             }
         )
     }
@@ -1686,18 +1704,26 @@ const Terminal = (props) => {
                 <label>Visa</label>
             </Button>
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
-            <Button key='mobicash' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
-                onClick={() => { startPayment('mobiCash', 'numpad') }}>
-                <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
-                <label>MobiCash</label>
-            </Button>
-            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
-            <Button key='talabat' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
-                onClick={() => { startPayment('talabat', 'numpad') }}>
-                <FontAwesomeIcon icon={faMotorcycle} style={{ marginRight: '5px' }} />
-                <label>Talabat</label>
-            </Button>
-            <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {config.features.mobiCash && (
+                <>
+                    <Button key='mobicash' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
+                        onClick={() => { startPayment('mobiCash', 'numpad') }}>
+                        <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
+                        <label>MobiCash</label>
+                    </Button>
+                    <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+                </>
+            )}
+            {config.features.talabat && (
+                <>
+                    <Button key='talabat' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
+                        onClick={() => { startPayment('talabat', 'numpad') }}>
+                        <FontAwesomeIcon icon={faMotorcycle} style={{ marginRight: '5px' }} />
+                        <label>Talabat</label>
+                    </Button>
+                    <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+                </>
+            )}
             {config.systemCurrency === 'NIS' && <Button key='wfp' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
                 onClick={() => { startPayment('wfp', 'numpad') }}>
                 <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
@@ -1735,7 +1761,7 @@ const Terminal = (props) => {
                 <label>On Account</label>
             </Button>}
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
-            {terminal.customer && terminal.store && <Button key='cashBack'
+            {config.features.cashback && terminal.customer && terminal.store && <Button key='cashBack'
                 disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection || !trxSlice.trx}
                 className={classes.MainActionButton} onClick={() => { startPayment('cashBack', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
@@ -1823,7 +1849,7 @@ const Terminal = (props) => {
                 }}>
                     <label style={{ marginRight: '5px' }}>Refund</label>
                     <label style={{ fontSize: '20px' }}>
-                        <span style={{ fontFamily: '"DSDIGI", monospace' }}>{trxSlice.trx.totalafterdiscount}</span> {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
+                        <span style={{ fontFamily: '"DSDIGI", monospace' }}>{trxSlice.trx.totalafterdiscount}</span> {config.currencySymbol}
                     </label>
                 </Button>
             );
@@ -2085,37 +2111,46 @@ const Terminal = (props) => {
                     </div>
                 </Button>
             }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
-            {
-                <Button key='customerName' className={classes.MainActionButton}
-                    disabled={!trxSlice.trx}
-                    onClick={() => setCustomCustomerNameDialogOpen(true)}>
-                    <div style={{ fontSize: '12px', }}>
-                        <FontAwesomeIcon icon={faUser} style={{ marginRight: '5px' }} />
-                        <label>Customer Name</label>
-                    </div>
-                </Button>
-            }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
-            {
-                <Button key='customerMobile' className={classes.MainActionButton}
-                    disabled={!trxSlice.trx || (terminal.customer && terminal.customer.club)}
-                    onClick={() => setCustomCustomerMobileDialogOpen(true)}
-                    title={(terminal.customer && terminal.customer.club) ? 'Club customer scanned — mobile is locked' : undefined}>
-                    <div style={{ fontSize: '12px', }}>
-                        <FontAwesomeIcon icon={faMobileScreenButton} style={{ marginRight: '5px' }} />
-                        <label>Customer Mobile</label>
-                    </div>
-                </Button>
-            }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
-            {
-                <Button key='referenceNumber' className={classes.MainActionButton}
-                    disabled={!trxSlice.trx}
-                    onClick={() => setReferenceNumberDialogOpen(true)}>
-                    <div style={{ fontSize: '12px', }}>
-                        <FontAwesomeIcon icon={faHashtag} style={{ marginRight: '5px' }} />
-                        <label>Reference Number</label>
-                    </div>
-                </Button>
-            }  <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {config.features.customCustomerName && (
+                <>
+                    <Button key='customerName' className={classes.MainActionButton}
+                        disabled={!trxSlice.trx}
+                        onClick={() => setCustomCustomerNameDialogOpen(true)}>
+                        <div style={{ fontSize: '12px', }}>
+                            <FontAwesomeIcon icon={faUser} style={{ marginRight: '5px' }} />
+                            <label>Customer Name</label>
+                        </div>
+                    </Button>
+                    <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+                </>
+            )}
+            {config.features.customCustomerMobile && (
+                <>
+                    <Button key='customerMobile' className={classes.MainActionButton}
+                        disabled={!trxSlice.trx || (terminal.customer && terminal.customer.club)}
+                        onClick={() => setCustomCustomerMobileDialogOpen(true)}
+                        title={(terminal.customer && terminal.customer.club) ? 'Club customer scanned — mobile is locked' : undefined}>
+                        <div style={{ fontSize: '12px', }}>
+                            <FontAwesomeIcon icon={faMobileScreenButton} style={{ marginRight: '5px' }} />
+                            <label>Customer Mobile</label>
+                        </div>
+                    </Button>
+                    <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+                </>
+            )}
+            {config.features.referenceNumber && (
+                <>
+                    <Button key='referenceNumber' className={classes.MainActionButton}
+                        disabled={!trxSlice.trx}
+                        onClick={() => setReferenceNumberDialogOpen(true)}>
+                        <div style={{ fontSize: '12px', }}>
+                            <FontAwesomeIcon icon={faHashtag} style={{ marginRight: '5px' }} />
+                            <label>Reference Number</label>
+                        </div>
+                    </Button>
+                    <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+                </>
+            )}
             {
                 <Button key='lastTrxList' className={classes.MainActionButton}
                     onClick={handleLastTrxList}>
@@ -2168,7 +2203,7 @@ const Terminal = (props) => {
                     }} >
 
                     <div key={i + 'cbc'} style={{ textAlign: 'center', fontSize: '16px', }}>
-                        ( {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {obj.totalafterdiscount} ) <small>Restore <FontAwesomeIcon icon={faPlay} /></small>
+                        ( {config.currencySymbol} {obj.totalafterdiscount} ) <small>Restore <FontAwesomeIcon icon={faPlay} /></small>
                     </div>
 
                 </Button>
@@ -2186,10 +2221,10 @@ const Terminal = (props) => {
             <Button key={'1'} className={classes.LongActionButton}
                 disabled style={{ color: '#004109' }}>
                 <div style={{ textAlign: 'center' }}>
-                    Balance: {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {terminal.customer.employeeBalance}
+                    Balance: {config.currencySymbol} {terminal.customer.employeeBalance}
                     <hr style={{ padding: '2px', margin: '2px' }} />
                     <small>
-                        (Limit: {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} {terminal.customer.employeeBalanceLimit})
+                        (Limit: {config.currencySymbol} {terminal.customer.employeeBalanceLimit})
                     </small>
                 </div>
             </Button >
@@ -2204,7 +2239,7 @@ const Terminal = (props) => {
 
         const rawBalance = Number(terminal.customer ? terminal.customer.cashbackBalance : 0) || 0;
         const balance = Math.round(rawBalance * 10000) / 10000;
-        const currency = config.systemCurrency === 'NIS' ? 'JD' : 'JD';
+        const currency = config.currencySymbol;
 
         tmp.push(
             <div key={'cashbackBalanceCard'} className={classes.CashbackBalanceCard}>
@@ -2912,11 +2947,11 @@ const Terminal = (props) => {
                                 {terminal.customer && terminal.customer.employee && (
                                     <b style={{ color: '#E11E26', marginLeft: 2 }}>(E)</b>
                                 )}
-                                {terminal.customer.cashbackBalance && (
+                                {config.features.cashback && terminal.customer.cashbackBalance && (
                                     <b style={{ marginLeft: 4, color: '#111827' }}>
                                         <span style={{ fontFamily: '"DSDIGI", monospace' }}>{Math.round(Number(terminal.customer.cashbackBalance) * 10000) / 10000}</span>
                                         <small style={{ color: '#6B7280', fontFamily: '"Inter", "Segoe UI", sans-serif', marginLeft: 3 }}>
-                                            {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
+                                            {config.currencySymbol}
                                         </small>
                                     </b>
                                 )}
@@ -2976,7 +3011,7 @@ const Terminal = (props) => {
                             borderRadius: '10px',
                             textAlign: 'center'
                         }}>
-                            * Required Plus Tax = {config.systemCurrency === 'NIS' ? 'JD' : 'JD'} <span style={{ fontFamily: '"DSDIGI", monospace' }}>{trxSlice.trx.totalPlusTaxAmt}</span>
+                            * Required Plus Tax = {config.currencySymbol} <span style={{ fontFamily: '"DSDIGI", monospace' }}>{trxSlice.trx.totalPlusTaxAmt}</span>
                         </div>
                     )}
 
@@ -3001,7 +3036,7 @@ const Terminal = (props) => {
                                     color: '#111827',
                                     fontFamily: '"DSDIGI", monospace'
                                 }}>
-                                    {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                    {(Math.round(trxSlice.lastTrxPayment.paid * 100) / 100).toFixed(config.decimals)}
                                 </label>
                             </div>
                             <div style={{ width: 1, alignSelf: 'stretch', background: '#E5E7EB' }} />
@@ -3013,7 +3048,7 @@ const Terminal = (props) => {
                                     color: trxSlice.lastTrxPayment.change < 0 ? '#B91C1C' : '#047857',
                                     fontFamily: '"DSDIGI", monospace'
                                 }}>
-                                    {(Math.round(trxSlice.lastTrxPayment.change * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                    {(Math.round(trxSlice.lastTrxPayment.change * 100) / 100).toFixed(config.decimals)}
                                 </label>
                             </div>
                         </div>
@@ -3128,10 +3163,10 @@ const Terminal = (props) => {
                             </span>
                             <div className={classes.FooterAmountRow}>
                                 <small className={classes.FooterCurrency}>
-                                    {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
+                                    {config.currencySymbol}
                                 </small>
                                 <label id='Total' className={`${classes.FooterAmount} ${classes.FooterAmountGrand} ${terminal.trxMode === 'Refund' ? classes.FooterAmountRed : ''}`}>
-                                    {trxSlice.trx ? ((trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
+                                    {trxSlice.trx ? ((trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.decimals) : '0.00'}
                                 </label>
                             </div>
                         </div>
@@ -3145,10 +3180,10 @@ const Terminal = (props) => {
                                     <span className={classes.FooterLabel}>Paid</span>
                                     <div className={classes.FooterAmountRow}>
                                         <small className={classes.FooterCurrency}>
-                                            {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
+                                            {config.currencySymbol}
                                         </small>
                                         <label id='PaidAmt' className={classes.FooterAmount}>
-                                            {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                            {(Math.round(trxSlice.trxPaid * 100) / 100).toFixed(config.decimals)}
                                         </label>
                                     </div>
                                 </div>
@@ -3161,10 +3196,10 @@ const Terminal = (props) => {
                                     </span>
                                     <div className={classes.FooterAmountRow}>
                                         <small className={classes.FooterCurrency} style={{ color: trxSlice.trxChange < 0 ? '#B91C1C' : '#047857' }}>
-                                            {config.systemCurrency === 'NIS' ? 'JD' : 'JD'}
+                                            {config.currencySymbol}
                                         </small>
                                         <label className={`${classes.FooterAmount} ${trxSlice.trxChange < 0 ? classes.FooterAmountRed : classes.FooterAmountGreen}`}>
-                                            {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                            {(Math.round(trxSlice.trxChange * 100) / 100).toFixed(config.decimals)}
                                         </label>
                                     </div>
                                 </div>
@@ -3180,17 +3215,17 @@ const Terminal = (props) => {
                                     <b>{trxSlice.scannedItems ? trxSlice.scannedItems.length : 0}</b>
                                     Items
                                 </span>
-                                {trxSlice.trx && trxSlice.trx.totalcashbackamt > 0 && (
+                                {config.features.cashback && trxSlice.trx && trxSlice.trx.totalcashbackamt > 0 && (
                                     <span className={`${classes.FooterPill} ${classes.FooterPillCashback}`}>
                                         <FontAwesomeIcon icon={faStar} style={{ fontSize: 10 }} />
                                         Cashback
-                                        <b>{((trxSlice.trx.totalcashbackamt * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
+                                        <b>{((trxSlice.trx.totalcashbackamt * 100) / 100).toFixed(config.decimals)}</b>
                                     </span>
                                 )}
                                 <span className={`${classes.FooterPill} ${trxSlice.trx && trxSlice.trx.isTaxExempt ? classes.FooterPillTaxExempt : classes.FooterPillTax}`}>
                                     <FontAwesomeIcon icon={faTag} style={{ fontSize: 10 }} />
                                     Tax
-                                    <b>{trxSlice.trx ? (((trxSlice.trx.totalTaxAmt) * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : (0).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}</b>
+                                    <b>{trxSlice.trx ? (((trxSlice.trx.totalTaxAmt) * 100) / 100).toFixed(config.decimals) : (0).toFixed(config.decimals)}</b>
                                 </span>
                             </div>
                         </div>
@@ -3642,11 +3677,13 @@ const Terminal = (props) => {
                 </Modal.Footer>
             </Modal>
 
-            <RefundReferenceDialog
-                open={refundReferenceDialogOpen}
-                onClose={handleRefundReferenceDialogClose}
-                onValidated={handleRefundReferenceValidated}
-            />
+            {config.features.refundReference && (
+                <RefundReferenceDialog
+                    open={refundReferenceDialogOpen}
+                    onClose={handleRefundReferenceDialogClose}
+                    onValidated={handleRefundReferenceValidated}
+                />
+            )}
 
             <CustomCustomerNameDialog
                 open={customCustomerNameDialogOpen}

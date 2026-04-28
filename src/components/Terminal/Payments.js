@@ -273,7 +273,7 @@ const Invoice = (props) => {
                             </b>
                             Items
                         </span>
-                        {trxSlice.trx && trxSlice.trx.totalcashbackamt > 0 && (
+                        {config.features.cashback && trxSlice.trx && trxSlice.trx.totalcashbackamt > 0 && (
                             <span style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -288,7 +288,7 @@ const Invoice = (props) => {
                             }}>
                                 Cashback&nbsp;
                                 <b style={{ fontFamily: '"DSDIGI", monospace', fontSize: '13px' }}>
-                                    {((trxSlice.trx.totalcashbackamt * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3)}
+                                    {((trxSlice.trx.totalcashbackamt * 100) / 100).toFixed(config.decimals)}
                                 </b>
                             </span>
                         )}
@@ -300,7 +300,7 @@ const Invoice = (props) => {
                             fontWeight: 700,
                             marginRight: '6px',
                             letterSpacing: '0.5px'
-                        }}>JD</small>
+                        }}>{config.currencySymbol}</small>
                         <label id='Total' style={{
                             color: '#111827',
                             fontSize: '36px',
@@ -308,7 +308,7 @@ const Invoice = (props) => {
                             fontFamily: '"DSDIGI", monospace',
                             lineHeight: 1
                         }}>
-                            {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.systemCurrency === 'NIS' ? 2 : 3) : '0.00'}
+                            {trxSlice.trx ? (Math.round(trxSlice.trx.totalafterdiscount * 100) / 100).toFixed(config.decimals) : '0.00'}
                         </label>
                     </div>
 

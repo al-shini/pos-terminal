@@ -125,6 +125,12 @@ function createWindow() {
     } else {
         params += `&systemCurrency=NIS`;
     }
+    // Tenant drives regional behaviour (currency symbol, rounding, feature flags).
+    // Defaults to jordan when omitted so existing installers keep working; palestine
+    // installers should set tenant=palestine in pos-config.json.
+    if (localConfig.tenant) {
+        params += `&tenant=${localConfig.tenant}`;
+    }
 
 
     logger.info(params);

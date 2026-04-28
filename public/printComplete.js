@@ -7,6 +7,20 @@ const qr = require('qrcode');
 let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
 let localConfig = JSON.parse(localConfigFile);
 
+// Tenant-derived currency helpers used throughout the receipt layout.
+// tenant: 'jordan' | 'palestine' (defaults to jordan). Falls back to legacy
+// systemCurrency=NIS when tenant is not explicitly set in posconfig.json.
+const posTenant = (() => {
+    const t = (localConfig.tenant || '').toString().toLowerCase();
+    if (t === 'palestine' || t === 'ps') return 'palestine';
+    if (t === 'jordan' || t === 'jo') return 'jordan';
+    return localConfig.systemCurrency === 'NIS' ? 'palestine' : 'jordan';
+})();
+const posDecimals = posTenant === 'palestine' ? 2 : 3;
+// 'DJ' is the reversed form of 'JD' used in RTL-printed labels; '₪' is ILS.
+const posCurrencyPrintSymbol = posTenant === 'palestine' ? '₪' : 'DJ';
+const fmtAmt = (n) => Number(n || 0).toFixed(posDecimals);
+
 const reverseNumber = (number) => {
     return number.toString().split('').reverse().join('');
 };
@@ -135,8 +149,8 @@ const printComplete = async (object) => {
         if (item.totalPrice !== item.finalPrice) {
             offer = true;
             // Original total price with strikethrough
-            textWidth = arialFont.widthOfTextAtSize(item.totalPrice.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), fontSize);
-            page.drawText(item.totalPrice.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[0] - textWidth, y: yPosition, color: rgb(1, 0, 0) });
+            textWidth = arialFont.widthOfTextAtSize(item.totalPrice.toFixed(posDecimals), fontSize);
+            page.drawText(item.totalPrice.toFixed(posDecimals), { x: headerPositions[0] - textWidth, y: yPosition, color: rgb(1, 0, 0) });
             page.drawLine({
                 start: { x: headerPositions[0] - textWidth, y: yPosition + 2 },
                 end: { x: headerPositions[0], y: yPosition + 2 },
@@ -145,8 +159,8 @@ const printComplete = async (object) => {
             });
 
             // Original price per unit with strikethrough
-            textWidth = arialFont.widthOfTextAtSize((item.totalPrice / item.quantity).toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), fontSize);
-            page.drawText((item.totalPrice / item.quantity).toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[1] - textWidth, y: yPosition, color: rgb(1, 0, 0) });
+            textWidth = arialFont.widthOfTextAtSize((item.totalPrice / item.quantity).toFixed(posDecimals), fontSize);
+            page.drawText((item.totalPrice / item.quantity).toFixed(posDecimals), { x: headerPositions[1] - textWidth, y: yPosition, color: rgb(1, 0, 0) });
             page.drawLine({
                 start: { x: headerPositions[1] - textWidth, y: yPosition + 2 },
                 end: { x: headerPositions[1], y: yPosition + 2 },
@@ -157,19 +171,19 @@ const printComplete = async (object) => {
             yPosition -= 10;
 
             // Discounted total price
-            textWidth = arialFont.widthOfTextAtSize(item.finalPrice.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), fontSize);
-            page.drawText(item.finalPrice.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[0] - textWidth, y: yPosition });
+            textWidth = arialFont.widthOfTextAtSize(item.finalPrice.toFixed(posDecimals), fontSize);
+            page.drawText(item.finalPrice.toFixed(posDecimals), { x: headerPositions[0] - textWidth, y: yPosition });
 
             // Discounted price per unit
-            textWidth = arialFont.widthOfTextAtSize((item.finalPrice / item.quantity).toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), fontSize);
-            page.drawText((item.finalPrice / item.quantity).toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[1] - textWidth, y: yPosition });
+            textWidth = arialFont.widthOfTextAtSize((item.finalPrice / item.quantity).toFixed(posDecimals), fontSize);
+            page.drawText((item.finalPrice / item.quantity).toFixed(posDecimals), { x: headerPositions[1] - textWidth, y: yPosition });
         } else {
             // Regular price
-            textWidth = arialFont.widthOfTextAtSize(item.finalPrice.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), fontSize);
-            page.drawText(item.finalPrice.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[0] - textWidth, y: yPosition });
+            textWidth = arialFont.widthOfTextAtSize(item.finalPrice.toFixed(posDecimals), fontSize);
+            page.drawText(item.finalPrice.toFixed(posDecimals), { x: headerPositions[0] - textWidth, y: yPosition });
 
-            textWidth = arialFont.widthOfTextAtSize((item.totalPrice / item.quantity).toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), fontSize);
-            page.drawText((item.totalPrice / item.quantity).toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3), { x: headerPositions[1] - textWidth, y: yPosition });
+            textWidth = arialFont.widthOfTextAtSize((item.totalPrice / item.quantity).toFixed(posDecimals), fontSize);
+            page.drawText((item.totalPrice / item.quantity).toFixed(posDecimals), { x: headerPositions[1] - textWidth, y: yPosition });
         }
 
         // Quantity and description
@@ -187,12 +201,12 @@ const printComplete = async (object) => {
 
     const summaryLabels = ['المجموع النهائي', 'مجموع التوفير', 'المدفوع', 'الباقي', 'قيمة الضريبة', 'خصم ضريبي'];
     const summaryValues = [
-        object.total.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3),
-        object.discount.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3),
-        object.paid.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3),
-        object.change.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3),
-        object.totalTax.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3),
-        object.taxDiscount ? object.taxDiscount.toFixed(localConfig.systemCurrency === 'NIS' ? 2 : 3) : 0.000,
+        object.total.toFixed(posDecimals),
+        object.discount.toFixed(posDecimals),
+        object.paid.toFixed(posDecimals),
+        object.change.toFixed(posDecimals),
+        object.totalTax.toFixed(posDecimals),
+        object.taxDiscount ? object.taxDiscount.toFixed(posDecimals) : 0.000,
     ];
 
     page.setFontSize(fontSize);
@@ -206,37 +220,37 @@ const printComplete = async (object) => {
     });
 
     // المجموع النهائي (Total)
-    page.drawText(`${summaryLabels[0]}: ${reverseNumber(summaryValues[0])} ${localConfig.systemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
-        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[0]}: ${reverseNumber(summaryValues[0])} ${localConfig.systemCurrency === 'NIS' ? '₪' : 'DJ'}`, fontSize),
+    page.drawText(`${summaryLabels[0]}: ${reverseNumber(summaryValues[0])} ${posCurrencyPrintSymbol}`, {
+        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[0]}: ${reverseNumber(summaryValues[0])} ${posCurrencyPrintSymbol}`, fontSize),
         y: summaryYStart,
     });
 
     // مجموع الخصم (Discount)
-    page.drawText(`${summaryLabels[1]}: ${reverseNumber(summaryValues[1])} ${localConfig.systemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
+    page.drawText(`${summaryLabels[1]}: ${reverseNumber(summaryValues[1])} ${posCurrencyPrintSymbol}`, {
         x: detailsXStart,
         y: summaryYStart,
     });
 
     // المدفوع (Paid)
-    page.drawText(`${summaryLabels[2]}: ${reverseNumber(summaryValues[2])} ${localConfig.systemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
-        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[2]}: ${reverseNumber(summaryValues[2])} ${localConfig.systemCurrency === 'NIS' ? '₪' : 'DJ'}`, fontSize),
+    page.drawText(`${summaryLabels[2]}: ${reverseNumber(summaryValues[2])} ${posCurrencyPrintSymbol}`, {
+        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[2]}: ${reverseNumber(summaryValues[2])} ${posCurrencyPrintSymbol}`, fontSize),
         y: summaryYStart - 12.5,
     });
 
     // الباقي (Change)
-    page.drawText(`${summaryLabels[3]}: ${reverseNumber(summaryValues[3])} ${localConfig.systemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
+    page.drawText(`${summaryLabels[3]}: ${reverseNumber(summaryValues[3])} ${posCurrencyPrintSymbol}`, {
         x: detailsXStart,
         y: summaryYStart - 12.5,
     });
 
     // Tax Total
-    page.drawText(`${summaryLabels[4]}: ${reverseNumber(summaryValues[4])} ${localConfig.systemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
-        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[4]}: ${reverseNumber(summaryValues[4])} ${localConfig.systemCurrency === 'NIS' ? '₪' : 'DJ'}`, fontSize),
+    page.drawText(`${summaryLabels[4]}: ${reverseNumber(summaryValues[4])} ${posCurrencyPrintSymbol}`, {
+        x: detailsXEnd - arialFont.widthOfTextAtSize(`${summaryLabels[4]}: ${reverseNumber(summaryValues[4])} ${posCurrencyPrintSymbol}`, fontSize),
         y: summaryYStart - 25,
     });
 
     // Tax discount
-    page.drawText(`${summaryLabels[5]}: ${reverseNumber(summaryValues[5])} ${localConfig.systemCurrency === 'NIS' ? '₪' : 'DJ'}`, {
+    page.drawText(`${summaryLabels[5]}: ${reverseNumber(summaryValues[5])} ${posCurrencyPrintSymbol}`, {
         x: detailsXStart,
         y: summaryYStart - 25,
     });

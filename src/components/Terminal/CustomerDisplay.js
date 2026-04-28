@@ -19,8 +19,8 @@ import CustomerNewsTicker from './CustomerNewsTicker';
 
 const CONFIG_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
 
-const CURRENCY = config.systemCurrency === 'NIS' ? 'JD' : 'JD';
-const DECIMALS = config.systemCurrency === 'NIS' ? 2 : 3;
+const CURRENCY = config.currencySymbol;
+const DECIMALS = config.decimals;
 const fmtAmount = (n) => (((Number(n) || 0) * 100) / 100).toFixed(DECIMALS);
 
 /**
@@ -50,6 +50,14 @@ const CustomerDisplay = () => {
     const [displayConfig, setDisplayConfig] = useState({ images: [], messages: [] });
 
     useEffect(() => {
+        // Customer-display carousel/news is only wired into the Jordan
+        // backend (it depends on head-office system params + a dedicated
+        // endpoint). For tenants without the feature we stay on the
+        // empty defaults — the display still renders totals/lines fine.
+        if (!config.features.customerDisplayConfig) {
+            return;
+        }
+
         let cancelled = false;
 
         const fetchConfig = () => {
@@ -83,6 +91,7 @@ const CustomerDisplay = () => {
     const customerName = terminal.customer ? terminal.customer.customerName : null;
 
     const clubBalance = useMemo(() => {
+        if (!config.features.cashback) return null;
         if (!isClub || !terminal.customer) return null;
         const raw = Number(terminal.customer.cashbackBalance);
         if (!raw) return null;
@@ -100,7 +109,7 @@ const CustomerDisplay = () => {
     const changeDisplay = fmtAmount(change);
 
     const itemCount = trxSlice.scannedItems ? trxSlice.scannedItems.length : 0;
-    const cashback = trxSlice.trx && trxSlice.trx.totalcashbackamt > 0
+    const cashback = config.features.cashback && trxSlice.trx && trxSlice.trx.totalcashbackamt > 0
         ? fmtAmount(trxSlice.trx.totalcashbackamt)
         : null;
 

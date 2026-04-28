@@ -16,6 +16,7 @@ import {
 } from '../../store/backofficeSlice';
 import confirm from '../../components/UI/ConfirmDlg';
 import classes from './Admin.module.css';
+import config from '../../config';
 
 const { Column, HeaderCell, Cell } = Table;
 
@@ -59,7 +60,7 @@ const NumberCell = ({ value, muted }) => (
 
 const CurrencyIcon = ({ currency }) => {
     const key = (currency || '').toUpperCase();
-    if (key === 'JOD') return <FontAwesomeIcon icon={faCoins} />;
+    if (key === 'JOD' || key === 'NIS' || key === 'ILS') return <FontAwesomeIcon icon={faCoins} />;
     if (key === 'USD') return <FontAwesomeIcon icon={faMoneyBillWave} />;
     if (key === 'EUR') return <FontAwesomeIcon icon={faMoneyBillWave} />;
     return <FontAwesomeIcon icon={faCoins} />;
@@ -92,14 +93,14 @@ const ActiveTills = ({ superAdmin } = {}) => {
         },
         actual: {
             value:
-                bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash'
+                bv.currency === config.systemCurrency && bv.paymentMethodKey === 'Cash'
                     ? (selectedTill && selectedTill.actualBalance)
                     : bv.actualBalance,
             editable: false,
         },
         variance: {
             value:
-                bv.currency === 'JOD' && bv.paymentMethodKey === 'Cash'
+                bv.currency === config.systemCurrency && bv.paymentMethodKey === 'Cash'
                     ? (selectedTill && selectedTill.variance)
                     : bv.ogCurrencyVariance,
             editable: false,
@@ -404,7 +405,7 @@ const ActiveTills = ({ superAdmin } = {}) => {
                         </div>
                     </div>
                     <div className={classes.VarianceBannerAmount}>
-                        {variance} <span style={{ fontSize: 18, marginLeft: 6, letterSpacing: 1 }}>JD</span>
+                        {variance} <span style={{ fontSize: 18, marginLeft: 6, letterSpacing: 1 }}>{config.currencySymbol}</span>
                     </div>
                 </div>
             )}

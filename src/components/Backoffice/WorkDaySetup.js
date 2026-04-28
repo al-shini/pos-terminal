@@ -12,6 +12,7 @@ import { notify } from '../../store/uiSlice';
 import { setWorkDay, endDay } from '../../store/backofficeSlice';
 import confirm from '../../components/UI/ConfirmDlg';
 import HourlySalesChart from './HourlySalesChart';
+import config from '../../config';
 
 const fmtAmount = (val) => {
     if (val === undefined || val === null || val === '') return '0.00';
@@ -200,7 +201,7 @@ const WorkDaySetup = () => {
                                 icon={faHandHoldingDollar}
                                 label="Refund Amount"
                                 value={fmtAmount(workDay.currentRefundTrxValue)}
-                                caption="JD"
+                                caption={config.currencySymbol}
                                 variant="small"
                             />
                         </div>
@@ -218,23 +219,25 @@ const WorkDaySetup = () => {
                                 icon={faBan}
                                 label="Voided"
                                 value={workDay.currentVoidedCount || 0}
-                                caption={`JD ${fmtAmount(workDay.currentVoidedValue)}`}
+                                caption={`${config.currencySymbol} ${fmtAmount(workDay.currentVoidedValue)}`}
                             />
                             <KpiStat
                                 icon={faPause}
                                 label="Suspended"
                                 value={workDay.currentSuspendedCount || 0}
-                                caption={`JD ${fmtAmount(workDay.currentSuspendedValue)}`}
+                                caption={`${config.currencySymbol} ${fmtAmount(workDay.currentSuspendedValue)}`}
                             />
                         </div>
                     </div>
                 </div>
             </div>
 
-            <HourlySalesChart
-                defaultDateFrom={workDay.businessDateAsString}
-                defaultDateTo={workDay.businessDateAsString}
-            />
+            {config.features && config.features.adminHourlySales && (
+                <HourlySalesChart
+                    defaultDateFrom={workDay.businessDateAsString}
+                    defaultDateTo={workDay.businessDateAsString}
+                />
+            )}
         </>
     );
 };

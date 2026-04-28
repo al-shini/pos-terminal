@@ -52,6 +52,9 @@ const Numpad = (props) => {
     }
 
     const handleOk = () => {
+        if (trxSlice.closingTrx) {
+            return;
+        }
         if (terminal.till && terminal.till.isInitialized) {
             if (terminal.paymentMode) {
                 if (trxSlice.trx) {
@@ -199,7 +202,7 @@ const Numpad = (props) => {
                                 }} />
                         }
                         {trxSlice.priceChangeMode &&
-                            <Input value={'JD ' + (trxSlice.selectedLine ? (trxSlice.selectedLine.finalprice / trxSlice.selectedLine.qty) : '-') + ' -> '}
+                            <Input value={config.currencySymbol + ' ' + (trxSlice.selectedLine ? (trxSlice.selectedLine.finalprice / trxSlice.selectedLine.qty) : '-') + ' -> '}
                                 disabled
                                 placeholder={'Old Price'}
                                 style={{
@@ -222,7 +225,7 @@ const Numpad = (props) => {
                             disabled={terminal.paymentMode && terminal.paymentInput === 'fixed'}
                             placeholder={terminal.paymentMode && terminal.paymentInput === 'numpad'
                                 ? trxSlice.selectedPaymentMethod === 'Voucher' ? 'Insert Voucher/Coupon Key' :
-                                    'Rate (' + trxSlice.selectedCurrency + ' x ' + (trxSlice.selectedCurrency === 'NIS' ? '1' : terminal.exchangeRates[trxSlice.selectedCurrency]) + ')' :
+                                    'Rate (' + trxSlice.selectedCurrency + ' x ' + (trxSlice.selectedCurrency === config.systemCurrency ? '1' : terminal.exchangeRates[trxSlice.selectedCurrency]) + ')' :
                                 terminal.paymentMode && terminal.paymentInput === 'fixed' ? '-' : trxSlice.priceChangeMode ? 'Insert New Price (Per Item)' : 'Search'}
                             style={{
                                 flex: 1,
@@ -359,8 +362,9 @@ const Numpad = (props) => {
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={24} id='OkButton'>
                         <Button color={isRefundMode ? 'red' : 'green'} appearance='primary' className={okClass}
+                            disabled={trxSlice.closingTrx}
                             onClick={handleOk} >
-                            OK
+                            {trxSlice.closingTrx ? '...' : 'OK'}
                         </Button>
                     </FlexboxGrid.Item>
                 </FlexboxGrid>

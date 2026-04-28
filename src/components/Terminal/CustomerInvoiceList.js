@@ -6,8 +6,8 @@ import { faBan, faTag, faReceipt } from '@fortawesome/free-solid-svg-icons';
 import classes from './CustomerDisplay.module.css';
 import config from '../../config';
 
-const CURRENCY = config.systemCurrency === 'NIS' ? 'JD' : 'JD';
-const DECIMALS = config.systemCurrency === 'NIS' ? 2 : 3;
+const CURRENCY = config.currencySymbol;
+const DECIMALS = config.decimals;
 const fmt = (n) => (((Number(n) || 0) * 100) / 100).toFixed(DECIMALS);
 
 const deriveItemState = (item) => {

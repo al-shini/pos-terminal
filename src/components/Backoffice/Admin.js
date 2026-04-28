@@ -19,6 +19,7 @@ import CustomerLookup from './CustomerLookup';
 import Reports from './Reports';
 import InvoicePrintA4 from './InvoicePrintA4';
 import confirm from '../UI/ConfirmDlg';
+import config from '../../config';
 import {
     setActiveTab,
     setGlobalSearchQuery,
@@ -30,7 +31,21 @@ import {
     clearPrintInvoiceKey,
 } from '../../store/backofficeSlice';
 
-const TAB_KEYS = ['day', 'tills', 'invoices', 'loyalty', 'reports'];
+// Extended back-office features (invoice lookup, loyalty, reports, global
+// search, cashier enrichment) only exist on the Jordan backend. For other
+// tenants we fall back to the core workday + till-closing flow.
+const EXTENDED_BO = Boolean(
+    config.features &&
+    (config.features.adminInvoicesLookup ||
+        config.features.adminCustomersLookup ||
+        config.features.adminTopItems ||
+        config.features.adminAudit ||
+        config.features.adminHourlySales)
+);
+
+const TAB_KEYS = EXTENDED_BO
+    ? ['day', 'tills', 'invoices', 'loyalty', 'reports']
+    : ['day', 'tills'];
 
 // Gate for the Super-Admin shield. The only action currently behind it is
 // "Force Close Till", which we're disabling for now — so the whole shield UI
@@ -45,7 +60,10 @@ const Admin = () => {
     const backofficeSlice = useSelector((state) => state.backoffice);
     const terminalSlice = useSelector((state) => state.terminal);
 
-    const activeTab = backofficeSlice?.activeTab || 'day';
+    const rawActiveTab = backofficeSlice?.activeTab || 'day';
+    // Tenants without the extended BO suite can still have persisted redux
+    // state referencing gated tabs — fall back to Day Overview in that case.
+    const activeTab = TAB_KEYS.includes(rawActiveTab) ? rawActiveTab : 'day';
     const tabIndex = Math.max(0, TAB_KEYS.indexOf(activeTab));
     const printInvoiceKey = backofficeSlice?.printInvoiceKey || null;
 
@@ -59,6 +77,9 @@ const Admin = () => {
     const searchInputRef = useRef(null);
 
     useEffect(() => {
+        // /bo/cashiers only exists on the Jordan backend. For lean tenants
+        // the customer-lookup filters simply don't need a cashier list.
+        if (!EXTENDED_BO) return;
         dispatch(fetchCashiers());
     }, [dispatch]);
 
@@ -174,20 +195,22 @@ const Admin = () => {
                 </div>
 
                 <div className={classes.TopBarRight}>
-                    <div className={classes.TopBarSearch}>
-                        <FontAwesomeIcon icon={faMagnifyingGlass} className={classes.TopBarSearchIcon} />
-                        <input
-                            ref={searchInputRef}
-                            type="text"
-                            placeholder="Search trx serial, nanoId, mobile, name…"
-                            value={globalQuery}
-                            onChange={(e) => setLocalGlobalQuery(e.target.value)}
-                            onKeyDown={onGlobalKeyDown}
-                        />
-                        {globalResolving && (
-                            <FontAwesomeIcon icon={faSpinner} spin className={classes.TopBarSearchSpinner} />
-                        )}
-                    </div>
+                    {EXTENDED_BO && (
+                        <div className={classes.TopBarSearch}>
+                            <FontAwesomeIcon icon={faMagnifyingGlass} className={classes.TopBarSearchIcon} />
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder="Search trx serial, nanoId, mobile, name…"
+                                value={globalQuery}
+                                onChange={(e) => setLocalGlobalQuery(e.target.value)}
+                                onKeyDown={onGlobalKeyDown}
+                            />
+                            {globalResolving && (
+                                <FontAwesomeIcon icon={faSpinner} spin className={classes.TopBarSearchSpinner} />
+                            )}
+                        </div>
+                    )}
 
                     {SUPER_ADMIN_ENABLED && (
                         <button
@@ -219,9 +242,15 @@ const Admin = () => {
                 >
                     <Tab disableRipple label={<span className={classes.TabLabel}><FontAwesomeIcon icon={faCalendarDay} />Day Overview</span>} />
                     <Tab disableRipple label={<span className={classes.TabLabel}><FontAwesomeIcon icon={faUsersGear} />Active Tills</span>} />
-                    <Tab disableRipple label={<span className={classes.TabLabel}><FontAwesomeIcon icon={faReceipt} />Invoices</span>} />
-                    <Tab disableRipple label={<span className={classes.TabLabel}><FontAwesomeIcon icon={faUserGroup} />Loyalty</span>} />
-                    <Tab disableRipple label={<span className={classes.TabLabel}><FontAwesomeIcon icon={faChartColumn} />Reports</span>} />
+                    {EXTENDED_BO && (
+                        <Tab disableRipple label={<span className={classes.TabLabel}><FontAwesomeIcon icon={faReceipt} />Invoices</span>} />
+                    )}
+                    {EXTENDED_BO && (
+                        <Tab disableRipple label={<span className={classes.TabLabel}><FontAwesomeIcon icon={faUserGroup} />Loyalty</span>} />
+                    )}
+                    {EXTENDED_BO && (
+                        <Tab disableRipple label={<span className={classes.TabLabel}><FontAwesomeIcon icon={faChartColumn} />Reports</span>} />
+                    )}
                 </Tabs>
             </div>
 
@@ -230,9 +259,9 @@ const Admin = () => {
             <div className={classes.ContentScroll}>
                 {activeTab === 'day' && <WorkDaySetup />}
                 {activeTab === 'tills' && <ActiveTills superAdmin={contextValue.superAdmin} />}
-                {activeTab === 'invoices' && <InvoicesLookup />}
-                {activeTab === 'loyalty' && <CustomerLookup />}
-                {activeTab === 'reports' && <Reports />}
+                {EXTENDED_BO && activeTab === 'invoices' && <InvoicesLookup />}
+                {EXTENDED_BO && activeTab === 'loyalty' && <CustomerLookup />}
+                {EXTENDED_BO && activeTab === 'reports' && <Reports />}
             </div>
 
             {printInvoiceKey && (

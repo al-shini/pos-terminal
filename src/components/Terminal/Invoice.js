@@ -16,14 +16,14 @@ const InvoiceItem = React.memo(({ index, style, data }) => {
     const isSelected = obj.key === selectedLine.key;
     const isVoided = obj.voided;
 
-    const currency = config.systemCurrency === 'NIS' ? 'JD' : 'JD';
-    const decimals = config.systemCurrency === 'NIS' ? 2 : 3;
+    const currency = config.currencySymbol;
+    const decimals = config.decimals;
     const fmt = (n) => (((n) * 100) / 100).toFixed(decimals);
 
     const hasDiscount = obj.finalprice < obj.totalprice;
     const hasNegativeDiscount = obj.finalprice > obj.totalprice;
     const hasPriceChange = (obj.finalprice !== obj.totalprice) && obj.priceOverride;
-    const hasCashback = obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club;
+    const hasCashback = config.features.cashback && obj.cashBackAmt > 0 && terminal.customer && terminal.customer.club;
     const hasAnyBadge = isVoided || hasDiscount || hasNegativeDiscount || hasPriceChange || hasCashback;
 
     const hasPriceAdjustment = hasDiscount || hasNegativeDiscount;
@@ -391,8 +391,8 @@ const Invoice = (props) => {
                 const displayPriceLatest = hasPriceAdjustmentLatest ? latestItem.finalprice : latestItem.totalprice;
                 const priceDeltaLatest = hasPriceAdjustmentLatest ? Math.abs(latestItem.totalprice - latestItem.finalprice) : 0;
 
-                const currencyLatest = config.systemCurrency === 'NIS' ? 'JD' : 'JD';
-                const decimalsLatest = config.systemCurrency === 'NIS' ? 2 : 3;
+                const currencyLatest = config.currencySymbol;
+                const decimalsLatest = config.decimals;
                 const fmtLatest = (n) => (((n) * 100) / 100).toFixed(decimalsLatest);
 
                 const cardExtraClass = isVoidedLatest

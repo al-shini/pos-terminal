@@ -413,7 +413,8 @@ const Login = () => {
                                 Welcome back.
                             </Box>
                             <Box sx={styles.heroSubtitle}>
-                                Fast, reliable checkout — crafted for every Shini Extra branch across Jordan.
+                                Fast, reliable checkout — crafted for every Shini Extra branch
+                                {config.tenant === 'palestine' ? ' across Palestine.' : ' across Jordan.'}
                             </Box>
                         </Box>
 
