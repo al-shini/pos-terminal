@@ -2236,7 +2236,7 @@ const Terminal = (props) => {
                     <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
                 </>
             )}
-            {
+            {config.features.printLastTrx && (
                 <Button key='lastTrxList' className={classes.MainActionButton}
                     onClick={handleLastTrxList}>
                     <div style={{ fontSize: '12px', }}>
@@ -2244,7 +2244,7 @@ const Terminal = (props) => {
                         <label>Print Last TRX</label>
                     </div>
                 </Button>
-            }
+            )}
         </React.Fragment >;
     }
 

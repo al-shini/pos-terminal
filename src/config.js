@@ -105,6 +105,10 @@ const tenantProfiles = {
             // Arab Bank Visa terminal integration is a Palestine-only payment
             // method (key `VISA_AB`). Jordan stores never see this button.
             arabVisa: false,
+            // "Print Last TRX" button in the Operations menu — lists the last
+            // 10 transactions and lets the cashier re-print any of them.
+            // Disabled for Palestine per business requirement.
+            printLastTrx: true,
             // back-office admin endpoints that only exist on the Jordan backend
             adminInvoicesLookup: true,
             adminCustomersLookup: true,
@@ -133,6 +137,7 @@ const tenantProfiles = {
             talabat: false,
             // Palestine-only: Arab Bank Visa (payment_method.key = VISA_AB).
             arabVisa: true,
+            printLastTrx: false,
             adminInvoicesLookup: false,
             adminCustomersLookup: false,
             adminAudit: false,

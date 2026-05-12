@@ -31,7 +31,16 @@ const initialState = {
     // re-entrancy guard for the cashier tapping OK multiple times during
     // /trx/closeTrxPayment (previously could produce duplicate CASHBACK_BALANCE_CONSUME
     // queue rows and double-deduct points_balance in shini me)
-    closingTrx: false
+    closingTrx: false,
+    // [PS fix] Monotonic sequence number for scan requests. Each scanBarcode /
+    // scanNewTransaction dispatch increments this counter and tags itself with
+    // the resulting value; the .fulfilled reducer ignores any response whose
+    // sequence is older than the latest one already applied. Without this,
+    // when two scans are fired within ~50ms (very common at Palestine fresh
+    // produce / bakery counters) the slower response could overwrite the
+    // newer trx state on screen and silently roll the visible total back.
+    scanSeq: 0,
+    lastAppliedScanSeq: 0
 }
 
 /**
@@ -41,7 +50,11 @@ const initialState = {
 export const scanNewTransaction = createAsyncThunk(
     'scanNewTransaction',
     async (payload, thunkAPI) => {
-        // 
+        // [PS fix] Tag this dispatch with a monotonic sequence number so the
+        // .fulfilled reducer can drop out-of-order responses (a slow scan
+        // response must never overwrite the state produced by a newer one).
+        thunkAPI.dispatch(bumpScanSeq());
+        const __scanSeq = thunkAPI.getState().trx.scanSeq;
 
         if (thunkAPI.getState().terminal.paymentMode) {
             console.log('in payment mode');
@@ -60,6 +73,9 @@ export const scanNewTransaction = createAsyncThunk(
                 }
             }).then((response) => {
                 if (response && response.data) {
+                    if (response.data && typeof response.data === 'object') {
+                        response.data.__scanSeq = __scanSeq;
+                    }
 
                     return thunkAPI.fulfillWithValue(response.data);
                 } else {
@@ -100,6 +116,10 @@ export const scanNewTransaction = createAsyncThunk(
                 data: payloadData
             }).then((response) => {
                 if (response && response.data) {
+                    // tag the response with the sequence we captured above
+                    if (response.data && typeof response.data === 'object') {
+                        response.data.__scanSeq = __scanSeq;
+                    }
 
                     if (!payload.barcode.includes('C-')) {
                         const scanPayload = {
@@ -152,6 +172,10 @@ export const scanNewTransaction = createAsyncThunk(
 export const scanBarcode = createAsyncThunk(
     'scanBarcode',
     async (payload, thunkAPI) => {
+        // [PS fix] Tag this dispatch with a monotonic sequence number; see
+        // scanNewTransaction above.
+        thunkAPI.dispatch(bumpScanSeq());
+        const __scanSeq = thunkAPI.getState().trx.scanSeq;
 
         if (thunkAPI.getState().terminal.paymentMode) {
             console.log('in payment mode');
@@ -191,6 +215,9 @@ export const scanBarcode = createAsyncThunk(
         }).then((response) => {
             if (response && response.data) {
                 console.log('response.data', response.data)
+                if (response.data && typeof response.data === 'object') {
+                    response.data.__scanSeq = __scanSeq;
+                }
                 thunkAPI.dispatch(scroll());
                 if (response.data.customer) {
                     thunkAPI.dispatch(setCustomer(response.data.customer));
@@ -1140,6 +1167,11 @@ export const trxSlice = createSlice({
         },
         clearOriginalTrxReference: (state) => {
             state.originalTrxReference = null;
+        },
+        // [PS fix] Increment the monotonic scan sequence; called at the very
+        // start of every scanBarcode / scanNewTransaction dispatch.
+        bumpScanSeq: (state) => {
+            state.scanSeq = (state.scanSeq || 0) + 1;
         }
     },
     extraReducers: (builder) => {
@@ -1157,6 +1189,17 @@ export const trxSlice = createSlice({
 
         /* scanNewTransaction thunk */
         builder.addCase(scanNewTransaction.fulfilled, (state, action) => {
+            // [PS fix] Drop stale (out-of-order) responses. If a slower
+            // response arrives after a newer scan has already been applied,
+            // ignore it — otherwise the visible total would silently roll
+            // back to whatever the older scan saw.
+            const seq = action.payload && action.payload.__scanSeq;
+            if (seq != null && seq < (state.lastAppliedScanSeq || 0)) {
+                console.warn('[scan] dropping stale response', seq, 'last applied', state.lastAppliedScanSeq);
+                return;
+            }
+            if (seq != null) state.lastAppliedScanSeq = seq;
+
             console.log(action);
             state.trx = action.payload.trx;
             state.scannedItems = action.payload.trxLines;
@@ -1171,6 +1214,14 @@ export const trxSlice = createSlice({
 
         /* scan thunk */
         builder.addCase(scanBarcode.fulfilled, (state, action) => {
+            // [PS fix] same out-of-order guard as scanNewTransaction.
+            const seq = action.payload && action.payload.__scanSeq;
+            if (seq != null && seq < (state.lastAppliedScanSeq || 0)) {
+                console.warn('[scan] dropping stale response', seq, 'last applied', state.lastAppliedScanSeq);
+                return;
+            }
+            if (seq != null) state.lastAppliedScanSeq = seq;
+
             if (action.payload.line) {
                 state.trx = action.payload.trx;
                 state.scannedItems = action.payload.trxLines;
@@ -1391,6 +1442,7 @@ export const trxSlice = createSlice({
 export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx, enablePriceChange, disablePriceChange, scroll,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory,
     uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason, scrollDown, scrollUp, resetScrollAction, prepareScanMultiplierPreDefined, scrollBottom,
-    setOriginalTrxReference, clearOriginalTrxReference
+    setOriginalTrxReference, clearOriginalTrxReference,
+    bumpScanSeq
 } = trxSlice.actions
 export default trxSlice.reducer
