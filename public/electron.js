@@ -868,7 +868,39 @@ if (!gotTheLock) {
 
     // Enhanced scale handling with stability management
     let scaleHandler = null;
-    
+
+    // Scale frame delimiter resolution
+    // -----------------------------------------------------------------------
+    // Different scale firmwares terminate their frames differently. Jordan
+    // scales (TEM EGE-TB and similar) emit CR-terminated frames, while
+    // Palestine installs typically run LF-terminated firmware. If the
+    // delimiter doesn't match what the scale emits, `ReadlineParser` never
+    // fires and `/weightScale` ends up timing out.
+    //
+    // Resolution order (most specific wins):
+    //   1. `localConfig.scaleFrameDelimiter` — explicit per-install override
+    //      in pos-config.json. Accepts either a JSON-escaped control char
+    //      ("\r", "\n", "\r\n") or the literal tokens "CR", "LF", "CRLF".
+    //   2. Tenant default — palestine → "\n", jordan → "\r".
+    //   3. Fall back to "\r" for safety (Jordan has been the historical
+    //      default and the TEM EGE-TB comment below still applies).
+    const resolveScaleFrameDelimiter = () => {
+        const raw = localConfig.scaleFrameDelimiter;
+        if (typeof raw === 'string' && raw.length > 0) {
+            const upper = raw.trim().toUpperCase();
+            if (upper === 'CR') return '\r';
+            if (upper === 'LF') return '\n';
+            if (upper === 'CRLF') return '\r\n';
+            return raw; // assume JSON already unescaped "\r" / "\n"
+        }
+        const tenant = (localConfig.tenant || '').toString().toLowerCase();
+        if (tenant === 'palestine' || tenant === 'ps') return '\n';
+        if (tenant === 'jordan' || tenant === 'jo') return '\r';
+        // Legacy installs don't carry a tenant field; keep historical CR so
+        // existing Jordan stores aren't disturbed.
+        return '\r';
+    };
+
     // Scale configuration from local config
     const getScaleConfig = () => ({
         port: localConfig.scaleCOM || 'COM1',
@@ -878,7 +910,8 @@ if (!gotTheLock) {
         responseTimeout: localConfig.scaleResponseTimeout || 3000,
         weightCommand: localConfig.scaleWeightCommand || '$',
         zeroCommand: localConfig.scaleZeroCommand || 'Z',
-        restartCommand: localConfig.scaleRestartCommand || 'Z'
+        restartCommand: localConfig.scaleRestartCommand || 'Z',
+        frameDelimiter: resolveScaleFrameDelimiter()
     });
 
     // Enhanced Scale Handler Class for TEM EGE-TB
@@ -903,8 +936,16 @@ if (!gotTheLock) {
                         autoOpen: false
                     });
 
-                    // Use ReadlineParser with Carriage Return as delimiter for TEM EGE-TB
-                    this.parser = this.serialPort.pipe(new ReadlineParser({ delimiter: '\r' }));
+                    // Frame delimiter comes from the tenant-aware config so the
+                    // same build works on Jordan (CR-terminated firmware,
+                    // e.g. TEM EGE-TB) and Palestine (LF-terminated firmware).
+                    const delim = this.config.frameDelimiter || '\r';
+                    const delimLabel = delim === '\r' ? 'CR'
+                        : delim === '\n' ? 'LF'
+                        : delim === '\r\n' ? 'CRLF'
+                        : JSON.stringify(delim);
+                    logger.info(`Scale frame delimiter: ${delimLabel}`);
+                    this.parser = this.serialPort.pipe(new ReadlineParser({ delimiter: delim }));
 
                     this.serialPort.on('error', (err) => {
                         logger.error('Scale Serial Port Error:', err.message);
@@ -1011,14 +1052,23 @@ if (!gotTheLock) {
 
             this.isWaitingForWeight = false;
 
-            // Clean and parse the weight data
-            const cleanWeight = data.replace(/[^\d.]/g, '');
+            // Normalize and parse the weight data. Log the raw frame so onsite
+            // support can see exactly what the scale emitted (unit suffixes,
+            // status prefixes like "ST,GS,", sign characters, comma vs dot
+            // decimal separator, etc.) when a store reports a reading bug.
+            const rawString = (typeof data === 'string' ? data : data.toString('utf-8')).trim();
+            // Some firmwares use a comma as the decimal separator; normalize
+            // it to a dot before stripping non-numeric characters so we don't
+            // silently collapse "1,234" into "1234".
+            const normalized = rawString.replace(',', '.');
+            const cleanWeight = normalized.replace(/[^\d.]/g, '');
             const weightValue = parseFloat(cleanWeight);
 
+            logger.info(`Scale raw: ${JSON.stringify(rawString)}, parsed: ${weightValue}`);
+
             if (!isNaN(weightValue)) {
-                logger.info(`Weight reading successful: ${weightValue}`);
                 this.retryCount = 0;
-                
+
                 if (this.currentWeightPromise) {
                     this.currentWeightPromise.resolve(weightValue);
                     this.currentWeightPromise = null;

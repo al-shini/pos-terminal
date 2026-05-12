@@ -42,7 +42,7 @@ The scale is **never** talked to directly from the browser. It's always:
 ## 2. Local Electron config (`pos-config.json`)
 
 Every scale parameter is pulled from the installer's local config file. See
-[`public/electron.js` lines ~873-882](../public/electron.js):
+[`public/electron.js`](../public/electron.js):
 
 ```javascript
 const getScaleConfig = () => ({
@@ -54,6 +54,7 @@ const getScaleConfig = () => ({
     weightCommand:     localConfig.scaleWeightCommand     || '$',
     zeroCommand:       localConfig.scaleZeroCommand       || 'Z',
     restartCommand:    localConfig.scaleRestartCommand    || 'Z',
+    frameDelimiter:    resolveScaleFrameDelimiter(),      // see section below
 });
 ```
 
@@ -67,33 +68,58 @@ const getScaleConfig = () => ({
 | `scaleMaxRetries`       | 6       | How many times to re-send the weight command if unstable     |
 | `scaleRetryDelay`       | 500 ms  | Pause between retries                                        |
 | `scaleResponseTimeout`  | 3000 ms | How long to wait for a single reply before retrying          |
+| `scaleFrameDelimiter`   | _tenant-driven_ | Byte(s) marking end of a scale frame (see next section) |
 
-Protocol parser (also in `electron.js`):
+### 2.1 Frame delimiter — tenant-aware
+
+The scale reply is line-buffered by `ReadlineParser`. If the parser's
+delimiter doesn't match what the scale actually emits at end-of-frame, the
+parser simply never fires and `/weightScale` times out.
 
 ```javascript
-this.parser = this.serialPort.pipe(new ReadlineParser({ delimiter: '\r' }));
+const resolveScaleFrameDelimiter = () => {
+    const raw = localConfig.scaleFrameDelimiter;
+    if (typeof raw === 'string' && raw.length > 0) {
+        const upper = raw.trim().toUpperCase();
+        if (upper === 'CR')   return '\r';
+        if (upper === 'LF')   return '\n';
+        if (upper === 'CRLF') return '\r\n';
+        return raw; // assume JSON already unescaped "\r" / "\n"
+    }
+    const tenant = (localConfig.tenant || '').toString().toLowerCase();
+    if (tenant === 'palestine' || tenant === 'ps') return '\n';
+    if (tenant === 'jordan'    || tenant === 'jo') return '\r';
+    return '\r'; // legacy installs without a tenant field
+};
 ```
 
-So the scale is expected to terminate each frame with **CR (`\r`)**.
+Resolution order (most specific wins):
 
-Parsing the frame:
+1. **`pos-config.json`** → `scaleFrameDelimiter`. Accepts either a JSON-escaped
+   control char (`"\r"`, `"\n"`, `"\r\n"`) or the tokens `"CR"`, `"LF"`,
+   `"CRLF"`. Use this when a specific store has an unusual scale model.
+2. **Tenant default** — `palestine` → LF, `jordan` → CR.
+3. **Fallback** — CR (historical default for Jordan's TEM EGE-TB).
+
+### 2.2 Frame parsing
 
 ```javascript
-const cleanWeight = data.replace(/[^\d.]/g, '');   // strip everything non-numeric
+const rawString   = data.toString('utf-8').trim();
+const normalized  = rawString.replace(',', '.');      // NEW: comma → dot
+const cleanWeight = normalized.replace(/[^\d.]/g, '');
 const weightValue = parseFloat(cleanWeight);
+
+logger.info(`Scale raw: "${rawString}", parsed: ${weightValue}`);
 ```
 
-Whatever the scale sends (`ST,GS,   1.234 kg\r`, `+1.234\r`, `US,1.234\r`, …)
-all non-digit / non-dot characters are stripped; the first numeric value wins.
+Whatever the scale sends (`ST,GS,   1.234 kg\r`, `+1.234\r`, `US,1.234\r`,
+`1,234\n`, `+  0.52 kgs\n`, …) every non-digit / non-dot character is
+stripped; the first numeric value wins. Comma decimals (common on European
+/ Palestinian firmwares) are explicitly normalized to dots so `"1,234"`
+reads as `1.234` (kg) rather than `1234`.
 
-> ⚠️ **This is the most likely source of a regional bug.** Different scale
-> firmwares use different command letters and different frame formats
-> (`kg` vs `kgs`, `ST,GS,` vs `STL,`, dot vs comma decimal separator, CR vs LF
-> terminator, sometimes a leading `+` sign, sometimes a unit suffix). A
-> Palestine scale that outputs comma-decimal frames (`1,234`) would be
-> parsed as `1234` after the `.replace(/[^\d.]/g, '')` step, because the comma
-> would be stripped. A scale that replies with `LF` instead of `CR` would
-> never trigger `ReadlineParser`.
+The raw frame is always logged verbatim so onsite support can diagnose
+offending frames without needing a serial sniffer.
 
 ---
 
@@ -285,52 +311,71 @@ index: 0 1 2 3 4 5 6 7 8 9 10 11
 
 ---
 
-## 6. Summary of what is currently region-agnostic vs region-specific
+## 6. Summary of what is region-agnostic vs region-specific
 
-| Concern                              | Source                                         | Region-aware today?                    |
-|--------------------------------------|------------------------------------------------|-----------------------------------------|
-| COM port / baud rate                 | `pos-config.json`                              | ✅ yes, installer per store              |
-| Weight request command (`$`, `P`, …) | `pos-config.json`                              | ✅ yes, installer per store              |
-| Frame terminator (`\r`)              | Hardcoded in `electron.js`                     | ❌ no                                    |
-| Frame parsing (strip non-digit)      | Hardcoded in `electron.js`                     | ❌ no — comma decimals get collapsed     |
-| Scale piece flow (`SQ` prefix)       | Hardcoded in Terminal.js + backend             | ✅ shared                                |
-| `formatDouble` — encoding weight     | Hardcoded **2 integer + 3 fraction**           | ❌ **no — assumes Jordan's 3-decimal**   |
-| Backend barcode parser decimal index | Hardcoded **index 8 = decimal point**          | ❌ **no — assumes Jordan's 3-decimal**   |
-| Tenant config (`config.decimals`)    | `config.js`                                    | ✅ exists (3 for Jordan, 2 for Palestine)|
+| Concern                              | Source                                         | Region-aware?                                |
+|--------------------------------------|------------------------------------------------|----------------------------------------------|
+| COM port / baud rate                 | `pos-config.json`                              | ✅ installer per store                       |
+| Weight request command (`$`, `P`, …) | `pos-config.json`                              | ✅ installer per store                       |
+| Frame terminator (`\r` vs `\n`)      | `electron.js` `resolveScaleFrameDelimiter()`   | ✅ tenant default + per-install override     |
+| Comma-decimal handling               | `electron.js` `handleWeightData`               | ✅ normalized for both regions               |
+| Raw-frame logging                    | `electron.js` `handleWeightData`               | ✅ always on (for onsite diagnostics)        |
+| Scale piece flow (`SQ` prefix)       | `Terminal.js` + backend                        | ✅ shared protocol, no change needed         |
+| `formatDouble` — encoding weight     | `Terminal.js`, 2-int + variable-fraction       | ✅ shared — same on both regional backends   |
+| Backend barcode parser decimal index | `PosSellTrxService.fetchQuantityFromDecBarcode`| ✅ shared — identical in Jordan & Palestine  |
+| Currency display decimals            | `config.js` `config.decimals`                  | ✅ tenant-aware (3 for Jordan, 2 for Palestine) |
 
----
-
-## 7. Hypotheses for the Palestine discrepancy
-
-Before we diff against the Palestine branch, these are the two most likely
-culprits, in order of probability:
-
-1. **Weight-barcode encoding mismatch.** Palestine weighs to 2 decimals
-   (`1.23 kg`) while the current frontend/backend is hardcoded for 3 decimals.
-   `formatDouble("1.23")` would produce `"0123"` (4 digits) instead of the
-   expected 5, then the backend splits at a fixed index and reads the wrong
-   number. → Fix by wiring the split through `config.decimals`.
-
-2. **Serial-frame decoding mismatch.** The Palestine store's scale model
-   likely outputs a different frame (different delimiter, units, or comma
-   decimal separator). `ReadlineParser({ delimiter: '\r' })` and
-   `/[^\d.]/g` are silently lossy here.
-
-3. **Minor:** `formatDouble` uses `parts[1]` without a default, so an integer
-   response (e.g. `"1"` from the scale) yields `"01undefined"`. Unrelated to
-   the region but worth fixing while we're in there.
+**Key clarification:** The scale barcode contract (`61 + 5-digit PLU + WW + DDD + 1`)
+is **identical** in both the Jordan and Palestine backends — the Java
+`fetchQuantityFromDecBarcode` method is byte-for-byte the same and always
+splits at index 8/9 (2 whole + 3 fraction). So the weight the scale reports
+via serial is encoded and parsed the same way regardless of region; what
+`config.decimals` controls is only how amounts are **displayed** to the
+cashier/customer, not how kg weights are carried over the EAN-13 barcode.
 
 ---
 
-## 8. Next step
+## 7. What was actually wrong on Palestine (and the fix)
 
-Switch to the Palestine branch and run the same five queries:
+Comparison against the older Palestine-specific pos-terminal revealed **only
+one meaningful difference** in the scale pipeline:
 
-1. `public/electron.js` → `getScaleConfig`, `ReadlineParser`, `handleWeightData`
-2. `public/electron.js` → `/weightScale`, `/openScalePort` routes
-3. `src/components/Terminal/Terminal.js` → `scanWeightableItem`, `formatDouble`
-4. `src/components/Terminal/Terminal.js` → `scanBarcode` dispatch barcode string
-5. `src/main/java/org/shini/pos/service/PosSellTrxService.java` → `fetchQuantityFromDecBarcode`
+| Layer                              | Jordan firmware | Palestine firmware |
+|------------------------------------|-----------------|--------------------|
+| Serial frame terminator            | CR (`\r`)       | LF (`\n`)          |
+| Everything else                    | identical       | identical          |
 
-Diff against this document, identify every hardcoded digit-count assumption,
-and then parametrize them through `config.tenant` / `config.decimals`.
+With the parser hardcoded to `delimiter: '\r'`, a Palestine-region scale
+that emits LF-terminated frames would send its bytes into the parser without
+ever triggering `data` → every `/weightScale` call just timed out after
+3 s × 6 retries.
+
+### Fix applied in this PR
+
+1. **`getScaleConfig()`** now includes `frameDelimiter` derived from
+   `resolveScaleFrameDelimiter()` (tenant default + optional per-install
+   override via `scaleFrameDelimiter` in `pos-config.json`).
+2. **`EnhancedScaleHandler.connect()`** reads the delimiter from the config
+   instead of hardcoding CR, and logs which delimiter was chosen at startup
+   so support staff can verify remotely.
+3. **`handleWeightData()`** now also normalizes a comma decimal separator
+   (e.g. `"1,234"`) to a dot before stripping non-numeric characters, and
+   always logs the raw frame (`Scale raw: "…", parsed: …`) for diagnostics.
+4. **No frontend or backend changes** — `formatDouble`, the `61…`-barcode
+   assembly, and `fetchQuantityFromDecBarcode` are identical across regions
+   so they were left untouched.
+
+### How to override for an exotic scale model
+
+If a specific store has a scale that needs a non-default delimiter, add to
+`pos-config.json` one of:
+
+```jsonc
+{ "scaleFrameDelimiter": "CR" }          // carriage return
+{ "scaleFrameDelimiter": "LF" }          // line feed (Palestine default)
+{ "scaleFrameDelimiter": "CRLF" }        // both
+{ "scaleFrameDelimiter": "\r" }          // JSON-escaped char also works
+```
+
+If absent, the tenant default is used (`tenant=palestine` → LF,
+`tenant=jordan` → CR, legacy/missing → CR).

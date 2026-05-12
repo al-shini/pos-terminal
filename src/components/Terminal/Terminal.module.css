@@ -1867,3 +1867,483 @@
     animation: refundAmbientPulse 2.6s ease-in-out infinite;
 }
 
+/* ==========================================================================
+   Scale Items Drawer — modern, branded
+   ========================================================================== */
+
+@keyframes scaleCardFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.ScaleDrawer {
+    width: 100vw !important;
+}
+
+.ScaleShell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #F3F4F6;
+    overflow: hidden;
+}
+
+/* ----- Header ----- */
+.ScaleHeader {
+    flex-shrink: 0;
+    padding: 14px 22px 12px 22px;
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%);
+    color: #FFFFFF;
+    box-shadow: 0 6px 18px rgba(179, 20, 27, 0.18);
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    position: relative;
+    z-index: 2;
+}
+
+.ScaleHeaderTitleWrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.ScaleHeaderIcon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #FFFFFF;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.ScaleHeaderTitle {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+}
+
+.ScaleHeaderTitle h3 {
+    margin: 0;
+    color: #FFFFFF;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+}
+
+.ScaleHeaderTitle span {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: 0.2px;
+}
+
+/* Category pills in the header */
+.ScaleCategoryPills {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 6px;
+    border-radius: 14px;
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    max-width: 520px;
+}
+
+.ScaleCategoryPill {
+    border: none !important;
+    background: transparent !important;
+    color: rgba(255, 255, 255, 0.88) !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    padding: 8px 18px !important;
+    border-radius: 10px !important;
+    letter-spacing: 0.3px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 110px;
+    justify-content: center;
+}
+
+.ScaleCategoryPill:hover:not(.ScaleCategoryPillActive) {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #FFFFFF !important;
+}
+
+.ScaleCategoryPillActive {
+    background: #FFFFFF !important;
+    color: #B3141B !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* Status chip — connected / preview */
+.ScaleStatusChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(6px);
+    flex-shrink: 0;
+}
+
+.ScaleStatusDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #34D399;
+    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25);
+    animation: scaleStatusPulse 1.8s ease-in-out infinite;
+}
+
+.ScaleStatusDotOffline {
+    background: #FBBF24;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.22);
+}
+
+@keyframes scaleStatusPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.18); opacity: 0.85; }
+}
+
+/* ----- Preview-mode banner ----- */
+.ScalePreviewBanner {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 22px;
+    background: linear-gradient(90deg, #FFFBEB 0%, #FEF3C7 100%);
+    border-bottom: 1px solid #FDE68A;
+    color: #92400E;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.ScalePreviewBanner strong {
+    color: #78350F;
+    font-weight: 800;
+}
+
+.ScalePreviewBannerIcon {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    background: rgba(146, 64, 14, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #B45309;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+/* ----- Alphabet strip ----- */
+.ScaleAlphabetStrip {
+    flex-shrink: 0;
+    padding: 10px 22px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E5E7EB;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scroll-behavior: smooth;
+    direction: rtl;
+}
+
+.ScaleAlphabetStrip::-webkit-scrollbar { height: 6px; }
+.ScaleAlphabetStrip::-webkit-scrollbar-thumb {
+    background: #D1D5DB;
+    border-radius: 3px;
+}
+
+.ScaleAlphaBtn {
+    display: inline-flex !important;
+    width: 48px !important;
+    height: 48px !important;
+    margin: 2px 4px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    background: #F3F4F6 !important;
+    border: 1px solid #E5E7EB !important;
+    color: #374151 !important;
+    font-size: 20px !important;
+    font-weight: 800 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.18s ease;
+    cursor: pointer;
+}
+
+.ScaleAlphaBtn:hover:not(.ScaleAlphaBtnActive) {
+    background: #FEE2E2 !important;
+    border-color: #FCA5A5 !important;
+    color: #B3141B !important;
+    transform: translateY(-1px);
+}
+
+.ScaleAlphaBtnActive {
+    background: linear-gradient(135deg, #E11E26 0%, #B3141B 100%) !important;
+    border-color: #B3141B !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 6px 14px rgba(179, 20, 27, 0.28);
+}
+
+/* History variant (first pill in the strip). Visually distinct from the
+   Arabic letters so cashiers immediately spot the "most scanned" shortcut. */
+.ScaleAlphaBtnHistory {
+    width: auto !important;
+    min-width: 56px !important;
+    padding: 0 14px !important;
+    font-size: 16px !important;
+    background: #FFFFFF !important;
+    border-color: #D1D5DB !important;
+    color: #B3141B !important;
+    margin-inline-end: 10px !important;
+    position: relative;
+}
+
+.ScaleAlphaBtnHistory::after {
+    content: '';
+    position: absolute;
+    top: 10%;
+    bottom: 10%;
+    inset-inline-end: -6px;
+    width: 1px;
+    background: #E5E7EB;
+}
+
+.ScaleAlphaBtnHistory:hover:not(.ScaleAlphaBtnActive) {
+    background: #FEE2E2 !important;
+    border-color: #FCA5A5 !important;
+    color: #B3141B !important;
+}
+
+/* ----- Item grid ----- */
+.ScaleGridWrap {
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 16px 22px 24px 22px;
+}
+
+.ScaleGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.ScaleItemCard {
+    position: relative;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 12px 10px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    animation: scaleCardFadeIn 0.25s ease both;
+    overflow: hidden;
+}
+
+.ScaleItemCard:hover:not(.ScaleItemCardDisabled) {
+    transform: translateY(-2px);
+    border-color: #FCA5A5;
+    box-shadow: 0 10px 22px rgba(17, 24, 39, 0.08);
+}
+
+.ScaleItemCard:active:not(.ScaleItemCardDisabled) {
+    transform: translateY(0);
+    box-shadow: 0 4px 10px rgba(17, 24, 39, 0.08);
+}
+
+.ScaleItemCardDisabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+}
+
+.ScaleItemImgFrame {
+    width: 100%;
+    height: 130px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid #F3F4F6;
+}
+
+.ScaleItemImgFrame img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 6px;
+}
+
+.ScaleItemName {
+    font-size: 14px;
+    font-weight: 800;
+    color: #111827;
+    text-align: center;
+    line-height: 1.25;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    letter-spacing: 0.1px;
+}
+
+.ScaleItemBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    text-transform: uppercase;
+}
+
+.ScaleItemBadgeWeight {
+    background: #DBEAFE;
+    color: #1D4ED8;
+    border: 1px solid #BFDBFE;
+}
+
+.ScaleItemBadgePiece {
+    background: #FEF3C7;
+    color: #92400E;
+    border: 1px solid #FDE68A;
+}
+
+/* Red corner lock when scale is disconnected (preview mode) */
+.ScaleItemLock {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    background: rgba(17, 24, 39, 0.72);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    backdrop-filter: blur(4px);
+}
+
+/* Empty state */
+.ScaleEmptyState {
+    grid-column: 1 / -1;
+    padding: 60px 20px;
+    text-align: center;
+    color: #6B7280;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.ScaleEmptyIcon {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    background: #F3F4F6;
+    color: #9CA3AF;
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ScaleEmptyTitle {
+    font-size: 16px;
+    font-weight: 800;
+    color: #374151;
+    margin: 0;
+}
+
+.ScaleEmptySub {
+    font-size: 13px;
+    font-weight: 500;
+    color: #6B7280;
+    margin: 0;
+}
+
+/* ----- Footer ----- */
+.ScaleFooter {
+    flex-shrink: 0;
+    padding: 12px 22px;
+    background: #FFFFFF;
+    border-top: 1px solid #E5E7EB;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 -4px 14px rgba(17, 24, 39, 0.04);
+}
+
+.ScaleFooterLeft {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ScaleFooterCount {
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    letter-spacing: 0.2px;
+}
+
+.ScaleFooterCount b {
+    color: #B3141B;
+    font-weight: 900;
+    font-size: 15px;
+    margin-right: 4px;
+}
+
+.ScaleBackBtn {
+    border: none !important;
+    background: #F3F4F6 !important;
+    color: #374151 !important;
+    padding: 10px 22px !important;
+    border-radius: 12px !important;
+    font-weight: 800 !important;
+    font-size: 14px !important;
+    letter-spacing: 0.3px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    transition: all 0.15s ease !important;
+    cursor: pointer;
+}
+
+.ScaleBackBtn:hover {
+    background: #E5E7EB !important;
+    color: #111827 !important;
+}

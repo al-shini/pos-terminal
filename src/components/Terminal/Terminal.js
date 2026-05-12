@@ -6,7 +6,7 @@ import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown, faCogs,
-    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck, faArrowRightFromBracket, faQrcode, faMobileScreenButton, faHashtag, faMotorcycle, faBullhorn, faHourglassHalf, faBoxOpen
+    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck, faArrowRightFromBracket, faQrcode, faMobileScreenButton, faHashtag, faMotorcycle, faBullhorn, faHourglassHalf, faBoxOpen, faAppleWhole, faLeaf, faPlug, faTriangleExclamation, faWeightScale
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -63,7 +63,6 @@ import USD_100 from '../../assets/money-notes/100.0USD.png';
 
 import Logo from '../../assets/full-logo.png';
 import Lock from '../../assets/lock.png';
-import { ArrowLeft, Funnel, IOs, Global } from '@rsuite/icons';
 import InactivityHandler from '../InactivityHandler';
 import VirtualKeyboardInput from '../UI/VirtualKeyboardInput';
 import RefundReferenceDialog from './RefundReferenceDialog';
@@ -117,6 +116,15 @@ const Terminal = (props) => {
     const [scaleConnected, setScaleConnected] = useState(false);
     const [selectedScaleCategory, setSelectedScaleCategory] = useState('all');
     const [produceItems, setProduceItems] = useState([]);
+    // Top 16 most-scanned scale barcodes at this store over the past 7 days.
+    // Fetched once on terminal init (see useEffect below) so the "History"
+    // filter in the scale-items drawer is instant and doesn't re-query the
+    // store DB every time the cashier opens the drawer.
+    const [topScaleBarcodes, setTopScaleBarcodes] = useState([]);
+    // Filter mode inside the scale-items drawer:
+    //  - 'history': show only items from topScaleBarcodes (default)
+    //  - 'alpha'  : show items whose Arabic name starts with `alphabtet`
+    const [scaleFilterMode, setScaleFilterMode] = useState('history');
     const [alphabtet, setAlphabet] = useState('ا');
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [lastTrxOpen, setLastTrxOpen] = useState(false);
@@ -189,6 +197,27 @@ const Terminal = (props) => {
         }
     }, [])
 
+    // One-shot fetch of the top-16 most-scanned scale barcodes for the current
+    // store over the past 7 days. We intentionally run this only on till
+    // initialization — the list is small, bounded, and changes slowly, so
+    // re-querying on every drawer open would be needless DB traffic.
+    useEffect(() => {
+        if (!config.scale) return;
+        axios({
+            method: 'get',
+            url: '/barcode/topScaleItems',
+        }).then((response) => {
+            if (response && Array.isArray(response.data)) {
+                setTopScaleBarcodes(response.data);
+            }
+        }).catch(() => {
+            // Non-fatal: if the history lookup fails, the cashier can still
+            // use the Arabic letter filter. We swallow the error silently
+            // because the drawer is a tertiary UI and we don't want to spam
+            // notifications during till startup.
+        });
+    }, [])
+
     useEffect(() => {
         // if (!trxSlice.trx || (trxSlice.trx && !trxSlice.trx.key)) {
         //     dispatch(showHardNotification("Ask for Shini Me Loyalty Card"));
@@ -219,26 +248,45 @@ const Terminal = (props) => {
 
     const dispatch = useDispatch();
 
-    // Memoized filtered produce items to ensure fresh filtering on each alphabet/category change
+    // Memoized filtered produce items to ensure fresh filtering on each
+    // alphabet / category / mode change.
+    //
+    // Two filter modes are supported:
+    //   - 'history' : narrow to the 16 most-scanned scale barcodes at this
+    //                 store over the past 7 days (fetched once on init), then
+    //                 sort alphabetically by Arabic description — requested so
+    //                 cashiers don't have to guess the first letter for items
+    //                 they weigh dozens of times a day.
+    //   - 'alpha'   : classic "starts-with" filter on Arabic description.
+    // Category pills (All / Fruit / Vegetable) apply in both modes.
     const filteredProduceItems = useMemo(() => {
         if (!produceItems || produceItems.length === 0) {
             return [];
         }
 
-        const normalizedAlphabet = alphabtet.toString().trim();
+        let filtered;
+        if (scaleFilterMode === 'history') {
+            if (!topScaleBarcodes || topScaleBarcodes.length === 0) {
+                filtered = [];
+            } else {
+                const barcodeSet = new Set(topScaleBarcodes.map(String));
+                filtered = produceItems.filter((item) =>
+                    barcodeSet.has(String(item.barcode)) &&
+                    matchProduceCategory(selectedScaleCategory, item.category)
+                );
+            }
+        } else {
+            const normalizedAlphabet = alphabtet.toString().trim();
+            filtered = produceItems.filter((item) => {
+                const itemDescAr = item.descriptionAr || '';
+                const normalizedItemDesc = itemDescAr.toString().trim();
+                return normalizedItemDesc &&
+                    normalizedItemDesc.startsWith(normalizedAlphabet) &&
+                    matchProduceCategory(selectedScaleCategory, item.category);
+            });
+        }
 
-        // First filter by criteria, then remove duplicates by barcode
-        const filtered = produceItems.filter((item) => {
-            // Improved filtering with better Arabic text handling
-            const itemDescAr = item.descriptionAr || '';
-            const normalizedItemDesc = itemDescAr.toString().trim();
-
-            return normalizedItemDesc &&
-                normalizedItemDesc.startsWith(normalizedAlphabet) &&
-                matchProduceCategory(selectedScaleCategory, item.category);
-        });
-
-        // Remove duplicates by barcode to prevent React key conflicts
+        // Remove duplicates by barcode to prevent React key conflicts.
         const uniqueItems = filtered.reduce((acc, current) => {
             const existingItem = acc.find(item => item.barcode === current.barcode);
             if (!existingItem) {
@@ -247,8 +295,18 @@ const Terminal = (props) => {
             return acc;
         }, []);
 
+        // History view is always alphabetical — ranking by scan count would
+        // confuse cashiers who already know where each item lives visually.
+        if (scaleFilterMode === 'history') {
+            uniqueItems.sort((a, b) => {
+                const an = (a.descriptionAr || '').toString();
+                const bn = (b.descriptionAr || '').toString();
+                return an.localeCompare(bn, 'ar');
+            });
+        }
+
         return uniqueItems;
-    }, [produceItems, alphabtet, selectedScaleCategory]);
+    }, [produceItems, alphabtet, selectedScaleCategory, scaleFilterMode, topScaleBarcodes]);
 
     /**  
      * basic/setup data initialization
@@ -611,6 +669,17 @@ const Terminal = (props) => {
     }
 
     const scanWeightableItem = (item) => {
+        // The drawer is openable even without a connected scale (manager
+        // preview, onboarding, etc.). Weighing is blocked here — a single
+        // guard rather than scattered UI-level disabled states — and we tell
+        // the cashier why nothing happened.
+        if (!scaleConnected) {
+            dispatch(notify({
+                msg: 'Scale is not connected. Preview only — connect the scale to weigh items.',
+                sev: 'warning'
+            }));
+            return;
+        }
         dispatch(showLoading({ msg: 'Reading weight from scale (may retry if unstable)...' }));
         let barcode = item.barcode;
 
@@ -1704,6 +1773,22 @@ const Terminal = (props) => {
                 <label>Visa</label>
             </Button>
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {config.features.arabVisa && (
+                <>
+                    {/* Arab Bank Visa terminal — Palestine-only flow.
+                        `config.visaArabi` resolves to the payment_method.key
+                        `VISA_AB` (defined in pos-terminal/src/config.js), and
+                        `buildVisaButtonsArabi()` / `autoVisaFlowArabi()` already
+                        own the per-bank UI rendered when paymentType === 'visaArabi'. */}
+                    <Button key='visaArabi' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
+                        style={{ background: '#015aab', color: 'white' }}
+                        onClick={() => { startPayment('visaArabi', 'numpad') }}>
+                        <FontAwesomeIcon icon={faIdCard} style={{ marginRight: '5px' }} />
+                        <label>Visa (Arabi)</label>
+                    </Button>
+                    <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+                </>
+            )}
             {config.features.mobiCash && (
                 <>
                     <Button key='mobicash' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
@@ -2416,22 +2501,6 @@ const Terminal = (props) => {
         })
     }
 
-    const conjureAlphabet = () => {
-        const _alphabetButtons = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ر', 'ذ', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي'];
-        let buttons = [];
-        _alphabetButtons.map((c, i) => {
-            buttons.push(<Button appearance={c === alphabtet ? 'primary' : 'default'}
-                size='lg'
-                key={i} style={{ float: 'right', borderRadius: '0px', margin: '2px', width: '60px' }}
-                onClick={() => { setAlphabet(c) }} >
-                <h5 style={{ textAlign: 'center', fontWeight: 'bolder' }}>
-                    {c}
-                </h5>
-            </Button>)
-        })
-        return buttons;
-    }
-
 
     return (
         <FlexboxGrid
@@ -3070,7 +3139,7 @@ const Terminal = (props) => {
                         </Button>
 
                         <Button className={`${classes.POSButton} ${classes.ModeButton} ${classes.ModeButtonTall}`}
-                            disabled={terminal.paymentMode || !config.scale || !scaleConnected}
+                            disabled={terminal.paymentMode || !config.scale}
                             onClick={() => setScaleItemsOpen(true)} >
                             <FontAwesomeIcon icon={faScaleBalanced} />
                             <div>Scale Items</div>
@@ -3403,105 +3472,159 @@ const Terminal = (props) => {
                 </div>
             </FlexboxGrid.Item>
 
-            <Drawer style={{ width: '100vw' }} position='right' open={scaleItemsOpen}  >
-                <Grid style={{ padding: '0px' }}>
-                    <Row>
-                        <Col xs={24}>
-                            <ButtonToolbar style={{ textAlign: 'center', marginTop: '5px' }}>
-                                <ButtonGroup >
-                                    {conjureAlphabet()}
-                                </ButtonGroup>
-                            </ButtonToolbar>
-                            <Divider style={{ margin: '5px' }} />
-                        </Col>
-                    </Row>
-                    <Row >
-                        <Col xs={24}>
-                            <div style={{ height: '72.5vh', overflowX: 'hidden', overflowY: 'auto' }}>
-                                <ButtonToolbar style={{ textAlign: 'center', width: '100%' }}>
-                                    {filteredProduceItems.map((item) => {
-                                        const imgSrc = images[`${item.barcode}.png`] || images[`PLU_${item.barcode}.jpg`] || images['nophoto.jpg'];
-
-                                        return (
-                                            <Button key={item.barcode} appearance='ghost' color='cyan' style={{ width: '22%', margin: '5px' }}
-                                                onClick={() => { scanWeightableItem(item); }}>
-                                                <img
-                                                    src={imgSrc}
-                                                    onError={(e) => {
-                                                        e.target.src = images['nophoto.jpg'];
-                                                    }}
-                                                    height={100} width={100}
-                                                />
-                                                <br />
-                                                <b style={{ color: 'black' }}>
-                                                    {item.descriptionAr} {item.isScalePiece && <FontAwesomeIcon icon={faTag} />}
-                                                </b>
-                                            </Button>
-                                        );
-                                    })}
-                                </ButtonToolbar>
+            <Drawer className={classes.ScaleDrawer} position='right' open={scaleItemsOpen} onClose={() => setScaleItemsOpen(false)}>
+                <div className={classes.ScaleShell}>
+                    {/* Header: title + category pills + status chip */}
+                    <div className={classes.ScaleHeader}>
+                        <div className={classes.ScaleHeaderTitleWrap}>
+                            <div className={classes.ScaleHeaderIcon}>
+                                <FontAwesomeIcon icon={faWeightScale} />
                             </div>
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Divider style={{ margin: '10px' }} />
-                    </Row>
-                    <Row>
-                        <Col xs={7}>
-                            <ButtonToolbar >
-                                <IconButton icon={<ArrowLeft />} onClick={() => { setScaleItemsOpen(false) }}>
-                                    Go Back
-                                </IconButton>
+                            <div className={classes.ScaleHeaderTitle}>
+                                <h3>Scale Items</h3>
+                                <span>{filteredProduceItems.length} {filteredProduceItems.length === 1 ? 'item' : 'items'} shown</span>
+                            </div>
+                        </div>
 
-                            </ButtonToolbar>
-                        </Col>
-                        <Col xs={5}>
-                        </Col>
-                        <Col xs={12}>
-                            <ButtonToolbar style={{ textAlign: 'right' }} >
-                                <IconButton
-                                    style={{
-                                        width: '120px',
-                                        backgroundColor: selectedScaleCategory === 'all' ? '#34c759' : 'transparent',
-                                        color: selectedScaleCategory === 'all' ? 'white' : '#007acc',
-                                        border: selectedScaleCategory === 'all' ? '2px solid #34c759' : '2px solid #007acc',
-                                        fontWeight: selectedScaleCategory === 'all' ? 'bold' : 'normal'
-                                    }}
-                                    icon={<Global />}
-                                    appearance={selectedScaleCategory === 'all' ? 'primary' : 'ghost'}
-                                    onClick={() => { setSelectedScaleCategory('all') }} >
-                                    All Items
-                                </IconButton>
-                                <IconButton
-                                    style={{
-                                        width: '120px',
-                                        backgroundColor: selectedScaleCategory === 'fruit' ? '#ff9500' : 'transparent',
-                                        color: selectedScaleCategory === 'fruit' ? 'white' : '#ff9500',
-                                        border: selectedScaleCategory === 'fruit' ? '2px solid #ff9500' : '2px solid #ff9500',
-                                        fontWeight: selectedScaleCategory === 'fruit' ? 'bold' : 'normal'
-                                    }}
-                                    icon={<IOs />}
-                                    appearance={selectedScaleCategory === 'fruit' ? 'primary' : 'ghost'}
-                                    onClick={() => { setSelectedScaleCategory('fruit') }} >
-                                    Fruits
-                                </IconButton>
-                                <IconButton
-                                    style={{
-                                        width: '120px',
-                                        backgroundColor: selectedScaleCategory === 'vegetable' ? '#30d158' : 'transparent',
-                                        color: selectedScaleCategory === 'vegetable' ? 'white' : '#30d158',
-                                        border: selectedScaleCategory === 'vegetable' ? '2px solid #30d158' : '2px solid #30d158',
-                                        fontWeight: selectedScaleCategory === 'vegetable' ? 'bold' : 'normal'
-                                    }}
-                                    icon={<Funnel />}
-                                    appearance={selectedScaleCategory === 'vegetable' ? 'primary' : 'ghost'}
-                                    onClick={() => { setSelectedScaleCategory('vegetable') }}>
-                                    Vegetables
-                                </IconButton>
-                            </ButtonToolbar>
-                        </Col>
-                    </Row>
-                </Grid>
+                        <div className={classes.ScaleCategoryPills}>
+                            <button
+                                className={`${classes.ScaleCategoryPill} ${selectedScaleCategory === 'all' ? classes.ScaleCategoryPillActive : ''}`}
+                                onClick={() => setSelectedScaleCategory('all')}
+                            >
+                                <FontAwesomeIcon icon={faList} />
+                                <span>All Items</span>
+                            </button>
+                            <button
+                                className={`${classes.ScaleCategoryPill} ${selectedScaleCategory === 'fruit' ? classes.ScaleCategoryPillActive : ''}`}
+                                onClick={() => setSelectedScaleCategory('fruit')}
+                            >
+                                <FontAwesomeIcon icon={faAppleWhole} />
+                                <span>Fruits</span>
+                            </button>
+                            <button
+                                className={`${classes.ScaleCategoryPill} ${selectedScaleCategory === 'vegetable' ? classes.ScaleCategoryPillActive : ''}`}
+                                onClick={() => setSelectedScaleCategory('vegetable')}
+                            >
+                                <FontAwesomeIcon icon={faLeaf} />
+                                <span>Vegetables</span>
+                            </button>
+                        </div>
+
+                        <div className={classes.ScaleStatusChip}>
+                            <span className={`${classes.ScaleStatusDot} ${!scaleConnected ? classes.ScaleStatusDotOffline : ''}`} />
+                            <FontAwesomeIcon icon={faPlug} style={{ fontSize: 12 }} />
+                            <span>{scaleConnected ? 'Scale Connected' : 'Preview Mode'}</span>
+                        </div>
+                    </div>
+
+                    {/* Preview banner — shown whenever the drawer is opened
+                        without a connected scale. Weighing is blocked
+                        internally by `scanWeightableItem`. */}
+                    {!scaleConnected && (
+                        <div className={classes.ScalePreviewBanner}>
+                            <div className={classes.ScalePreviewBannerIcon}>
+                                <FontAwesomeIcon icon={faTriangleExclamation} />
+                            </div>
+                            <div>
+                                <strong>Scale not connected.</strong>&nbsp;
+                                You can browse items, but weighing is disabled until the scale is reconnected.
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Filter strip: History pill first (most-scanned items from
+                        the past week, pre-fetched on till init), followed by
+                        Arabic alphabet buttons for "starts-with" filtering. */}
+                    <div className={classes.ScaleAlphabetStrip}>
+                        <button
+                            className={`${classes.ScaleAlphaBtn} ${classes.ScaleAlphaBtnHistory} ${scaleFilterMode === 'history' ? classes.ScaleAlphaBtnActive : ''}`}
+                            onClick={() => setScaleFilterMode('history')}
+                            title="Most scanned in the past 7 days"
+                        >
+                            <FontAwesomeIcon icon={faHistory} />
+                        </button>
+                        {['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ر', 'ذ', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي'].map((c) => (
+                            <button
+                                key={c}
+                                className={`${classes.ScaleAlphaBtn} ${(scaleFilterMode === 'alpha' && c === alphabtet) ? classes.ScaleAlphaBtnActive : ''}`}
+                                onClick={() => { setScaleFilterMode('alpha'); setAlphabet(c); }}
+                            >
+                                {c}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Item grid */}
+                    <div className={classes.ScaleGridWrap}>
+                        <div className={classes.ScaleGrid}>
+                            {filteredProduceItems.length === 0 ? (
+                                <div className={classes.ScaleEmptyState}>
+                                    <div className={classes.ScaleEmptyIcon}>
+                                        <FontAwesomeIcon icon={scaleFilterMode === 'history' ? faHistory : faBoxOpen} />
+                                    </div>
+                                    <p className={classes.ScaleEmptyTitle}>
+                                        {scaleFilterMode === 'history'
+                                            ? 'No recent scale sales yet'
+                                            : 'No items match the current filter'}
+                                    </p>
+                                    <p className={classes.ScaleEmptySub}>
+                                        {scaleFilterMode === 'history'
+                                            ? 'Once items are weighed, the 16 most-scanned will appear here.'
+                                            : 'Try a different letter or switch the category.'}
+                                    </p>
+                                </div>
+                            ) : filteredProduceItems.map((item) => {
+                                const imgSrc = images[`${item.barcode}.png`] || images[`PLU_${item.barcode}.jpg`] || images['nophoto.jpg'];
+                                const isPiece = Boolean(item.isScalePiece);
+                                return (
+                                    <div
+                                        key={item.barcode}
+                                        className={`${classes.ScaleItemCard} ${!scaleConnected ? classes.ScaleItemCardDisabled : ''}`}
+                                        onClick={() => { scanWeightableItem(item); }}
+                                        title={!scaleConnected ? 'Scale not connected — weighing disabled' : ''}
+                                    >
+                                        {!scaleConnected && (
+                                            <div className={classes.ScaleItemLock}>
+                                                <FontAwesomeIcon icon={faLock} />
+                                            </div>
+                                        )}
+                                        <div className={classes.ScaleItemImgFrame}>
+                                            <img
+                                                src={imgSrc}
+                                                onError={(e) => { e.target.src = images['nophoto.jpg']; }}
+                                                alt={item.descriptionAr}
+                                            />
+                                        </div>
+                                        <div className={classes.ScaleItemName}>{item.descriptionAr}</div>
+                                        <span className={`${classes.ScaleItemBadge} ${isPiece ? classes.ScaleItemBadgePiece : classes.ScaleItemBadgeWeight}`}>
+                                            <FontAwesomeIcon icon={isPiece ? faTag : faWeightScale} />
+                                            {isPiece ? 'Piece' : 'Weight'}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className={classes.ScaleFooter}>
+                        <div className={classes.ScaleFooterLeft}>
+                            <div className={classes.ScaleFooterCount}>
+                                <b>{filteredProduceItems.length}</b>
+                                {filteredProduceItems.length === 1 ? 'item' : 'items'}
+                                {scaleFilterMode === 'history' ? (
+                                    <>&nbsp;&middot;&nbsp;<b style={{ color: '#111827' }}>most scanned this week</b></>
+                                ) : alphabtet ? (
+                                    <>&nbsp;&middot;&nbsp;starting with <b style={{ color: '#111827' }}>{alphabtet}</b></>
+                                ) : null}
+                            </div>
+                        </div>
+                        <button className={classes.ScaleBackBtn} onClick={() => setScaleItemsOpen(false)}>
+                            <FontAwesomeIcon icon={faArrowRightFromBracket} style={{ transform: 'rotate(180deg)' }} />
+                            Go Back
+                        </button>
+                    </div>
+                </div>
             </Drawer>
 
             <Modal open={settingsOpen} onClose={() => { setSettingsOpen(false) }}  >

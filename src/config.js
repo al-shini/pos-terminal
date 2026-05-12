@@ -102,6 +102,9 @@ const tenantProfiles = {
             refundReference: true,
             mobiCash: true,
             talabat: true,
+            // Arab Bank Visa terminal integration is a Palestine-only payment
+            // method (key `VISA_AB`). Jordan stores never see this button.
+            arabVisa: false,
             // back-office admin endpoints that only exist on the Jordan backend
             adminInvoicesLookup: true,
             adminCustomersLookup: true,
@@ -128,6 +131,8 @@ const tenantProfiles = {
             refundReference: false,
             mobiCash: false,
             talabat: false,
+            // Palestine-only: Arab Bank Visa (payment_method.key = VISA_AB).
+            arabVisa: true,
             adminInvoicesLookup: false,
             adminCustomersLookup: false,
             adminAudit: false,
