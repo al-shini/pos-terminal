@@ -2106,6 +2106,20 @@
     box-shadow: 0 6px 14px rgba(179, 20, 27, 0.28);
 }
 
+/* Sub-segment chip variant: same look-and-feel as ScaleAlphaBtn but sized
+   for arbitrary text labels (Arabic group names like "الدلي", "برهومه").
+   ScaleAlphaBtn locks a 48px square because it was designed for single
+   letters, which clipped longer labels. This modifier relaxes the width,
+   adds horizontal padding, and gives the text room to breathe without
+   touching the alpha-letter strip. */
+.ScaleSubSegmentBtn {
+    width: auto !important;
+    min-width: 64px !important;
+    padding: 0 16px !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+}
+
 /* History variant (first pill in the strip). Visually distinct from the
    Arabic letters so cashiers immediately spot the "most scanned" shortcut. */
 .ScaleAlphaBtnHistory {

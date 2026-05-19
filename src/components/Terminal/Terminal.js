@@ -93,6 +93,8 @@ const matchProduceCategory = (selectedScaleCategory, itemCategory) => {
     } else if (selectedScaleCategory === 'vegetable') {
         return /vegetable/i.test(normalizedCategory);
     } else {
+        // 'others' lives in its own array (otherScaleItems) and is matched by
+        // sub_segment rather than category; the produce filter never sees it.
         return false;
     }
 }
@@ -114,8 +116,20 @@ const Terminal = (props) => {
     const [hasEshiniConnection, setHasEshiniConnection] = useState(true);
     const [scaleItemsOpen, setScaleItemsOpen] = useState(false);
     const [scaleConnected, setScaleConnected] = useState(false);
+    // 'all' | 'fruit' | 'vegetable' | 'others'
     const [selectedScaleCategory, setSelectedScaleCategory] = useState('all');
     const [produceItems, setProduceItems] = useState([]);
+    // "Others" = anything weighable that isn't fruit/vegetable, sourced from
+    // the dedicated pos_other_scale_items table at HO via the local store
+    // backend. Tenant-gated via config.features.otherScaleItems — Palestine
+    // pos-backend doesn't expose the endpoint yet, so we don't even fetch
+    // there.
+    const [otherScaleItems, setOtherScaleItems] = useState([]);
+    // Active sub-segment chip when the "Others" category is selected (e.g.
+    // "Cheese", "Dates"). `null` means show every sub-segment. The chip list
+    // itself is rendered dynamically from the distinct sub_segments in
+    // otherScaleItems, so HO can add new sub-segments without a code change.
+    const [selectedOtherSubSegment, setSelectedOtherSubSegment] = useState(null);
     // Top 16 most-scanned scale barcodes at this store over the past 7 days.
     // Fetched once on terminal init (see useEffect below) so the "History"
     // filter in the scale-items drawer is instant and doesn't re-query the
@@ -197,6 +211,29 @@ const Terminal = (props) => {
         }
     }, [])
 
+    // One-shot fetch of the "Others" scale items. Gated by the tenant
+    // feature flag because the Palestine pos-backend doesn't expose
+    // /barcode/otherScaleItems yet — calling it there would log a 404 on
+    // every till boot.
+    useEffect(() => {
+        if (!config.scale) return;
+        if (!config.features.otherScaleItems) return;
+        if (otherScaleItems.length > 0) return;
+        axios({
+            method: 'get',
+            url: '/barcode/otherScaleItems',
+        }).then((response) => {
+            if (response && Array.isArray(response.data)) {
+                setOtherScaleItems(response.data);
+            }
+        }).catch((error) => {
+            // Non-fatal: the drawer keeps working for F&V even if this fails.
+            // We surface a single soft warning rather than blocking till
+            // startup, since "Others" is an additive section.
+            dispatch(notify({ msg: 'otherScaleItems fetch failed: ' + error.message, sev: 'warning' }));
+        });
+    }, [])
+
     // One-shot fetch of the top-16 most-scanned scale barcodes for the current
     // store over the past 7 days. We intentionally run this only on till
     // initialization — the list is small, bounded, and changes slowly, so
@@ -275,6 +312,14 @@ const Terminal = (props) => {
                     matchProduceCategory(selectedScaleCategory, item.category)
                 );
             }
+        } else if (scaleFilterMode === 'all') {
+            // No history/alpha narrowing — only the category pill applies.
+            // Useful when the cashier knows what they're looking for but
+            // the item isn't a "top scanned" one and they don't want to
+            // guess the first letter.
+            filtered = produceItems.filter((item) =>
+                matchProduceCategory(selectedScaleCategory, item.category)
+            );
         } else {
             const normalizedAlphabet = alphabtet.toString().trim();
             filtered = produceItems.filter((item) => {
@@ -295,9 +340,10 @@ const Terminal = (props) => {
             return acc;
         }, []);
 
-        // History view is always alphabetical — ranking by scan count would
-        // confuse cashiers who already know where each item lives visually.
-        if (scaleFilterMode === 'history') {
+        // History and All views are always alphabetical — ranking by scan
+        // count would confuse cashiers who already know where each item
+        // lives visually.
+        if (scaleFilterMode === 'history' || scaleFilterMode === 'all') {
             uniqueItems.sort((a, b) => {
                 const an = (a.descriptionAr || '').toString();
                 const bn = (b.descriptionAr || '').toString();
@@ -307,6 +353,85 @@ const Terminal = (props) => {
 
         return uniqueItems;
     }, [produceItems, alphabtet, selectedScaleCategory, scaleFilterMode, topScaleBarcodes]);
+
+    // Distinct sub-segments from the loaded "Others" rows. Used to render the
+    // dynamic chip row below the main category pills when the cashier picks
+    // the "Others" tab — HO can add a brand-new sub-segment by inserting a
+    // row in pos_other_scale_items with that label and it will show up here
+    // without a code change.
+    const otherSubSegments = useMemo(() => {
+        if (!otherScaleItems || otherScaleItems.length === 0) return [];
+        const set = new Set();
+        for (const it of otherScaleItems) {
+            const s = (it && it.subSegment) ? String(it.subSegment).trim() : '';
+            if (s) set.add(s);
+        }
+        return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+    }, [otherScaleItems]);
+
+    // Same filter pattern as filteredProduceItems but sourced from the
+    // separate otherScaleItems array and gated by sub-segment instead of the
+    // fruit/vegetable category regex. History mode still narrows by
+    // topScaleBarcodes — so the cashier's "most weighed this week" includes
+    // popular Others items too.
+    const filteredOtherScaleItems = useMemo(() => {
+        if (!config.features.otherScaleItems) return [];
+        if (!otherScaleItems || otherScaleItems.length === 0) return [];
+
+        let filtered;
+        if (scaleFilterMode === 'history') {
+            if (!topScaleBarcodes || topScaleBarcodes.length === 0) {
+                filtered = [];
+            } else {
+                const barcodeSet = new Set(topScaleBarcodes.map(String));
+                filtered = otherScaleItems.filter((item) =>
+                    barcodeSet.has(String(item.barcode))
+                );
+            }
+        } else if (scaleFilterMode === 'all') {
+            filtered = otherScaleItems.slice();
+        } else {
+            const normalizedAlphabet = alphabtet.toString().trim();
+            filtered = otherScaleItems.filter((item) => {
+                const itemDescAr = item.descriptionAr || '';
+                const normalizedItemDesc = itemDescAr.toString().trim();
+                return normalizedItemDesc &&
+                    normalizedItemDesc.startsWith(normalizedAlphabet);
+            });
+        }
+
+        // Apply the sub-segment chip if one is selected (null = show all).
+        if (selectedOtherSubSegment) {
+            const wanted = selectedOtherSubSegment.toString().trim();
+            filtered = filtered.filter((item) => {
+                const s = (item.subSegment || '').toString().trim();
+                return s === wanted;
+            });
+        }
+
+        const uniqueItems = filtered.reduce((acc, current) => {
+            const exists = acc.find((item) => item.barcode === current.barcode);
+            if (!exists) acc.push(current);
+            return acc;
+        }, []);
+
+        if (scaleFilterMode === 'history' || scaleFilterMode === 'all') {
+            uniqueItems.sort((a, b) => {
+                const an = (a.descriptionAr || '').toString();
+                const bn = (b.descriptionAr || '').toString();
+                return an.localeCompare(bn, 'ar');
+            });
+        }
+
+        return uniqueItems;
+    }, [otherScaleItems, alphabtet, scaleFilterMode, topScaleBarcodes, selectedOtherSubSegment]);
+
+    // Single source of truth for whichever list the drawer is currently
+    // rendering. Keeping this consolidated avoids sprinkling `selectedScaleCategory === 'others'`
+    // ternaries across every count/empty-state/grid render below.
+    const drawerItems = selectedScaleCategory === 'others'
+        ? filteredOtherScaleItems
+        : filteredProduceItems;
 
     /**  
      * basic/setup data initialization
@@ -3482,32 +3607,43 @@ const Terminal = (props) => {
                             </div>
                             <div className={classes.ScaleHeaderTitle}>
                                 <h3>Scale Items</h3>
-                                <span>{filteredProduceItems.length} {filteredProduceItems.length === 1 ? 'item' : 'items'} shown</span>
+                                <span>{drawerItems.length} {drawerItems.length === 1 ? 'item' : 'items'} shown</span>
                             </div>
                         </div>
 
                         <div className={classes.ScaleCategoryPills}>
                             <button
                                 className={`${classes.ScaleCategoryPill} ${selectedScaleCategory === 'all' ? classes.ScaleCategoryPillActive : ''}`}
-                                onClick={() => setSelectedScaleCategory('all')}
+                                onClick={() => { setSelectedScaleCategory('all'); setSelectedOtherSubSegment(null); }}
                             >
                                 <FontAwesomeIcon icon={faList} />
                                 <span>All Items</span>
                             </button>
                             <button
                                 className={`${classes.ScaleCategoryPill} ${selectedScaleCategory === 'fruit' ? classes.ScaleCategoryPillActive : ''}`}
-                                onClick={() => setSelectedScaleCategory('fruit')}
+                                onClick={() => { setSelectedScaleCategory('fruit'); setSelectedOtherSubSegment(null); }}
                             >
                                 <FontAwesomeIcon icon={faAppleWhole} />
                                 <span>Fruits</span>
                             </button>
                             <button
                                 className={`${classes.ScaleCategoryPill} ${selectedScaleCategory === 'vegetable' ? classes.ScaleCategoryPillActive : ''}`}
-                                onClick={() => setSelectedScaleCategory('vegetable')}
+                                onClick={() => { setSelectedScaleCategory('vegetable'); setSelectedOtherSubSegment(null); }}
                             >
                                 <FontAwesomeIcon icon={faLeaf} />
                                 <span>Vegetables</span>
                             </button>
+                            {/* Tenant-gated. Only Jordan today; PS pos-backend
+                                doesn't expose /barcode/otherScaleItems. */}
+                            {config.features.otherScaleItems && (
+                                <button
+                                    className={`${classes.ScaleCategoryPill} ${selectedScaleCategory === 'others' ? classes.ScaleCategoryPillActive : ''}`}
+                                    onClick={() => { setSelectedScaleCategory('others'); setSelectedOtherSubSegment(null); }}
+                                >
+                                    <FontAwesomeIcon icon={faBoxOpen} />
+                                    <span>Others</span>
+                                </button>
+                            )}
                         </div>
 
                         <div className={classes.ScaleStatusChip}>
@@ -3543,6 +3679,19 @@ const Terminal = (props) => {
                         >
                             <FontAwesomeIcon icon={faHistory} />
                         </button>
+                        {/* "All" — show the full catalog for the current
+                            category (and sub-segment, when Others is
+                            active) without any history or alphabet
+                            narrowing. Sits right after History so the
+                            cashier can fall back to "show me everything"
+                            in one tap. */}
+                        <button
+                            className={`${classes.ScaleAlphaBtn} ${classes.ScaleSubSegmentBtn} ${scaleFilterMode === 'all' ? classes.ScaleAlphaBtnActive : ''}`}
+                            onClick={() => setScaleFilterMode('all')}
+                            title="Show every item in the current category"
+                        >
+                            All
+                        </button>
                         {['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ر', 'ذ', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي'].map((c) => (
                             <button
                                 key={c}
@@ -3554,10 +3703,35 @@ const Terminal = (props) => {
                         ))}
                     </div>
 
+                    {/* Dynamic sub-segment chips — only when Others is the
+                        active category. The list is derived from the
+                        distinct sub_segments returned by the backend, so
+                        new sub-segments added at HO appear automatically. */}
+                    {selectedScaleCategory === 'others' && otherSubSegments.length > 0 && (
+                        <div className={classes.ScaleAlphabetStrip} style={{ paddingTop: 4 }}>
+                            <button
+                                className={`${classes.ScaleAlphaBtn} ${classes.ScaleSubSegmentBtn} ${!selectedOtherSubSegment ? classes.ScaleAlphaBtnActive : ''}`}
+                                onClick={() => setSelectedOtherSubSegment(null)}
+                                title="Show every Others sub-segment"
+                            >
+                                All
+                            </button>
+                            {otherSubSegments.map((s) => (
+                                <button
+                                    key={s}
+                                    className={`${classes.ScaleAlphaBtn} ${classes.ScaleSubSegmentBtn} ${selectedOtherSubSegment === s ? classes.ScaleAlphaBtnActive : ''}`}
+                                    onClick={() => setSelectedOtherSubSegment(s)}
+                                >
+                                    {s}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Item grid */}
                     <div className={classes.ScaleGridWrap}>
                         <div className={classes.ScaleGrid}>
-                            {filteredProduceItems.length === 0 ? (
+                            {drawerItems.length === 0 ? (
                                 <div className={classes.ScaleEmptyState}>
                                     <div className={classes.ScaleEmptyIcon}>
                                         <FontAwesomeIcon icon={scaleFilterMode === 'history' ? faHistory : faBoxOpen} />
@@ -3565,15 +3739,19 @@ const Terminal = (props) => {
                                     <p className={classes.ScaleEmptyTitle}>
                                         {scaleFilterMode === 'history'
                                             ? 'No recent scale sales yet'
-                                            : 'No items match the current filter'}
+                                            : scaleFilterMode === 'all'
+                                                ? 'No items in this category'
+                                                : 'No items match the current filter'}
                                     </p>
                                     <p className={classes.ScaleEmptySub}>
                                         {scaleFilterMode === 'history'
                                             ? 'Once items are weighed, the 16 most-scanned will appear here.'
-                                            : 'Try a different letter or switch the category.'}
+                                            : scaleFilterMode === 'all'
+                                                ? 'Try a different category or sub-segment.'
+                                                : 'Try a different letter or switch the category.'}
                                     </p>
                                 </div>
-                            ) : filteredProduceItems.map((item) => {
+                            ) : drawerItems.map((item) => {
                                 const imgSrc = images[`${item.barcode}.png`] || images[`PLU_${item.barcode}.jpg`] || images['nophoto.jpg'];
                                 const isPiece = Boolean(item.isScalePiece);
                                 return (
@@ -3610,12 +3788,17 @@ const Terminal = (props) => {
                     <div className={classes.ScaleFooter}>
                         <div className={classes.ScaleFooterLeft}>
                             <div className={classes.ScaleFooterCount}>
-                                <b>{filteredProduceItems.length}</b>
-                                {filteredProduceItems.length === 1 ? 'item' : 'items'}
+                                <b>{drawerItems.length}</b>
+                                {drawerItems.length === 1 ? 'item' : 'items'}
                                 {scaleFilterMode === 'history' ? (
                                     <>&nbsp;&middot;&nbsp;<b style={{ color: '#111827' }}>most scanned this week</b></>
+                                ) : scaleFilterMode === 'all' ? (
+                                    <>&nbsp;&middot;&nbsp;<b style={{ color: '#111827' }}>all items</b></>
                                 ) : alphabtet ? (
                                     <>&nbsp;&middot;&nbsp;starting with <b style={{ color: '#111827' }}>{alphabtet}</b></>
+                                ) : null}
+                                {selectedScaleCategory === 'others' && selectedOtherSubSegment ? (
+                                    <>&nbsp;&middot;&nbsp;<b style={{ color: '#111827' }}>{selectedOtherSubSegment}</b></>
                                 ) : null}
                             </div>
                         </div>

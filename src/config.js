@@ -120,6 +120,13 @@ const tenantProfiles = {
             adminForceCloseTill: true,
             customerDisplayConfig: true,
             eshiniConnectionCheck: true,
+            // "Others" section in the scale-items drawer — anything weighable
+            // that isn't F&V (cheese, dates, olives, etc.) sourced from the
+            // pos_other_scale_items table at the local store backend. Only
+            // wired up on the Jordan backend today; Palestine pos-backend
+            // doesn't expose /barcode/otherScaleItems yet, so the flag stays
+            // off there to avoid a permanent failing fetch on till init.
+            otherScaleItems: true,
         }
     },
     palestine: {
@@ -127,7 +134,11 @@ const tenantProfiles = {
         currencySymbol: '₪',
         decimals: 2,
         features: {
-            cashback: false,
+            // Cashback / Shini.me points: the Palestine backend now has the
+            // `Cashback` payment method row + customer balance wiring in
+            // place, so the cashier-side button and customer-display totals
+            // are enabled the same way as Jordan.
+            cashback: true,
             fawtara: false,
             customCustomerName: false,
             customCustomerMobile: false,
@@ -146,8 +157,15 @@ const tenantProfiles = {
             adminCustomerParams: false,
             adminBroadcast: false,
             adminForceCloseTill: false,
-            customerDisplayConfig: false,
+            // Customer-display carousel/news params come from the per-store
+            // pos-backend, which reads them from its own ho-datasource. Each
+            // Palestine store deployment points at the Palestine head office,
+            // so the same flow works tenant-agnostic — just turn it on.
+            customerDisplayConfig: true,
             eshiniConnectionCheck: false,
+            // See Jordan profile — Palestine backend doesn't have this
+            // endpoint yet.
+            otherScaleItems: false,
         }
     }
 };
