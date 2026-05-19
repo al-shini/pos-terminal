@@ -1040,9 +1040,23 @@
     height: 100%;
     background: linear-gradient(90deg, #E11E26 0%, #FCA5A5 50%, #E11E26 100%);
     background-size: 200% 100%;
-    animation: carouselProgressShimmer 3s linear infinite;
     transform-origin: left;
-    transition: transform 100ms linear;
+    /*
+       Two animations: one shimmers the gradient, the other fills the bar
+       from 0% to 100% over the slide duration. The fill duration is set
+       inline from JS (animationDuration) to match SLIDE_DURATION_MS, and
+       a `key` change on the element remounts it so the fill restarts on
+       every slide. This replaces the old setInterval(setState, 100ms)
+       approach which was causing render churn on the customer display.
+    */
+    animation:
+        carouselProgressShimmer 3s linear infinite,
+        carouselProgressFill 7000ms linear forwards;
+}
+
+@keyframes carouselProgressFill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
 }
 
 @keyframes carouselProgressShimmer {

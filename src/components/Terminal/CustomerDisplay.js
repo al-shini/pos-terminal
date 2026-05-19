@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -16,8 +16,16 @@ import Logo from '../../assets/full-logo.png';
 import CustomerInvoiceList from './CustomerInvoiceList';
 import CustomerImageCarousel from './CustomerImageCarousel';
 import CustomerNewsTicker from './CustomerNewsTicker';
+import CustomerErrorBoundary from './CustomerErrorBoundary';
 
 const CONFIG_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+// Watchdog: if the customer window stops processing redux actions for this
+// long, force a soft reload. State syncs from the cashier window via
+// redux-state-sync; a long quiet period in the middle of an active shift
+// almost always means the BroadcastChannel between windows has wedged
+// (intermittent in Electron when the renderer is under memory pressure).
+// Reloading rehydrates from the other window automatically.
+const WATCHDOG_QUIET_MS = 5 * 60 * 1000; // 5 minutes
 
 const CURRENCY = config.currencySymbol;
 const DECIMALS = config.decimals;
@@ -43,9 +51,37 @@ const fmtAmount = (n) => (((Number(n) || 0) * 100) / 100).toFixed(DECIMALS);
  * populated by the cashier-facing Terminal window.
  */
 const CustomerDisplay = () => {
-    const terminal = useSelector((state) => state.terminal);
-    const trxSlice = useSelector((state) => state.trx);
+    // [PERF/STABILITY 2026-05-13] Narrow useSelector subscriptions to ONLY
+    // the primitive fields actually rendered by this component. Previously
+    // we subscribed to the entire `terminal` and `trx` slices, which forced
+    // the whole customer-display tree to re-render on EVERY redux action
+    // (and the cashier window dispatches dozens per scan/payment). On long
+    // shifts that built up enough render pressure on the secondary monitor
+    // to occasionally wedge the renderer (the "freezes after a few scans /
+    // invoices" reports). Picking primitives lets react-redux short-circuit
+    // re-renders via its default strict-equality check.
+    const trxMode = useSelector((state) => state.terminal.trxMode);
+    const customerName = useSelector((state) => (state.terminal.customer ? state.terminal.customer.customerName : null));
+    const customerIsClub = useSelector((state) => Boolean(state.terminal.customer && state.terminal.customer.club));
+    const customerCashbackBalance = useSelector((state) => (state.terminal.customer ? Number(state.terminal.customer.cashbackBalance) : 0));
     const customerConfigVersion = useSelector((state) => state.terminal.customerConfigVersion || 0);
+    const loggedInUsername = useSelector((state) => (state.terminal.loggedInUser ? state.terminal.loggedInUser.username : null));
+    const businessDateAsString = useSelector((state) => (
+        state.terminal.till && state.terminal.till.workDay
+            ? state.terminal.till.workDay.businessDateAsString
+            : null
+    ));
+    const paymentMode = useSelector((state) => state.terminal.paymentMode);
+    const blockActions = useSelector((state) => state.terminal.blockActions);
+    const broadcastMessage = useSelector((state) => (state.terminal.customerBroadcast ? state.terminal.customerBroadcast.message : null));
+    const broadcastImageUrl = useSelector((state) => (state.terminal.customerBroadcast ? state.terminal.customerBroadcast.imageUrl : null));
+
+    const trxTotalAfterDiscount = useSelector((state) => (state.trx.trx ? state.trx.trx.totalafterdiscount : 0));
+    const trxTotalDiscount = useSelector((state) => (state.trx.trx ? Number(state.trx.trx.totaldiscount) || 0 : 0));
+    const trxTotalCashbackAmt = useSelector((state) => (state.trx.trx ? state.trx.trx.totalcashbackamt : 0));
+    const trxPaidRaw = useSelector((state) => state.trx.trxPaid || 0);
+    const trxChangeRaw = useSelector((state) => state.trx.trxChange || 0);
+    const itemCount = useSelector((state) => (state.trx.scannedItems ? state.trx.scannedItems.length : 0));
 
     const [displayConfig, setDisplayConfig] = useState({ images: [], messages: [] });
 
@@ -86,43 +122,59 @@ const CustomerDisplay = () => {
         };
     }, [customerConfigVersion]);
 
-    const isRefund = terminal.trxMode === 'Refund';
-    const isClub = Boolean(terminal.customer && terminal.customer.club);
-    const customerName = terminal.customer ? terminal.customer.customerName : null;
+    // [STABILITY 2026-05-13] Watchdog: if no redux state change arrives for
+    // WATCHDOG_QUIET_MS while the cashier is logged in, the cross-window
+    // sync has almost certainly wedged — force a soft reload to recover
+    // without a manual app restart. The ref is updated on every render
+    // (cheap, no effect re-run); the interval itself is set up ONCE per
+    // login session.
+    const lastBeatRef = useRef(Date.now());
+    lastBeatRef.current = Date.now();
+    useEffect(() => {
+        if (!loggedInUsername) {
+            return undefined;
+        }
+        const id = setInterval(() => {
+            if (Date.now() - lastBeatRef.current > WATCHDOG_QUIET_MS) {
+                try { window.location.reload(); } catch (_) { /* ignore */ }
+            }
+        }, 30 * 1000);
+        return () => clearInterval(id);
+    }, [loggedInUsername]);
+
+    const isRefund = trxMode === 'Refund';
+    const isClub = customerIsClub;
 
     const clubBalance = useMemo(() => {
         if (!config.features.cashback) return null;
-        if (!isClub || !terminal.customer) return null;
-        const raw = Number(terminal.customer.cashbackBalance);
+        if (!isClub) return null;
+        const raw = customerCashbackBalance;
         if (!raw) return null;
         return Math.round(raw * 10000) / 10000;
-    }, [isClub, terminal.customer]);
+    }, [isClub, customerCashbackBalance]);
 
-    const grandTotal = trxSlice.trx
-        ? fmtAmount(trxSlice.trx.totalafterdiscount)
-        : (0).toFixed(DECIMALS);
+    const grandTotal = fmtAmount(trxTotalAfterDiscount);
 
-    const paid = fmtAmount(Math.round((trxSlice.trxPaid || 0) * 100) / 100);
-    const change = Math.round((trxSlice.trxChange || 0) * 100) / 100;
+    const paid = fmtAmount(Math.round((trxPaidRaw || 0) * 100) / 100);
+    const change = Math.round((trxChangeRaw || 0) * 100) / 100;
     const changeIsDue = change < 0;
     const changeLabel = change > 0 ? 'Change' : 'Due';
     const changeDisplay = fmtAmount(change);
 
-    const itemCount = trxSlice.scannedItems ? trxSlice.scannedItems.length : 0;
-    const cashback = config.features.cashback && trxSlice.trx && trxSlice.trx.totalcashbackamt > 0
-        ? fmtAmount(trxSlice.trx.totalcashbackamt)
+    const cashback = config.features.cashback && trxTotalCashbackAmt > 0
+        ? fmtAmount(trxTotalCashbackAmt)
         : null;
 
     // Total amount the customer saved this transaction. We only surface it
     // on sales — refunds don't carry a "savings" narrative.
-    const amountSavedRaw = trxSlice.trx ? Number(trxSlice.trx.totaldiscount) || 0 : 0;
-    const amountSaved = !isRefund && amountSavedRaw > 0
-        ? fmtAmount(amountSavedRaw)
+    const amountSaved = !isRefund && trxTotalDiscount > 0
+        ? fmtAmount(trxTotalDiscount)
         : null;
 
-    const isRefundMode = terminal.trxMode === 'Refund';
+    const isRefundMode = isRefund;
 
     return (
+        <CustomerErrorBoundary>
         <div className={[classes.Shell, isRefundMode ? classes.RefundMode : ''].join(' ')}>
             <div className={classes.LeftColumn}>
                 <div className={classes.Header}>
@@ -132,21 +184,19 @@ const CustomerDisplay = () => {
                     <div className={classes.HeaderRight}>
                         <span className={classes.HeaderBadge}>
                             <FontAwesomeIcon icon={faUserTie} />
-                            <b>{terminal.loggedInUser ? terminal.loggedInUser.username : 'No User'}</b>
+                            <b>{loggedInUsername || 'No User'}</b>
                         </span>
                         <span className={classes.HeaderBadge}>
                             <FontAwesomeIcon icon={faCalendarDay} />
                             <b>
-                                {terminal.till && terminal.till.workDay
-                                    ? terminal.till.workDay.businessDateAsString
-                                    : '—'}
+                                {businessDateAsString || '—'}
                             </b>
                         </span>
                         <span
                             className={`${classes.HeaderStatus} ${isRefund ? classes.HeaderStatusRefund : ''}`}
                         >
                             <span className={classes.HeaderStatusDot} />
-                            {isRefund ? 'Refund' : (terminal.paymentMode ? 'Payment' : 'Sale')}
+                            {isRefund ? 'Refund' : (paymentMode ? 'Payment' : 'Sale')}
                         </span>
                     </div>
                 </div>
@@ -199,7 +249,7 @@ const CustomerDisplay = () => {
                         </div>
                     </div>
 
-                    {terminal.paymentMode && (
+                    {paymentMode && (
                         <div className={classes.TotalsStackCell}>
                             <div className={classes.TotalsStackRow}>
                                 <span className={classes.TotalsStackLabel}>Paid</span>
@@ -246,7 +296,7 @@ const CustomerDisplay = () => {
             </div>
 
             <div className={classes.RightColumn}>
-                {terminal.paymentMode && (
+                {paymentMode && (
                     <div className={classes.PayBanner}>
                         <FontAwesomeIcon icon={faMoneyBillTransfer} style={{ fontSize: 20 }} />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -260,7 +310,7 @@ const CustomerDisplay = () => {
 
             <CustomerNewsTicker messages={displayConfig.messages} />
 
-            {terminal.blockActions && (
+            {blockActions && (
                 <div className={classes.LockOverlay}>
                     <div className={classes.LockIcon}>
                         <FontAwesomeIcon icon={faLock} />
@@ -272,24 +322,25 @@ const CustomerDisplay = () => {
                 </div>
             )}
 
-            {terminal.customerBroadcast && (terminal.customerBroadcast.message || terminal.customerBroadcast.imageUrl) && (
+            {(broadcastMessage || broadcastImageUrl) && (
                 <div className={adminClasses.CustomerBroadcastOverlay}>
-                    {terminal.customerBroadcast.imageUrl && (
+                    {broadcastImageUrl && (
                         <img
-                            src={terminal.customerBroadcast.imageUrl}
+                            src={broadcastImageUrl}
                             alt=""
                             className={adminClasses.CustomerBroadcastImg}
                             onError={(e) => { e.target.style.display = 'none'; }}
                         />
                     )}
-                    {terminal.customerBroadcast.message && (
+                    {broadcastMessage && (
                         <div className={adminClasses.CustomerBroadcastMsg}>
-                            {terminal.customerBroadcast.message}
+                            {broadcastMessage}
                         </div>
                     )}
                 </div>
             )}
         </div>
+        </CustomerErrorBoundary>
     );
 };
 

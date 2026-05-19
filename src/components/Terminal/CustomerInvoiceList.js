@@ -24,7 +24,7 @@ const deriveItemState = (item) => {
  * Customer-facing invoice line row. Stripped of cashier affordances
  * (selection highlight, click handlers, hover states) — purely informative.
  */
-const LineRow = ({ item }) => {
+const LineRow = React.memo(function LineRow({ item }) {
     const { isVoided, hasDiscount, hasExtra, hasAdjustment, displayPrice, delta } = deriveItemState(item);
 
     const priceClass = isVoided
@@ -80,7 +80,7 @@ const LineRow = ({ item }) => {
             </div>
         </div>
     );
-};
+});
 
 /**
  * The latest-scanned item gets a large, animated "hero" card pinned above
