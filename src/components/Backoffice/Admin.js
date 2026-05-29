@@ -43,9 +43,22 @@ const EXTENDED_BO = Boolean(
         config.features.adminHourlySales)
 );
 
+// The Reports tab also hosts the Customer Display editor + live broadcast,
+// both of which are local-only (no Jordan backend dependency), so the tab is
+// shown whenever any of its panels is enabled — even on tenants that don't
+// have the full extended back-office (e.g. Palestine managing its customer
+// screen content locally).
+const SHOW_REPORTS_TAB = Boolean(
+    config.features &&
+    (config.features.adminAudit ||
+        config.features.adminTopItems ||
+        config.features.adminBroadcast ||
+        config.features.adminCustomerParams)
+);
+
 const TAB_KEYS = EXTENDED_BO
     ? ['day', 'tills', 'invoices', 'loyalty', 'reports']
-    : ['day', 'tills'];
+    : (SHOW_REPORTS_TAB ? ['day', 'tills', 'reports'] : ['day', 'tills']);
 
 // Gate for the Super-Admin shield. The only action currently behind it is
 // "Force Close Till", which we're disabling for now — so the whole shield UI
@@ -248,7 +261,7 @@ const Admin = () => {
                     {EXTENDED_BO && (
                         <Tab disableRipple label={<span className={classes.TabLabel}><FontAwesomeIcon icon={faUserGroup} />Loyalty</span>} />
                     )}
-                    {EXTENDED_BO && (
+                    {(EXTENDED_BO || SHOW_REPORTS_TAB) && (
                         <Tab disableRipple label={<span className={classes.TabLabel}><FontAwesomeIcon icon={faChartColumn} />Reports</span>} />
                     )}
                 </Tabs>
@@ -261,7 +274,7 @@ const Admin = () => {
                 {activeTab === 'tills' && <ActiveTills superAdmin={contextValue.superAdmin} />}
                 {EXTENDED_BO && activeTab === 'invoices' && <InvoicesLookup />}
                 {EXTENDED_BO && activeTab === 'loyalty' && <CustomerLookup />}
-                {EXTENDED_BO && activeTab === 'reports' && <Reports />}
+                {(EXTENDED_BO || SHOW_REPORTS_TAB) && activeTab === 'reports' && <Reports />}
             </div>
 
             {printInvoiceKey && (

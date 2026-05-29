@@ -10,7 +10,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 
 import axios from '../../axios';
-import { selectPayment, setUsedCoupons, uploadPayments } from '../../store/trxSlice';
+import { selectPayment, uploadPayments } from '../../store/trxSlice';
 import { notify } from '../../store/uiSlice';
 import config from '../../config';
 
@@ -59,16 +59,6 @@ const Invoice = (props) => {
             if (response && response.data) {
 
                 dispatch(uploadPayments(response.data));
-
-                if (response.data.payments) {
-                    let usedCoupons = {};
-                    response.data.payments.map((payment) => {
-                        if (!payment.voided && payment.paymentMethodKey === 'Cashback') {
-                            usedCoupons[payment.sourceKey] = true;
-                        }
-                    })
-                    dispatch(setUsedCoupons(usedCoupons));
-                }
             }
         }).catch((error) => {
             if (error.response) {

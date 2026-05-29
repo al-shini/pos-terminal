@@ -41,10 +41,12 @@ const fmtAmount = (n) => (((Number(n) || 0) * 100) / 100).toFixed(DECIMALS);
  *   │          News ticker (full width)       │
  *   └─────────────────────────────────────────┘
  *
- * All customer-facing content (ads + news) is sourced from the head-office
+ * All customer-facing content (ads + news) is sourced from the LOCAL store
  * system parameters POS_CUSTOMER_IMAGES and POS_CUSTOMER_MESSAGES via
- * GET /trx/customerDisplayConfig. We refetch periodically so updates made
- * at head office roll out without restarting the display.
+ * GET /trx/customerDisplayConfig. The customer display is fully independent
+ * of the head office — content is managed per-store from the back-office
+ * ("Customer Display Settings"). We refetch periodically so back-office
+ * edits roll out without restarting the display.
  *
  * The component is purely presentational — all transaction state comes
  * from the shared Redux store (synced across windows via redux-state-sync),
@@ -86,10 +88,10 @@ const CustomerDisplay = () => {
     const [displayConfig, setDisplayConfig] = useState({ images: [], messages: [] });
 
     useEffect(() => {
-        // Customer-display carousel/news is only wired into the Jordan
-        // backend (it depends on head-office system params + a dedicated
-        // endpoint). For tenants without the feature we stay on the
-        // empty defaults — the display still renders totals/lines fine.
+        // Carousel/news content comes from the local pos-backend
+        // (/trx/customerDisplayConfig → LOCAL _params, no head office). For
+        // tenants without the feature we stay on the empty defaults — the
+        // display still renders totals/lines fine.
         if (!config.features.customerDisplayConfig) {
             return;
         }
@@ -99,7 +101,10 @@ const CustomerDisplay = () => {
         const fetchConfig = () => {
             axios({
                 method: 'get',
-                url: '/trx/customerDisplayConfig'
+                url: '/trx/customerDisplayConfig',
+                // Defensive timeout so a slow/unreachable backend can't leave
+                // requests hanging and overlapping across poll cycles.
+                timeout: 15000
             }).then((response) => {
                 if (cancelled || !response || !response.data) return;
                 setDisplayConfig({

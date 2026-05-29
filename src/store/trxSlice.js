@@ -22,16 +22,18 @@ const initialState = {
     // qr auth operations
     qrAuthState: 'idle', //idle, pending
     lastTrxPayment: null,
-    cashBackCoupons: [],
-    usedCoupons: {},
     priceChangeReason: '',
     scrollAction: 'none',
     // refund reference
     originalTrxReference: null,
     // re-entrancy guard for the cashier tapping OK multiple times during
-    // /trx/closeTrxPayment (previously could produce duplicate CASHBACK_BALANCE_CONSUME
-    // queue rows and double-deduct points_balance in shini me)
+    // /trx/closeTrxPayment (a fast double-tap could otherwise fire two closes /
+    // two point deductions). Backend is also idempotent, this is defence in depth.
     closingTrx: false,
+    // re-entrancy guard for the cashier tapping OK multiple times while a
+    // /trx/submitPayment is in flight (prevents duplicate payment rows, e.g. a
+    // doubled cashback/points payment).
+    paymentSubmitting: false,
     // [PS fix] Monotonic sequence number for scan requests. Each scanBarcode /
     // scanNewTransaction dispatch increments this counter and tags itself with
     // the resulting value; the .fulfilled reducer ignores any response whose
@@ -361,6 +363,18 @@ export const submitPayment = createAsyncThunk(
         }).finally(() => {
             thunkAPI.dispatch(hideLoading());
         });
+    },
+    {
+        // Hard-stop re-entrancy: ignore a new submit while one is already in
+        // flight so a cashier hammering OK can't create duplicate payment rows
+        // (e.g. a doubled points/cashback payment).
+        condition: (payload, { getState }) => {
+            const state = getState();
+            if (state && state.trx && state.trx.paymentSubmitting) {
+                return false;
+            }
+            return true;
+        }
     }
 )
 
@@ -377,6 +391,15 @@ export const closeTrxPayment = createAsyncThunk(
             if (response && response.data) {
 
                 thunkAPI.dispatch(notify({ msg: 'Transaction paid, print invoice ☺', sev: 'info' }));
+
+                // [cashback/one-shot] The sale closed, but if earned loyalty
+                // points could NOT be granted (Shini Me offline) the backend
+                // returns a bilingual warning. Surface it prominently so the
+                // cashier can tell the customer + the loyalty team adds the
+                // points manually. The sale itself is fine.
+                if (response.data.cashbackGrantWarning) {
+                    thunkAPI.dispatch(notify({ msg: response.data.cashbackGrantWarning, sev: 'warning' }));
+                }
 
                 if (payload.sendToNumber) {
                     axios({
@@ -1141,12 +1164,6 @@ export const trxSlice = createSlice({
         clearLastPaymentHistory: (state) => {
             state.lastTrxPayment = null
         },
-        uploadCashBackCoupons: (state, action) => {
-            state.cashBackCoupons = action.payload
-        },
-        setUsedCoupons: (state, action) => {
-            state.usedCoupons = action.payload
-        },
         setPriceChangeReason: (state, action) => {
             state.priceChangeReason = action.payload
         },
@@ -1259,6 +1276,9 @@ export const trxSlice = createSlice({
         })
 
         /* submitPayment thunk */
+        builder.addCase(submitPayment.pending, (state, action) => {
+            state.paymentSubmitting = true;
+        })
         builder.addCase(submitPayment.fulfilled, (state, action) => {
             if (action.payload.payments) {
                 state.payments = action.payload.payments;
@@ -1266,11 +1286,11 @@ export const trxSlice = createSlice({
                 state.trxChange = action.payload.change;
                 state.trx = action.payload.trx;
             }
-
+            state.paymentSubmitting = false;
         })
 
         builder.addCase(submitPayment.rejected, (state, action) => {
-
+            state.paymentSubmitting = false;
         })
 
         /* closeTrxPayment thunk */
@@ -1441,7 +1461,7 @@ export const trxSlice = createSlice({
 
 export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange, selectPayment, uploadPayments, setTrx, enablePriceChange, disablePriceChange, scroll,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory,
-    uploadCashBackCoupons, setUsedCoupons, setPriceChangeReason, clearPriceChangeReason, scrollDown, scrollUp, resetScrollAction, prepareScanMultiplierPreDefined, scrollBottom,
+    setPriceChangeReason, clearPriceChangeReason, scrollDown, scrollUp, resetScrollAction, prepareScanMultiplierPreDefined, scrollBottom,
     setOriginalTrxReference, clearOriginalTrxReference,
     bumpScanSeq
 } = trxSlice.actions

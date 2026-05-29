@@ -94,8 +94,8 @@ const initialState = {
         loading: false,
         saving: false,
         values: {
-            POS_CUSTOMER_IMAGES: { local: null, source: 'ho' },
-            POS_CUSTOMER_MESSAGES: { local: null, source: 'ho' },
+            POS_CUSTOMER_IMAGES: { local: null, source: 'default' },
+            POS_CUSTOMER_MESSAGES: { local: null, source: 'default' },
         },
     },
 
@@ -584,7 +584,7 @@ export const authSlice = createSlice({
             if (name) {
                 state.customerParams.values[name] = {
                     local: value,
-                    source: value && value.trim().length > 0 ? 'local' : 'ho',
+                    source: value && value.trim().length > 0 ? 'local' : 'default',
                 };
             }
         })

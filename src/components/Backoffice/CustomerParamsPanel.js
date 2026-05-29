@@ -72,7 +72,7 @@ const CustomerParamsPanel = () => {
             <div className={classes.LookupCardBody}>
                 {PARAMS.map((p) => {
                     const info = values[p.key] || {};
-                    const source = info.source || 'ho';
+                    const source = info.source === 'local' ? 'local' : 'default';
                     return (
                         <div key={p.key} className={classes.ParamRow}>
                             <div className={classes.ParamRowLabel}>
@@ -81,10 +81,10 @@ const CustomerParamsPanel = () => {
                                 <span
                                     className={`${classes.ParamRowSource} ${source === 'local' ? classes.ParamRowSourceLocal : classes.ParamRowSourceHo}`}
                                     title={source === 'local'
-                                        ? 'Using local override'
-                                        : 'No local override — falling back to head-office value'}
+                                        ? 'Configured for this store'
+                                        : 'Not set — the customer screen shows neutral branded defaults'}
                                 >
-                                    {source === 'local' ? 'Local Override' : 'Head Office'}
+                                    {source === 'local' ? 'Configured' : 'Not Set'}
                                 </span>
                             </div>
                             <textarea
@@ -108,7 +108,7 @@ const CustomerParamsPanel = () => {
                 })}
 
                 <div style={{ fontSize: 11, color: '#6B7280', marginTop: 10 }}>
-                    Saving will only update this store's local values. Customer screens refresh on save.
+                    These values are stored locally for this store only (no head office). Customer screens refresh on save.
                 </div>
             </div>
         </div>

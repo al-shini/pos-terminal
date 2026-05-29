@@ -119,7 +119,10 @@ const tenantProfiles = {
             adminBroadcast: true,
             adminForceCloseTill: true,
             customerDisplayConfig: true,
-            eshiniConnectionCheck: true,
+            // EmployeeExtra (employee-balance tender) is NOT launched in Jordan
+            // yet. The button stays hidden until the ShiniMe-backed balance flow
+            // is rolled out. Flip to true when launching.
+            employeeExtra: false,
             // "Others" section in the scale-items drawer — anything weighable
             // that isn't F&V (cheese, dates, olives, etc.) sourced from the
             // pos_other_scale_items table at the local store backend. Only
@@ -154,15 +157,27 @@ const tenantProfiles = {
             adminAudit: false,
             adminTopItems: false,
             adminHourlySales: false,
-            adminCustomerParams: false,
+            // Customer Display editor is enabled so each Palestine store can
+            // manage its own carousel images + news-bar messages locally. It
+            // only reads/writes the LOCAL store _params (POS_CUSTOMER_IMAGES /
+            // POS_CUSTOMER_MESSAGES) via /bo/getCustomerParams +
+            // /bo/setCustomerParam — no head-office dependency. This surfaces
+            // a Reports tab containing ONLY this panel (the other Reports
+            // panels stay gated off below).
+            adminCustomerParams: true,
             adminBroadcast: false,
             adminForceCloseTill: false,
-            // Customer-display carousel/news params come from the per-store
-            // pos-backend, which reads them from its own ho-datasource. Each
-            // Palestine store deployment points at the Palestine head office,
-            // so the same flow works tenant-agnostic — just turn it on.
+            // Customer-display carousel/news params are read by the per-store
+            // pos-backend from its LOCAL _params table only (no head-office
+            // fallback), so the customer screen is fully independent of the
+            // head office. Manage the content from the back-office "Customer
+            // Display Settings" panel.
             customerDisplayConfig: true,
-            eshiniConnectionCheck: false,
+            // EmployeeExtra (employee-balance tender) is LIVE in Palestine: the
+            // PS backend deducts users.employee_balance from the Shini Me
+            // datasource in the same one-shot consumeShiniMeBalances()
+            // transaction as cashback (FOR UPDATE, no queue). Keep enabled.
+            employeeExtra: true,
             // See Jordan profile — Palestine backend doesn't have this
             // endpoint yet.
             otherScaleItems: false,
@@ -172,7 +187,8 @@ const tenantProfiles = {
 
 const profile = tenantProfiles[tenant] || tenantProfiles.jordan;
 
-const _visa = 'Visa';
+// const _visa = 'Visa';
+const _visa = '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639';
 
 
 const config = {

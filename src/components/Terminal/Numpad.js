@@ -52,7 +52,12 @@ const Numpad = (props) => {
     }
 
     const handleOk = () => {
-        if (trxSlice.closingTrx) {
+        // Hard-stop re-entrancy: never act on OK while a payment submit or a
+        // transaction close is already in flight. The button is also disabled
+        // (below) and both thunks have their own condition guards — defence in
+        // depth so a cashier can never rapid-tap OK into duplicate payments or
+        // a double close/points deduction.
+        if (trxSlice.closingTrx || trxSlice.paymentSubmitting) {
             return;
         }
         if (terminal.till && terminal.till.isInitialized) {
@@ -362,9 +367,9 @@ const Numpad = (props) => {
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={24} id='OkButton'>
                         <Button color={isRefundMode ? 'red' : 'green'} appearance='primary' className={okClass}
-                            disabled={trxSlice.closingTrx}
+                            disabled={trxSlice.closingTrx || trxSlice.paymentSubmitting}
                             onClick={handleOk} >
-                            {trxSlice.closingTrx ? '...' : 'OK'}
+                            {(trxSlice.closingTrx || trxSlice.paymentSubmitting) ? '...' : 'OK'}
                         </Button>
                     </FlexboxGrid.Item>
                 </FlexboxGrid>

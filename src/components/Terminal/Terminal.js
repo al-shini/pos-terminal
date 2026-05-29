@@ -20,7 +20,7 @@ import terminalSlice, {
 import {
     selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
-    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, uploadCashBackCoupons, setUsedCoupons, rescanTrx, closeTrxPayment, clearLastPaymentHistory, setPriceChangeReason, prepareScanMultiplierPreDefined,
+    checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, rescanTrx, closeTrxPayment, clearLastPaymentHistory, setPriceChangeReason, prepareScanMultiplierPreDefined,
     fullTrxTaxExempt,
     printTrx, clearOriginalTrxReference, setOriginalTrxReference, setCustomCustomerName,
     printTrxNoDrawer
@@ -113,7 +113,6 @@ const Terminal = (props) => {
     const [play] = useSound(errorBeep);
     const [groupedFastItems, setGroupedFastItems] = useState({});
     const [selectedFGroup, setSelectedFGroup] = useState(null);
-    const [hasEshiniConnection, setHasEshiniConnection] = useState(true);
     const [scaleItemsOpen, setScaleItemsOpen] = useState(false);
     const [scaleConnected, setScaleConnected] = useState(false);
     // 'all' | 'fruit' | 'vegetable' | 'others'
@@ -171,30 +170,6 @@ const Terminal = (props) => {
         play();
     }, [terminal.errorSound])
 
-
-    useEffect(() => {
-        // The ShiniMe / eShini connectivity probe is only wired into the Jordan
-        // backend (`/trx/hasEshiniConnection`); the Palestine backend doesn't
-        // expose it and loyalty cashback is disabled for PS anyway, so we short
-        // circuit to `true` for tenants without the flag.
-        if (!config.features.eshiniConnectionCheck) {
-            setHasEshiniConnection(true);
-            return;
-        }
-        axios({
-            method: 'post',
-            url: '/trx/hasEshiniConnection'
-        }).then((response) => {
-            if (response) {
-                setHasEshiniConnection(response.data);
-            }
-        }).catch((error) => {
-            // Non-fatal: we just fall back to "connected" so the cashier UI
-            // doesn't permanently block cashback operations on transient errors.
-            setHasEshiniConnection(true);
-            dispatch(notify({ msg: 'ShiniMe probe failed, assuming online', sev: 'warning' }));
-        });
-    }, [])
 
     useEffect(() => {
         if (config.scale && !(produceItems.length > 0)) {
@@ -916,9 +891,6 @@ const Terminal = (props) => {
             inputType
         }));
         dispatch(selectPaymentMethod(config[type]));
-        if (type === 'cashBack') {
-            loadCashbackCoupons();
-        }
     }
 
 
@@ -1839,31 +1811,6 @@ const Terminal = (props) => {
         }
     }
 
-    const loadCashbackCoupons = () => {
-        // console.log('loading cashback coupons');
-        axios({
-            method: 'post',
-            url: '/trx/loadCouponsPayments',
-            headers: {
-                trxKey: trxSlice.trx.key
-            }
-        }).then((response) => {
-            if (response && response.data) {
-                dispatch(uploadCashBackCoupons(response.data));
-            } else {
-                dispatch(notify({ msg: 'Incorrect fetch cash back coupons response', sev: 'error' }))
-            }
-        }).catch((error) => {
-            if (error.response) {
-                if (error.response.status === 401) {
-                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                }
-            } else {
-                dispatch(notify({ msg: error.message, sev: 'error' }));
-            }
-        });
-    }
-
     const buildPaymentTypesButtons = () => {
         return <React.Fragment>
             <Button key='cash' disabled={!trxSlice.trx} className={classes.MainActionButton} onClick={() => { startPayment('cash', 'fixed') }}>
@@ -1972,14 +1919,14 @@ const Terminal = (props) => {
             </Button>}
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
             {config.features.cashback && terminal.customer && terminal.store && <Button key='cashBack'
-                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection || !trxSlice.trx}
+                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !trxSlice.trx}
                 className={classes.MainActionButton} onClick={() => { startPayment('cashBack', 'numpad') }}>
                 <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
                 <label>Cash Back</label>
             </Button>}
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
-            {terminal.customer && terminal.customer.employee && terminal.store && <Button key='employeeExtra'
-                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !hasEshiniConnection || !trxSlice.trx}
+            {config.features.employeeExtra && terminal.customer && terminal.customer.employee && terminal.store && <Button key='employeeExtra'
+                disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || !terminal.customer.club || !trxSlice.trx}
                 className={classes.MainActionButton} onClick={() => { startPayment('employeeExtra', 'numpad') }}>
                 <FontAwesomeIcon icon={faPlusSquare} style={{ marginRight: '5px' }} />
                 <label>Employee</label>
@@ -2471,57 +2418,6 @@ const Terminal = (props) => {
     }
 
 
-
-    const buildCashBackCouponButtons = () => {
-        let tmp = [];
-
-        trxSlice.cashBackCoupons.map((obj, i) => {
-            tmp.push(
-                <Button key={i} className={classes.ActionButton}
-                    disabled={trxSlice.usedCoupons[obj.key]}
-                    style={{
-                        background: trxSlice.usedCoupons[obj.key] ? '#e1e1e1' : '#cd1515',
-                        color: trxSlice.usedCoupons[obj.key] ? '#cd1515' : 'white',
-                        textDecoration: trxSlice.usedCoupons[obj.key] ? 'line-through' : 'auto',
-                        height: '200px !important'
-                    }}
-
-                    onClick={() => {
-                        dispatch(submitPayment({
-                            tillKey: terminal.till ? terminal.till.key : null,
-                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                            paymentMethodKey: 'Cashback',
-                            currency: config.systemCurrency,
-                            amount: obj.amount,
-                            sourceKey: obj.key,
-                            visaPayment: null
-                        }))
-
-                        let usedCoupons = {
-                            ...trxSlice.usedCoupons
-                        };
-                        usedCoupons[obj.key] = true;
-                        dispatch(setUsedCoupons(usedCoupons));
-                    }} >
-                    <div key={i + 'cbc'} style={{ textAlign: 'center', fontSize: '14px', }}>
-                        <div>
-                            <b style={{ fontSize: '16px' }}>{obj.amount} {config.systemCurrency}</b>
-                        </div>
-                        <div style={{ fontSize: '11px' }}>
-                            Expires: {obj.expiryDateAsString}
-                        </div>
-                    </div>
-                </Button>
-            )
-            tmp.push(<div key={i + 'div'} style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>);
-        });
-
-        // loadCashbackCoupons();
-
-        tmp.push(<div key='fsz' style={{ lineHeight: '0.6705', color: 'transparent' }}> .</div>);
-
-        return tmp;
-    }
 
     const buildFastItemGroupButtons = () => {
         let tmp = [];
@@ -3172,25 +3068,6 @@ const Terminal = (props) => {
                             </span>
                         )}
 
-                        {!hasEshiniConnection && (
-                            <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                background: 'rgba(217, 119, 6, 0.10)',
-                                border: '1px solid rgba(217, 119, 6, 0.28)',
-                                padding: '5px 12px',
-                                borderRadius: '999px',
-                                color: '#B45309',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                letterSpacing: '0.3px',
-                                textTransform: 'uppercase'
-                            }}>
-                                <FontAwesomeIcon icon={faExclamationTriangle} />
-                                No E-Shini Connection
-                            </span>
-                        )}
                     </div>
                     
                     {terminal.paymentMode && trxSlice.trx && trxSlice.trx.affectedByPlusTax && trxSlice.trx.totalPlusTaxAmt > 0 && (
@@ -3543,18 +3420,13 @@ const Terminal = (props) => {
                                 </Button>
                             }
 
-                            {/* {
-                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'cashBack' &&
-                                buildCashBackCouponButtons()
-                            } */}
-
                             {
                                 actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'cashBack' &&
                                 buildCashBackButtons()
                             }
 
                             {
-                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'employeeExtra' &&
+                                config.features.employeeExtra && actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'employeeExtra' &&
                                 buildEmployeeExtraButtons()
                             }
 

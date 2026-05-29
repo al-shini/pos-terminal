@@ -48,8 +48,8 @@ const CustomerNewsTicker = ({ messages }) => {
 
     const handleReload = () => {
         // Hard reload the customer screen — re-fetches customer display
-        // config (images + messages) from HO and rehydrates Redux from
-        // the other window via redux-state-sync.
+        // config (images + messages) from the local pos-backend and
+        // rehydrates Redux from the other window via redux-state-sync.
         window.location.reload();
     };
 
