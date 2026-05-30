@@ -270,6 +270,24 @@ const Numpad = (props) => {
                                 }} />
                         }
                     </div>
+                    {(terminal.paymentMode
+                        && terminal.paymentInput === 'numpad'
+                        && trxSlice.selectedPaymentMethod !== 'Voucher'
+                        && trxSlice.selectedCurrency
+                        && trxSlice.selectedCurrency !== config.systemCurrency
+                        && terminal.exchangeRates[trxSlice.selectedCurrency]
+                        && terminal.exchangeRates[trxSlice.selectedCurrency] > 1
+                        && trxSlice.trx) && (
+                        <div className={styles.ConvertedTotal}>
+                            <span className={styles.ConvertedTotalLabel}>
+                                Total in {trxSlice.selectedCurrency}
+                            </span>
+                            <span className={styles.ConvertedTotalValue}>
+                                ≈ {(trxSlice.trx.totalafterdiscount / terminal.exchangeRates[trxSlice.selectedCurrency]).toFixed(2)}
+                                <small>{trxSlice.selectedCurrency}</small>
+                            </span>
+                        </div>
+                    )}
                 </Panel>
             </FlexboxGridItem>
             <FlexboxGrid.Item colspan={18}>

@@ -84,6 +84,15 @@ const CustomerDisplay = () => {
     const trxPaidRaw = useSelector((state) => state.trx.trxPaid || 0);
     const trxChangeRaw = useSelector((state) => state.trx.trxChange || 0);
     const itemCount = useSelector((state) => (state.trx.scannedItems ? state.trx.scannedItems.length : 0));
+    // Selected payment currency + its NIS-per-unit rate (synced from the
+    // cashier window). Used to show the grand total converted into a foreign
+    // currency when one is selected during payment.
+    const selectedCurrency = useSelector((state) => state.trx.selectedCurrency || null);
+    const selectedRate = useSelector((state) => {
+        const c = state.trx.selectedCurrency;
+        const rates = state.terminal.exchangeRates;
+        return c && rates && rates[c] ? Number(rates[c]) : null;
+    });
 
     const [displayConfig, setDisplayConfig] = useState({ images: [], messages: [] });
 
@@ -178,6 +187,18 @@ const CustomerDisplay = () => {
 
     const isRefundMode = isRefund;
 
+    // Grand total expressed in the selected foreign currency (e.g. 14.01 NIS
+    // ≈ 4.85 USD at rate 2.89). Only shown in payment mode when a non-primary
+    // currency with a real rate is selected.
+    const convertedTotal = (paymentMode
+        && selectedCurrency
+        && selectedCurrency !== config.systemCurrency
+        && selectedRate
+        && selectedRate > 1
+        && Number(trxTotalAfterDiscount) > 0)
+        ? (Number(trxTotalAfterDiscount) / selectedRate).toFixed(2)
+        : null;
+
     return (
         <CustomerErrorBoundary>
         <div className={[classes.Shell, isRefundMode ? classes.RefundMode : ''].join(' ')}>
@@ -238,42 +259,50 @@ const CustomerDisplay = () => {
                 <CustomerInvoiceList />
 
                 <div className={classes.TotalsPanel}>
-                    <div className={classes.TotalsCell}>
-                        <span
-                            className={`${classes.TotalsLabel} ${isRefund ? classes.TotalsLabelAccent : classes.TotalsLabelAccentGreen}`}
-                        >
-                            {isRefund ? 'Refund Total' : 'Grand Total'}
-                        </span>
-                        <div className={classes.TotalsAmount}>
-                            <small>{CURRENCY}</small>
+                    <div className={classes.TotalsMain}>
+                        <div className={classes.TotalsCell}>
                             <span
-                                className={`${classes.TotalsAmountGrand} ${isRefund ? classes.TotalsAmountRed : classes.TotalsAmountGreen}`}
+                                className={`${classes.TotalsLabel} ${isRefund ? classes.TotalsLabelAccent : classes.TotalsLabelAccentGreen}`}
                             >
-                                {grandTotal}
+                                {isRefund ? 'Refund Total' : 'Grand Total'}
                             </span>
+                            <div className={classes.TotalsAmount}>
+                                <small>{CURRENCY}</small>
+                                <span
+                                    className={`${classes.TotalsAmountGrand} ${isRefund ? classes.TotalsAmountRed : classes.TotalsAmountGreen}`}
+                                >
+                                    {grandTotal}
+                                </span>
+                            </div>
+                            {convertedTotal && (
+                                <span className={classes.TotalsConverted}>
+                                    ≈ {convertedTotal}
+                                    <small>{selectedCurrency}</small>
+                                </span>
+                            )}
                         </div>
-                    </div>
 
-                    {paymentMode && (
-                        <div className={classes.TotalsStackCell}>
-                            <div className={classes.TotalsStackRow}>
-                                <span className={classes.TotalsStackLabel}>Paid</span>
-                                <span className={classes.TotalsStackAmount}>{paid}</span>
+                        {paymentMode && (
+                            <div className={classes.TotalsStackCell}>
+                                <div className={classes.TotalsStackRow}>
+                                    <span className={classes.TotalsStackLabel}>Paid</span>
+                                    <span className={classes.TotalsStackAmount}>{paid}</span>
+                                </div>
+                                <div className={classes.TotalsStackRow}>
+                                    <span
+                                        className={`${classes.TotalsStackLabel} ${changeIsDue ? classes.TotalsStackLabelRed : classes.TotalsStackLabelGreen}`}
+                                    >
+                                        {changeLabel}
+                                    </span>
+                                    <span
+                                        className={`${classes.TotalsStackAmount} ${changeIsDue ? classes.TotalsStackAmountRed : classes.TotalsStackAmountGreen}`}
+                                    >
+                                        {changeDisplay}
+                                    </span>
+                                </div>
                             </div>
-                            <div className={classes.TotalsStackRow}>
-                                <span
-                                    className={`${classes.TotalsStackLabel} ${changeIsDue ? classes.TotalsStackLabelRed : classes.TotalsStackLabelGreen}`}
-                                >
-                                    {changeLabel}
-                                </span>
-                                <span
-                                    className={`${classes.TotalsStackAmount} ${changeIsDue ? classes.TotalsStackAmountRed : classes.TotalsStackAmountGreen}`}
-                                >
-                                    {changeDisplay}
-                                </span>
-                            </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <div className={classes.TotalsPills}>
                         <span className={classes.TotalsPill}>

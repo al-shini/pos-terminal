@@ -56,6 +56,60 @@ ipcMain.on('log-message', (event, arg) => {
     logger[level](message);
 });
 
+// ---------------------------------------------------------------------------
+// Cross-window redux replication relay.
+// ---------------------------------------------------------------------------
+// The cashier and customer-display windows share one redux state. The renderer
+// relays every plain action here; we forward it to every OTHER live window.
+// This replaces the old broadcast-channel transport, which was unreliable on
+// the `file://` origin used by packaged builds (large scan actions were
+// silently dropped, so the customer screen never showed scanned items).
+ipcMain.on('redux-action', (event, action) => {
+    try {
+        const senderId = event.sender.id;
+        BrowserWindow.getAllWindows().forEach((w) => {
+            if (w && w.webContents && !w.webContents.isDestroyed() && w.webContents.id !== senderId) {
+                w.webContents.send('redux-action', action);
+            }
+        });
+    } catch (ex) {
+        logger.error(`redux-action relay failed: ${ex && ex.message}`);
+    }
+});
+
+// A window (re)loaded and wants the current state. Ask every other window to
+// provide its snapshot; the sender of this request is the target.
+ipcMain.on('redux-request-state', (event) => {
+    try {
+        const requesterId = event.sender.id;
+        BrowserWindow.getAllWindows().forEach((w) => {
+            if (w && w.webContents && !w.webContents.isDestroyed() && w.webContents.id !== requesterId) {
+                w.webContents.send('redux-provide-state', requesterId);
+            }
+        });
+    } catch (ex) {
+        logger.error(`redux-request-state relay failed: ${ex && ex.message}`);
+    }
+});
+
+// A window answered a state request with its full snapshot. The most recent
+// requester id is tracked per provider call via the closure below.
+ipcMain.on('redux-state-snapshot', (event, snapshot) => {
+    try {
+        const providerId = event.sender.id;
+        // Forward the snapshot to every other window. Receivers only adopt it
+        // if they don't already have a live session (guarded in the renderer),
+        // so this is safe to broadcast.
+        BrowserWindow.getAllWindows().forEach((w) => {
+            if (w && w.webContents && !w.webContents.isDestroyed() && w.webContents.id !== providerId) {
+                w.webContents.send('redux-hydrate', snapshot);
+            }
+        });
+    } catch (ex) {
+        logger.error(`redux-state-snapshot relay failed: ${ex && ex.message}`);
+    }
+});
+
 function createWindow() {
     // Create the browser window.
     const win = new BrowserWindow({

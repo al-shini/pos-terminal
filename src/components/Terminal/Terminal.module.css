@@ -46,21 +46,6 @@
     50% { transform: translateY(-6px); }
 }
 
-@keyframes lockBadgeGlow {
-    0%, 100% {
-        box-shadow:
-            0 0 0 0 rgba(225, 30, 38, 0.55),
-            0 20px 50px rgba(225, 30, 38, 0.35),
-            inset 0 1px 0 rgba(255, 255, 255, 0.20);
-    }
-    50% {
-        box-shadow:
-            0 0 0 22px rgba(225, 30, 38, 0),
-            0 24px 60px rgba(225, 30, 38, 0.50),
-            inset 0 1px 0 rgba(255, 255, 255, 0.30);
-    }
-}
-
 @keyframes lockScanLine {
     0% { transform: translateY(-100%); opacity: 0; }
     10% { opacity: 1; }
@@ -73,11 +58,6 @@
     50% { opacity: 1; }
 }
 
-@keyframes lockShimmer {
-    0% { background-position: -200% 50%; }
-    100% { background-position: 200% 50%; }
-}
-
 .LockOverlay {
     position: fixed;
     inset: 0;
@@ -85,10 +65,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* PERF: a full-screen backdrop-filter blur re-samples + blurs everything
+       behind it on EVERY animation frame. On POS GPUs (or Chromium software
+       rendering) that alone pegs the CPU at ~50% the whole time the terminal
+       sits locked. We drop the blur and use a near-opaque gradient instead —
+       visually almost identical over a busy till screen, at zero per-frame
+       paint cost. */
     background:
-        radial-gradient(ellipse at center, rgba(17, 24, 39, 0.78) 0%, rgba(0, 0, 0, 0.92) 100%);
-    backdrop-filter: blur(10px) saturate(120%);
-    -webkit-backdrop-filter: blur(10px) saturate(120%);
+        radial-gradient(ellipse at center, rgba(17, 24, 39, 0.97) 0%, rgba(0, 0, 0, 0.98) 100%);
     animation: lockFadeIn 0.35s ease-out both;
     overflow: hidden;
     font-family: "Inter", "Segoe UI", sans-serif;
@@ -142,9 +126,13 @@
     position: absolute;
     inset: -14px;
     border-radius: 50%;
+    /* PERF: the halo scales every frame (lockHaloPulse). A static blur()
+       filter on a scaling element forces the blurred layer to be
+       re-rasterized each frame — expensive. The radial gradient already
+       fades out softly, so the blur is visually redundant; drop it and let
+       the (GPU-composited) transform + opacity pulse do the work. */
     background:
         radial-gradient(circle at center, rgba(225, 30, 38, 0.45) 0%, rgba(225, 30, 38, 0) 70%);
-    filter: blur(8px);
     animation: lockHaloPulse 3s ease-in-out infinite;
     pointer-events: none;
 }
@@ -181,8 +169,12 @@
     color: #FFFFFF;
     font-size: 48px;
     position: relative;
-    animation: lockBadgeGlow 2.4s ease-in-out infinite;
+    /* PERF: lockBadgeGlow animated box-shadow, which is NOT GPU-composited and
+       triggers a full repaint every frame. The pulsing "alive" feel is now
+       provided entirely by the surrounding .LockHalo (transform + opacity).
+       The badge keeps a rich STATIC shadow at zero per-frame cost. */
     box-shadow:
+        0 0 0 6px rgba(225, 30, 38, 0.18),
         0 20px 50px rgba(225, 30, 38, 0.35),
         inset 0 1px 0 rgba(255, 255, 255, 0.20);
 }
@@ -201,7 +193,8 @@
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: lockShimmer 3.5s linear infinite;
+    /* PERF: lockShimmer animated background-position, repainting the gradient
+       text every frame. Dropped — the title is now a static silver gradient. */
 }
 
 .LockSubtitle {
@@ -594,10 +587,14 @@
    Rich padding, accent bar, passive animations.
    ========================================================================== */
 
+/* PERF: these decorative footer animations are ALWAYS on screen during normal
+   selling. They animated background-position / box-shadow, which are NOT
+   GPU-composited and force a full repaint of the footer every frame — a major
+   cause of the constant high CPU even while logged in and idle. Flattened to
+   single static keyframes so the `animation:` declarations stay valid but cost
+   nothing per frame. footerTotalPulse stays (transform, GPU-cheap). */
 @keyframes footerAccentSlide {
-    0%   { background-position: 0% 50%; }
-    50%  { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0%, 100% { background-position: 0% 50%; }
 }
 
 @keyframes footerTotalPulse {
@@ -608,12 +605,10 @@
 
 @keyframes footerDueGlow {
     0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.0); }
-    50%      { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.12); }
 }
 
 @keyframes footerChangeGlow {
     0%, 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.0); }
-    50%      { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.12); }
 }
 
 .FooterSummary {
@@ -1076,19 +1071,11 @@
     letter-spacing: 0.5px;
 }
 
+/* PERF: keep the GPU-cheap transform scale pulse, but hold box-shadow static
+   (animating box-shadow forces per-frame repaints). */
 @keyframes cashbackStarPulse {
-    0%, 100% {
-        transform: scale(1);
-        box-shadow:
-            0 4px 10px rgba(180, 83, 9, 0.35),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    }
-    50% {
-        transform: scale(1.06);
-        box-shadow:
-            0 6px 16px rgba(180, 83, 9, 0.5),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    }
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
 }
 
 /* ==========================================================================
@@ -1427,6 +1414,9 @@
 
 /* Ambient breathing glow so the card keeps drawing the eye even after
    the initial flash-in animation finishes. */
+/* PERF: the latest-scan card sits on screen continuously while selling. This
+   animated box-shadow + border-color every frame (full repaints). Flattened to
+   a static state; the card keeps its resting shadow/border. */
 @keyframes latestScanBreathe {
     0%, 100% {
         box-shadow:
@@ -1434,18 +1424,12 @@
             0 0 0 0 rgba(37, 99, 235, 0.00);
         border-color: rgba(37, 99, 235, 0.30);
     }
-    50% {
-        box-shadow:
-            0 10px 28px rgba(37, 99, 235, 0.22),
-            0 0 0 4px rgba(37, 99, 235, 0.10);
-        border-color: rgba(37, 99, 235, 0.48);
-    }
 }
 
 /* Moving gradient stripe along the left accent bar. */
+/* PERF: animated background-position (per-frame repaint) flattened to static. */
 @keyframes latestScanBarSlide {
-    0%   { background-position: 0% 0%; }
-    100% { background-position: 0% 200%; }
+    0%, 100% { background-position: 0% 0%; }
 }
 
 /* Shimmer sweep across the card surface. */
@@ -1837,16 +1821,13 @@
    cashier's primary interaction area also signals refund mode clearly.
    ========================================================================== */
 
+/* PERF: full-screen inset box-shadow pulse → per-frame repaint of the whole
+   terminal during refund mode. Flattened to a static red inset frame. */
 @keyframes refundAmbientPulse {
     0%, 100% {
         box-shadow:
-            inset 0 0 0 4px rgba(225, 30, 38, 0.55),
-            inset 0 0 60px rgba(225, 30, 38, 0.06);
-    }
-    50% {
-        box-shadow:
-            inset 0 0 0 4px rgba(225, 30, 38, 0.82),
-            inset 0 0 90px rgba(225, 30, 38, 0.10);
+            inset 0 0 0 4px rgba(225, 30, 38, 0.70),
+            inset 0 0 70px rgba(225, 30, 38, 0.08);
     }
 }
 

@@ -50,17 +50,13 @@ const ringPulse = keyframes`
     0%   { transform: scale(1);    opacity: .45; }
     100% { transform: scale(1.35); opacity: 0;   }
 `;
-const driftA = keyframes`
-    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-    50%      { transform: translate3d(40px, -30px, 0) scale(1.08); }
-`;
-const driftB = keyframes`
-    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-    50%      { transform: translate3d(-30px, 25px, 0) scale(1.12); }
-`;
+// PERF: driftA/driftB removed. They animated two large blur(24-28px) blobs,
+// which re-rasterizes the blurred surface every single frame — the dominant
+// cause of the login screen pinning the CPU. The blobs are now static (still
+// blurred, just not moving), so the blur is rasterized once.
+// softPulse flattened: it animated box-shadow (per-frame repaint).
 const softPulse = keyframes`
     0%, 100% { box-shadow: 0 0 0 0 rgba(225,30,38,0.12); }
-    50%      { box-shadow: 0 0 0 12px rgba(225,30,38,0); }
 `;
 
 const Login = () => {
@@ -725,7 +721,6 @@ const styles = {
         background:
             'radial-gradient(circle at 30% 30%, rgba(225,30,38,0.32), rgba(225,30,38,0) 65%)',
         filter: 'blur(24px)',
-        animation: `${driftA} 16s ease-in-out infinite`,
         pointerEvents: 'none',
     },
     blobB: {
@@ -738,7 +733,6 @@ const styles = {
         background:
             'radial-gradient(circle at 60% 60%, rgba(45,45,45,0.16), rgba(45,45,45,0) 65%)',
         filter: 'blur(28px)',
-        animation: `${driftB} 20s ease-in-out infinite`,
         pointerEvents: 'none',
     },
     grid: {
@@ -780,7 +774,10 @@ const styles = {
         borderRadius: '50%',
         background:
             'radial-gradient(closest-side, rgba(225,30,38,0.30), rgba(225,30,38,0) 72%)',
-        filter: 'blur(8px)',
+        // PERF: dropped blur(8px) — the halo scales every frame (haloPulse), and
+        // a blur on a scaling element re-rasterizes the blurred layer per frame.
+        // The radial gradient already fades softly, so it looks ~the same. The
+        // scale+opacity pulse is GPU-cheap on its own.
         animation: `${haloPulse} 5s ease-in-out infinite`,
         pointerEvents: 'none',
         zIndex: 0,
@@ -809,7 +806,9 @@ const styles = {
         animation: `${spin} 6s linear infinite`,
         pointerEvents: 'none',
         zIndex: 2,
-        filter: 'drop-shadow(0 6px 18px rgba(225,30,38,0.25))',
+        // PERF: dropped drop-shadow() — a filter on a continuously rotating
+        // element re-rasterizes it every frame. The conic-gradient ring reads
+        // fine without it.
     },
     logoCircle: {
         position: 'relative',

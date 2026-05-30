@@ -1,6 +1,6 @@
 {
   "name": "pos",
-  "version": "5.0.0",
+  "version": "5.0.2",
   "main": "public/electron.js",
   "author": {
     "name": "Mohammad Nairat",
@@ -84,7 +84,9 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "make": "react-scripts build && electron-builder",
-    "publish": "react-scripts build && electron-builder -p always"
+    "publish": "react-scripts build && electron-builder -p always",
+    "release": "node scripts/release.js",
+    "release:upload": "node scripts/release.js --no-build"
   },
   "build": {
     "appId": "shini.pos",
@@ -144,10 +146,12 @@
     ]
   },
   "devDependencies": {
+    "@google-cloud/storage": "^7.19.0",
     "concurrently": "^7.0.0",
     "electron": "^17.4.11",
     "electron-builder": "^25.1.8",
     "electron-devtools-installer": "^3.2.0",
+    "pg": "^8.21.0",
     "wait-on": "^6.0.1"
   }
 }

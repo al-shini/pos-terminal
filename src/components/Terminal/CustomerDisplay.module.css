@@ -466,9 +466,10 @@
     100% { transform: translateY(0); opacity: 1; }
 }
 
+/* PERF: animated background-position (per-frame repaint of every accent bar
+   that uses it) flattened to static. */
 @keyframes latestScanAccent {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0%, 100% { background-position: 0% 0; }
 }
 
 @keyframes latestScanShimmer {
@@ -675,12 +676,21 @@
 
 .TotalsPanel {
     flex-shrink: 0;
-    padding: 14px 20px 18px 20px;
+    padding: 12px 20px 14px 20px;
     background:
         radial-gradient(140% 200% at 0% 100%, rgba(225, 30, 38, 0.05) 0%, rgba(225, 30, 38, 0) 60%),
         linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
     border-top: 1px solid #E5E7EB;
     position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Top row of the totals panel: grand total on the left, the paid/due stack
+   on the right. Splitting this onto its own row (with the pills below) stops
+   the amounts from colliding on the narrow customer panel. */
+.TotalsMain {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -788,13 +798,37 @@
     color: #15803D;
 }
 
+/* Grand total converted into the selected foreign currency (e.g. "≈ 4.85 USD").
+   Sits just under the primary amount; deliberately blue + "≈" so it reads as
+   an informational conversion, not the amount due. */
+.TotalsConverted {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-top: 3px;
+    font-family: "DSDIGI", "Inter", monospace;
+    font-size: 16px;
+    font-weight: 800;
+    color: #2563EB;
+    letter-spacing: 0.4px;
+    font-variant-numeric: tabular-nums;
+}
+
+.TotalsConverted small {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #2563EB;
+}
+
 .TotalsStackCell {
     display: grid;
     grid-template-rows: 1fr 1fr;
     row-gap: 4px;
-    padding: 2px 14px;
-    border-left: 1px dashed rgba(17, 24, 39, 0.1);
-    border-right: 1px dashed rgba(17, 24, 39, 0.1);
+    padding: 4px 0 4px 16px;
+    border-left: 1px dashed rgba(17, 24, 39, 0.14);
+    flex-shrink: 0;
 }
 
 .TotalsStackRow {
@@ -831,6 +865,7 @@
 
 .TotalsPills {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
@@ -869,16 +904,12 @@
    gentle breathing glow so customers naturally notice it without it
    being loud on the cashier's side. Appears only when totaldiscount > 0
    on sales (never on refunds). */
+/* PERF: animated box-shadow (per-frame repaint) flattened to a static glow. */
 @keyframes cdSavedPulse {
     0%, 100% {
         box-shadow:
-            0 0 0 0 rgba(34, 197, 94, 0.35),
-            inset 0 0 0 1px rgba(34, 197, 94, 0.35);
-    }
-    50% {
-        box-shadow:
-            0 0 0 4px rgba(34, 197, 94, 0.12),
-            inset 0 0 0 1px rgba(34, 197, 94, 0.55);
+            0 0 0 2px rgba(34, 197, 94, 0.18),
+            inset 0 0 0 1px rgba(34, 197, 94, 0.45);
     }
 }
 
@@ -1049,19 +1080,15 @@
        every slide. This replaces the old setInterval(setState, 100ms)
        approach which was causing render churn on the customer display.
     */
-    animation:
-        carouselProgressShimmer 3s linear infinite,
-        carouselProgressFill 7000ms linear forwards;
+    /* PERF: only the scaleX fill (GPU-composited transform) now. The previous
+       infinite carouselProgressShimmer animated background-position, repainting
+       the bar every frame for the whole time the idle promo carousel is up. */
+    animation: carouselProgressFill 7000ms linear forwards;
 }
 
 @keyframes carouselProgressFill {
     from { transform: scaleX(0); }
     to { transform: scaleX(1); }
-}
-
-@keyframes carouselProgressShimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
 }
 
 /* ==========================================================================
@@ -1260,8 +1287,10 @@
     justify-content: center;
     gap: 22px;
     color: #F8FAFC;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    /* PERF: no backdrop-filter blur (see Terminal.module.css .LockOverlay).
+       The customer screen is locked at the same time as the till, so a
+       full-screen backdrop blur here compounds the idle-CPU burn. The
+       near-opaque gradient already hides the content behind it. */
     animation: lockOverlayFade 300ms ease-out;
 }
 
@@ -1300,23 +1329,16 @@
 }
 
 @keyframes lockOverlayFade {
-    from { opacity: 0; backdrop-filter: blur(0); }
-    to   { opacity: 1; backdrop-filter: blur(8px); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
+/* PERF: breathe via transform only (GPU-composited). The previous version
+   also animated box-shadow, forcing a full repaint of the lock icon every
+   frame for the entire time the terminal sits locked. */
 @keyframes lockBreathe {
-    0%, 100% {
-        transform: scale(1);
-        box-shadow:
-            0 0 0 6px rgba(225, 30, 38, 0.18),
-            0 20px 50px rgba(0, 0, 0, 0.55);
-    }
-    50% {
-        transform: scale(1.04);
-        box-shadow:
-            0 0 0 12px rgba(225, 30, 38, 0.08),
-            0 20px 50px rgba(0, 0, 0, 0.55);
-    }
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.04); }
 }
 
 /* ==========================================================================
@@ -1325,16 +1347,13 @@
    the same way.
    ========================================================================== */
 
+/* PERF: full-screen inset box-shadow pulse → per-frame repaint of the whole
+   customer screen during refund mode. Flattened to a static red inset frame. */
 @keyframes cdRefundPulse {
     0%, 100% {
         box-shadow:
-            inset 0 0 0 5px rgba(225, 30, 38, 0.60),
-            inset 0 0 70px rgba(225, 30, 38, 0.08);
-    }
-    50% {
-        box-shadow:
-            inset 0 0 0 5px rgba(225, 30, 38, 0.85),
-            inset 0 0 100px rgba(225, 30, 38, 0.12);
+            inset 0 0 0 5px rgba(225, 30, 38, 0.72),
+            inset 0 0 80px rgba(225, 30, 38, 0.10);
     }
 }
 

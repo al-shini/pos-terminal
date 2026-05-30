@@ -2,6 +2,10 @@ installer/*
 
 *.key
 
+# Release tooling — local secrets (bucket creds + head-office DB connection)
+release.config.json
+*.sa.json
+
 # Logs
 logs
 *.log
