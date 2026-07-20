@@ -41,7 +41,11 @@ const Numpad = (props) => {
             return;
         }
 
-        if (regex.test(e)) {
+        // Voucher tender also accepts scanned/typed Shini Me loyalty codes
+        // (e.g. VCH-1750843200123-4821), which start with letters.
+        const voucherMode = terminal.paymentMode && trxSlice.selectedPaymentMethod === 'Voucher';
+
+        if (!voucherMode && regex.test(e)) {
             return;
         }
 
@@ -99,12 +103,21 @@ const Numpad = (props) => {
 
                     }
 
+                    // Shini Me loyalty coupon codes (VCH-/DSC-/BDL-/CPN-…) are
+                    // scanned or typed under the Voucher tender. They travel as
+                    // voucherCode; the backend computes the amount from the
+                    // verified coupon and the current basket.
+                    const inputValue = ('' + trxSlice.numberInputValue).trim();
+                    const isLoyaltyCoupon = trxSlice.selectedPaymentMethod === 'Voucher'
+                        && /^(VCH|DSC|BDL|CPN)-/i.test(inputValue);
+
                     dispatch(submitPayment({
                         tillKey: terminal.till ? terminal.till.key : null,
                         trxKey: trxSlice.trx ? trxSlice.trx.key : null,
                         paymentMethodKey: trxSlice.selectedPaymentMethod,
                         currency: trxSlice.selectedCurrency ? trxSlice.selectedCurrency : config.systemCurrency,
-                        amount: trxSlice.numberInputValue,
+                        amount: isLoyaltyCoupon ? 0 : trxSlice.numberInputValue,
+                        voucherCode: isLoyaltyCoupon ? inputValue.toUpperCase() : '',
                         sourceKey: '',
                         visaPayment: null
                     }))

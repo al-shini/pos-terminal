@@ -108,6 +108,7 @@ const TouchKeyboard = ({
             open={open}
             onClose={onClose}
             closeAfterTransition
+            sx={{ zIndex: 3000 }}
             BackdropComponent={Backdrop}
             BackdropProps={{ timeout: 220, sx: { background: 'rgba(17,24,39,0.55)', backdropFilter: 'blur(4px)' } }}
         >

@@ -1,0 +1,1276 @@
+/* Self-checkout kiosk — light canvas, dark chrome matched to logo plate.
+   Accents: brand red #E11E26, success green #16A34A. */
+
+.Shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background: #F8FAFC;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    color: #111827;
+}
+
+/* ---- Dark top bar (logo plate) ---- */
+.Header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 22px;
+    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+    color: #fff;
+    flex-shrink: 0;
+    box-shadow: 0 4px 18px rgba(17, 24, 39, 0.28);
+    z-index: 10;
+}
+
+.HeaderBrand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+}
+
+.HeaderLogo {
+    height: 44px;
+    width: auto;
+    display: block;
+    /* Logo already has dark plate — sit flush on the bar */
+    border-radius: 4px;
+}
+
+.HeaderTitles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.HeaderTitle {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    margin: 0;
+    line-height: 1.15;
+}
+
+.HeaderHint {
+    font-size: 13px;
+    opacity: 0.75;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.HeaderRight {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
+
+.StaffBtn {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, transform 0.12s ease, opacity 0.15s ease;
+    opacity: 0.5;
+}
+
+.StaffBtn:hover {
+    background: rgba(225, 30, 38, 0.35);
+    border-color: rgba(225, 30, 38, 0.5);
+    opacity: 1;
+}
+
+.StaffBtn:active {
+    transform: scale(0.93);
+}
+
+.StaffMenuPanel {
+    align-items: center;
+    max-width: 420px;
+}
+
+.StaffMenuActions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.StaffMenuBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 64px;
+    border-radius: 14px;
+    border: 2px solid #E5E7EB;
+    background: #F8FAFC;
+    color: #111827;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.StaffMenuBtn:hover {
+    background: #F3F4F6;
+}
+
+.StaffMenuBtn:active {
+    transform: scale(0.97);
+}
+
+/* ---- Active cart layout ---- */
+.Body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    min-height: 0;
+    gap: 0;
+}
+
+.MainCol {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    border-right: 1px solid #E5E7EB;
+    background: #FFFFFF;
+}
+
+.SideCol {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+    background: #F8FAFC;
+    padding: 14px;
+    gap: 12px;
+}
+
+.Footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: #FFFFFF;
+    border-top: 1px solid #E5E7EB;
+    flex-shrink: 0;
+    box-shadow: 0 -4px 20px rgba(17, 24, 39, 0.06);
+    flex-wrap: nowrap;
+}
+
+.TotalBlock {
+    flex: 1;
+    min-width: 0;
+}
+
+.TotalLabel {
+    font-size: 12px;
+    font-weight: 700;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.TotalValue {
+    font-size: 38px;
+    font-weight: 800;
+    font-family: "DSDIGI", monospace;
+    color: #111827;
+    line-height: 1.1;
+}
+
+.FooterBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: none;
+    border-radius: 14px;
+    font-size: 18px;
+    font-weight: 800;
+    cursor: pointer;
+    padding: 16px 24px;
+    min-height: 64px;
+    flex-shrink: 0;
+    transition: transform 0.12s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.FooterBtn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.FooterBtn:not(:disabled):active {
+    transform: scale(0.97);
+}
+
+.BtnCancel {
+    background: #FEE2E2;
+    color: #B91C1C;
+    border: 2px solid #FECACA;
+    min-width: 140px;
+}
+
+.BtnCancel:not(:disabled):hover {
+    background: #FECACA;
+}
+
+.BtnScale {
+    background: #ECFDF5;
+    color: #047857;
+    border: 2px solid #A7F3D0;
+    min-width: 130px;
+}
+
+.BtnScale:not(:disabled):hover {
+    background: #D1FAE5;
+}
+
+.BtnPay {
+    background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+    color: #fff;
+    min-width: 200px;
+    box-shadow: 0 10px 28px rgba(22, 163, 74, 0.35);
+    font-size: 24px;
+    animation: payGlow 2.2s ease-in-out infinite;
+}
+
+.BtnPay:not(:disabled):hover {
+    box-shadow: 0 14px 32px rgba(22, 163, 74, 0.45);
+}
+
+.BtnPay:disabled {
+    animation: none;
+}
+
+@keyframes payGlow {
+    0%, 100% { box-shadow: 0 10px 28px rgba(22, 163, 74, 0.35); }
+    50% { box-shadow: 0 10px 40px rgba(22, 163, 74, 0.65); }
+}
+
+.BtnKeypad {
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border: 2px solid #BFDBFE;
+    min-width: 150px;
+}
+
+.BtnKeypad:not(:disabled):hover {
+    background: #DBEAFE;
+}
+
+/* ---- Idle: hero + square cards ---- */
+.IdleShell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 40px 20px;
+    gap: 36px;
+    min-height: 0;
+    overflow: hidden;
+    background:
+        radial-gradient(720px 380px at 50% 18%, rgba(225, 30, 38, 0.07) 0%, transparent 65%),
+        linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+}
+
+.IdleHero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    text-align: center;
+}
+
+.IdlePulse {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 36px;
+    border-radius: 999px;
+    background: #FFFFFF;
+    color: #B91C1C;
+    font-weight: 800;
+    font-size: 22px;
+    border: 2px solid #FECACA;
+    box-shadow: 0 8px 28px rgba(225, 30, 38, 0.12);
+    animation: pulseSoft 2s ease-in-out infinite;
+}
+
+.IdlePulseRing {
+    position: absolute;
+    inset: -6px;
+    border-radius: 999px;
+    border: 2px solid rgba(225, 30, 38, 0.25);
+    animation: ringOut 2s ease-out infinite;
+    pointer-events: none;
+}
+
+.IdlePulseIcon {
+    font-size: 26px;
+    color: #E11E26;
+}
+
+.IdleHint {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #6B7280;
+    max-width: 420px;
+}
+
+@keyframes pulseSoft {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+@keyframes ringOut {
+    0% { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(1.08); opacity: 0; }
+}
+
+.IdleCards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: min(440px, 90vw);
+}
+
+.IdleCardsSingle {
+    grid-template-columns: 1fr;
+    width: min(220px, 70vw);
+}
+
+.IdleCard {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px 16px;
+    border-radius: 22px;
+    border: 2px solid #E5E7EB;
+    background: #FFFFFF;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(17, 24, 39, 0.06);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    text-align: center;
+}
+
+.IdleCard:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 32px rgba(17, 24, 39, 0.12);
+}
+
+.IdleCard:active {
+    transform: scale(0.97);
+}
+
+.IdleCardScale {
+    border-color: #A7F3D0;
+}
+
+.IdleCardScale .IdleCardIcon {
+    background: #ECFDF5;
+    color: #047857;
+}
+
+.IdleCardKeypad {
+    border-color: #BFDBFE;
+}
+
+.IdleCardKeypad .IdleCardIcon {
+    background: #EFF6FF;
+    color: #1D4ED8;
+}
+
+.IdleCardIcon {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+}
+
+.IdleCardLabel {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.2;
+}
+
+.IdleCardNote {
+    font-size: 13px;
+    font-weight: 600;
+    color: #9CA3AF;
+}
+
+/* ---- Idle steps footer bar ---- */
+.IdleStepsBar {
+    flex-shrink: 0;
+    background: #FFFFFF;
+    border-top: 1px solid #E5E7EB;
+    padding: 12px 20px 14px;
+    box-shadow: 0 -6px 24px rgba(17, 24, 39, 0.05);
+    animation: stepsSlideUp 0.35s ease-out;
+}
+
+@keyframes stepsSlideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.IdleStepsInner {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0;
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.IdleStep {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    text-align: center;
+    min-width: 0;
+}
+
+.IdleStepNum {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #E11E26;
+    color: #fff;
+    font-weight: 800;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.IdleStepImg {
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+    border-radius: 10px;
+}
+
+.IdleStepText {
+    font-size: 12px;
+    font-weight: 700;
+    color: #374151;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.IdleStepDivider {
+    width: 1px;
+    align-self: center;
+    height: 48px;
+    background: #E5E7EB;
+    flex-shrink: 0;
+    margin: 0 4px;
+}
+
+/* ---- Overlay screens ---- */
+.Overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(17, 24, 39, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+    backdrop-filter: blur(2px);
+    animation: overlayFadeIn 0.2s ease-out;
+}
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.OverlayPanel {
+    background: #FFFFFF;
+    border-radius: 24px;
+    width: min(920px, 96vw);
+    max-height: 90vh;
+    overflow: auto;
+    box-shadow: 0 24px 64px rgba(17, 24, 39, 0.28);
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: auto;
+    animation: panelPopIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.OverlayFull {
+    background: #FFFFFF;
+    border-radius: 0;
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: auto;
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    box-sizing: border-box;
+    animation: panelPopIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes panelPopIn {
+    from { opacity: 0; transform: scale(0.94) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.OverlayTitle {
+    font-size: 28px;
+    font-weight: 800;
+    margin: 0;
+    text-align: center;
+    color: #111827;
+    flex-shrink: 0;
+}
+
+.OverlaySubtitle {
+    font-size: 16px;
+    color: #6B7280;
+    margin: 0;
+    text-align: center;
+}
+
+.DueAmount {
+    font-size: 52px;
+    font-weight: 800;
+    font-family: "DSDIGI", monospace;
+    color: #E11E26;
+    text-align: center;
+    line-height: 1;
+}
+
+.PayTiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    width: 100%;
+    max-width: 720px;
+    flex-shrink: 0;
+}
+
+.PayTile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 160px;
+    border-radius: 20px;
+    border: 3px solid #E5E7EB;
+    background: #F8FAFC;
+    cursor: pointer;
+    padding: 18px;
+    transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.PayTile:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(17, 24, 39, 0.12);
+}
+
+.PayTile:not(:disabled):active {
+    transform: scale(0.98);
+}
+
+.PayTileCash {
+    border-color: #86EFAC;
+    background: linear-gradient(180deg, #ECFDF5 0%, #FFFFFF 100%);
+    color: #047857;
+}
+
+.PayTileCard {
+    border-color: #E5E7EB;
+    background: #F3F4F6;
+    color: #9CA3AF;
+    cursor: not-allowed;
+    opacity: 0.85;
+}
+
+.PayTileIcon {
+    font-size: 56px;
+}
+
+.PayTileLabel {
+    font-size: 26px;
+    font-weight: 800;
+}
+
+.PayTileNote {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6B7280;
+    text-align: center;
+    max-width: 220px;
+}
+
+.OverlayCancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 4px;
+    padding: 14px 32px;
+    border-radius: 14px;
+    border: 2px solid #E5E7EB;
+    background: #FFFFFF;
+    color: #374151;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.OverlayCancel:hover {
+    background: #F3F4F6;
+}
+
+/* ---- Cart ---- */
+.CartShell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.CartHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.CartHeaderTitle {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.CartHeaderCount {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.CartKeypadBtn {
+    margin-left: auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+}
+
+.CartKeypadBtn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.CartList {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 8px 0;
+}
+
+.CartRow {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 18px;
+    border-bottom: 1px solid #F1F5F9;
+    min-height: 72px;
+    animation: rowSlideIn 0.28s ease-out;
+}
+
+@keyframes rowSlideIn {
+    from { opacity: 0; transform: translateX(-16px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.CartRow:nth-child(even) {
+    background: #F8FAFC;
+}
+
+.CartRowVoided {
+    opacity: 0.45;
+    text-decoration: line-through;
+}
+
+.CartQty {
+    flex-shrink: 0;
+    background: #FEE2E2;
+    color: #B91C1C;
+    font-weight: 800;
+    font-family: "DSDIGI", monospace;
+    font-size: 18px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    min-width: 56px;
+    text-align: center;
+}
+
+.CartName {
+    flex: 1;
+    min-width: 0;
+    font-size: 18px;
+    font-weight: 600;
+    font-family: Janna, "Segoe UI", sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.CartPrice {
+    flex-shrink: 0;
+    font-size: 20px;
+    font-weight: 800;
+    font-family: "DSDIGI", monospace;
+    color: #111827;
+}
+
+.CartDelete {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    border: 2px solid #FECACA;
+    background: #FEE2E2;
+    color: #B91C1C;
+    font-size: 20px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.CartDelete:hover {
+    background: #FECACA;
+}
+
+.CartDelete:active {
+    transform: scale(0.95);
+}
+
+.CartEmpty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #9CA3AF;
+    padding: 40px;
+    text-align: center;
+}
+
+.CartEmptyIcon {
+    font-size: 48px;
+    opacity: 0.5;
+}
+
+/* ---- Side guide (active cart) ---- */
+.GuideStrip {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.GuideTitle {
+    font-size: 13px;
+    font-weight: 800;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin: 0 0 2px 0;
+}
+
+.GuideStep {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 8px 10px;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04);
+}
+
+.GuideStepImg {
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #F8FAFC;
+    flex-shrink: 0;
+}
+
+.GuideStepNum {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #E11E26;
+    color: #fff;
+    font-weight: 800;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.GuideStepText {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1F2937;
+    line-height: 1.25;
+}
+
+/* ---- Scale panel ---- */
+.ScalePanel {
+    width: min(1100px, 96vw);
+    max-height: 90vh;
+    height: min(90vh, 860px);
+    overflow: hidden;
+}
+
+.ScalePanel .ScaleGrid {
+    flex: 1;
+    min-height: 0;
+}
+
+.ScaleShell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    gap: 12px;
+}
+
+.ScaleHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.ScaleCats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ScaleCatBtn {
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 2px solid #E5E7EB;
+    background: #FFFFFF;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    color: #374151;
+}
+
+.ScaleCatBtnActive {
+    border-color: #E11E26;
+    background: #FEE2E2;
+    color: #B91C1C;
+}
+
+.ScaleGrid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    padding: 4px;
+    min-height: 0;
+}
+
+.ScaleCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 12px;
+    cursor: pointer;
+    min-height: 148px;
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.ScaleCard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.1);
+    border-color: #FBC9CC;
+}
+
+.ScaleCardImg {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+}
+
+.ScaleCardName {
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    font-family: Janna, "Segoe UI", sans-serif;
+    line-height: 1.25;
+    color: #111827;
+}
+
+.ScaleOffline {
+    background: #FEF3C7;
+    color: #92400E;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* ---- CashDro / Receipt ---- */
+.StatusBig {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1F2937;
+    text-align: center;
+    max-width: 640px;
+}
+
+.InsertedAmt {
+    font-size: 44px;
+    font-weight: 800;
+    font-family: "DSDIGI", monospace;
+    color: #047857;
+}
+
+.ReceiptIcon {
+    font-size: 72px;
+    color: #16A34A;
+    animation: checkPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes checkPop {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); }
+}
+
+.ReceiptAmtRow {
+    display: flex;
+    gap: 36px;
+    justify-content: center;
+}
+
+.ReceiptAmtBox {
+    text-align: center;
+}
+
+.ReceiptAmtLabel {
+    font-size: 13px;
+    font-weight: 700;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ReceiptAmtValue {
+    font-size: 36px;
+    font-weight: 800;
+    font-family: "DSDIGI", monospace;
+    color: #111827;
+}
+
+.CoinBounce {
+    animation: coinBounce 1.4s ease-in-out infinite;
+}
+
+@keyframes coinBounce {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(-6deg); }
+}
+
+/* ---- Manual barcode keypad ---- */
+.KeypadPanel {
+    align-items: center;
+    max-width: 520px;
+    width: 100%;
+}
+
+.KeypadDisplay {
+    width: 100%;
+    min-height: 60px;
+    border-radius: 14px;
+    background: #F8FAFC;
+    border: 2px solid #E5E7EB;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: 800;
+    font-family: "DSDIGI", monospace;
+    color: #111827;
+    letter-spacing: 4px;
+    padding: 0 18px;
+    box-sizing: border-box;
+}
+
+.KeypadPlaceholder {
+    color: #9CA3AF;
+    font-size: 18px;
+    font-weight: 600;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    letter-spacing: normal;
+}
+
+.KeypadGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+}
+
+.KeypadKey {
+    min-height: 58px;
+    border-radius: 14px;
+    border: 2px solid #E5E7EB;
+    background: #FFFFFF;
+    font-size: 24px;
+    font-weight: 800;
+    color: #111827;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.KeypadKey:hover {
+    background: #F8FAFC;
+}
+
+.KeypadKey:active {
+    transform: scale(0.95);
+}
+
+.KeypadKeyMuted {
+    background: #F3F4F6;
+    color: #6B7280;
+}
+
+.KeypadActions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.KeypadActions .OverlayCancel {
+    margin-top: 0;
+    flex: 1;
+}
+
+.KeypadSubmit {
+    flex: 1;
+    background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+    color: #fff;
+    border-color: transparent;
+    gap: 10px;
+}
+
+.KeypadSubmit:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* ---- Responsive fit ---- */
+@media (max-width: 1100px) {
+    .Body {
+        grid-template-columns: 1fr 260px;
+    }
+}
+
+@media (max-width: 720px) {
+    .IdleCards {
+        width: min(380px, 92vw);
+        gap: 14px;
+    }
+
+    .IdleStepText {
+        font-size: 11px;
+    }
+
+    .IdleStepImg {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+@media (max-height: 720px) {
+    .IdleShell {
+        padding: 16px 24px 12px;
+        gap: 20px;
+    }
+
+    .IdlePulse {
+        padding: 14px 28px;
+        font-size: 18px;
+    }
+
+    .IdlePulseIcon {
+        font-size: 22px;
+    }
+
+    .IdleHint {
+        font-size: 14px;
+    }
+
+    .IdleCardIcon {
+        width: 56px;
+        height: 56px;
+        font-size: 26px;
+        border-radius: 16px;
+    }
+
+    .IdleCardLabel {
+        font-size: 15px;
+    }
+
+    .IdleCardNote {
+        font-size: 12px;
+    }
+
+    .IdleCards {
+        width: min(360px, 88vw);
+        gap: 14px;
+    }
+
+    .IdleStepsBar {
+        padding: 8px 16px 10px;
+    }
+
+    .IdleStepImg {
+        width: 40px;
+        height: 40px;
+    }
+
+    .IdleStepText {
+        font-size: 11px;
+    }
+
+    .OverlayFull {
+        padding: 20px 24px;
+        gap: 14px;
+    }
+
+    .OverlayTitle {
+        font-size: 24px;
+    }
+
+    .DueAmount {
+        font-size: 42px;
+    }
+
+    .PayTile {
+        min-height: 130px;
+        gap: 8px;
+        padding: 14px;
+    }
+
+    .PayTileIcon {
+        font-size: 44px;
+    }
+
+    .PayTileLabel {
+        font-size: 22px;
+    }
+
+    .HeaderLogo {
+        height: 36px;
+    }
+
+    .HeaderTitle {
+        font-size: 17px;
+    }
+}
+
+@media (max-height: 600px) {
+    .IdleHint {
+        display: none;
+    }
+
+    .IdleCardNote {
+        display: none;
+    }
+
+    .IdleStepDivider {
+        height: 36px;
+    }
+}

@@ -3,10 +3,6 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser')
-const PDFDocument = require('pdfkit');
-const { exec } = require("child_process");
-const stream = require('./stream');
-const qr = require('qrcode');
 const { app, BrowserWindow, dialog, screen } = require("electron");
 const isDev = require("electron-is-dev");
 const crypto = require('crypto');
@@ -14,7 +10,6 @@ const net = require('net');
 const { autoUpdater } = require("electron-updater")
 const { print } = require("pdf-to-printer");
 const { SerialPort, ByteLengthParser } = require('serialport')
-const printComplete = require('./printComplete');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const logger = require('./logger');
 const { ipcMain } = require('electron');
@@ -174,6 +169,11 @@ function createWindow() {
     if (localConfig.autoUpdate) {
         params += `&autoUpdate=true`;
     }
+    // Self-checkout kiosk mode — customer uses the main window directly.
+    // The secondary customer-display window is skipped when this is set.
+    if (localConfig.selfService) {
+        params += `&selfService=true`;
+    }
     if (localConfig.systemCurrency) {
         params += `&systemCurrency=${localConfig.systemCurrency}`;
     } else {
@@ -194,8 +194,9 @@ function createWindow() {
 
     win.show();
 
-    // customer screen options 
-    if (localConfig.showCustomerScreen) {
+    // customer screen options — skipped in self-service mode because the
+    // main window IS the customer-facing kiosk.
+    if (localConfig.showCustomerScreen && !localConfig.selfService) {
         const displays = screen.getAllDisplays()
         const externalDisplay = displays.find((display) => {
             return display.bounds.x !== 0 || display.bounds.y !== 0
@@ -299,7 +300,7 @@ if (!gotTheLock) {
 
     app.whenReady().then(() => {
         createWindow();
-        createLogWindow();
+        // createLogWindow();  // removed: function was never defined -> threw an unhandled rejection on every startup
         // updateInterval = setInterval(() => autoUpdater.checkForUpdates(), 600000); // every 10 minute
     });
 
@@ -334,74 +335,6 @@ if (!gotTheLock) {
     expressApp.use(cors());
     expressApp.use(bodyParser.json())
     expressApp.use(bodyParser.urlencoded({ extended: false }))
-
-    const printWithQR = (object) => {
-        let writeStream = new stream.WritableBufferStream();
-        const qrFileName = 'C:\\pos\\qr.png'
-        const logo = 'C:\\pos\\logo.png'
-        const invoiceFileName = 'C:\\pos\\invoice.pdf'
-
-        const doc = new PDFDocument({
-            size: [203, 400],
-            margins: { // by default, all are 72
-                top: 5,
-                bottom: 5,
-                left: 5,
-                right: 5
-            }
-        });
-
-        qr.toFile(qrFileName, object.qr, (ex, url) => {
-            if (ex) {
-                logger.info('ex', ex);
-            }
-
-            doc.pipe(writeStream);
-            doc.fontSize(15);
-            let g = 50;
-
-            doc.font('C:\\pos\\arial.ttf')
-            doc.image(logo, 55, 15 + g, { width: 100, height: 25 });
-            doc.image(qrFileName, 110, 40 + g, { width: 100, height: 100 });
-            doc.font('C:\\pos\\VT323.ttf');
-            doc.text('Total: ' + object.total + '', 15, 50 + g);
-            doc.text('Discount: ' + object.discount + '', 15, 65 + g);
-            doc.text('Paid: ' + object.paid + '', 15, 80 + g);
-            doc.text('Change: ' + object.change + '', 15, 95 + g);
-            doc.text('Type: ' + object.type, 15, 110 + g);
-
-            doc.fontSize(13)
-            doc.text('Store: ' + object.store, 15, 140 + g);
-            doc.text('Cashier: ' + object.cashier, 15, 160 + g);
-            doc.text(object.date, 15, 182 + g);
-
-            doc.end()
-
-            writeStream.on('finish', () => {
-                const base64 = writeStream.toBuffer().toString('base64')
-                fs.writeFile(invoiceFileName, base64, 'base64', (err) => {
-                    if (err) {
-                        logger.info('ERROR', err);
-                    }
-                    logger.info('printing...............................');
-                    if (localConfig.printMethod && localConfig.printMethod === 'default') {
-                        print('C:\\pos\\invoice.pdf', {});
-                    } else if (!localConfig.printMethod || localConfig.printMethod === 'ptp') {
-                        exec(
-                            'ptp.exe invoice.pdf', {
-                            cwd: 'C:\\pos\\',
-                            windowsHide: true
-                        }, (e) => {
-                            if (e) {
-                                throw e;
-                            }
-                        });
-                    }
-                });
-            });
-
-        })
-    }
 
     const fixRsaFormat = (data) => {
         data = data.replace('-----BEGIN PUBLIC KEY-----', '');
@@ -468,8 +401,6 @@ if (!gotTheLock) {
         }
     }
 
-    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
     const fetchTrx = async (trxKey) => {
         const response = await axios({
             method: 'post',
@@ -481,98 +412,32 @@ if (!gotTheLock) {
         return response && response.data ? response.data : null;
     };
 
-    const fetchTrxWithFawtara = async (trxKey) => {
-        const maxAttempts = 8;
-        const delayMs = 500;
-        let trx = null;
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            trx = await fetchTrx(trxKey);
-            if (!trx) {
-                return null;
-            }
-            if (trx.type !== 'Sale' || (trx.fawtaraQrString && trx.fawtaraQrString.trim().length > 0)) {
-                return trx;
-            }
-            await sleep(delayMs);
-        }
-        return trx;
-    };
-
     expressApp.get('/printTrx', async (req, res) => {
         try {
             const trxKey = req.query.trxKey;
             let trx = null;
 
-            if (localConfig.printTemplate === 'opos') {
-                trx = await fetchTrxWithFawtara(trxKey);
-            } else {
-                trx = await fetchTrx(trxKey);
-            }
+            // Pop the cash drawer FIRST — it needs no trx data, so it must not wait
+            // behind the transaction fetch. Fire-and-forget against the OPOS service,
+            // which keeps the drawer hot on localhost:6666.
+            oposServiceAxios({ method: 'get', url: '/open-drawer' })
+                .catch((_error) => log('open-drawer failed: ' + (_error && _error.message)));
+
+            trx = await fetchTrx(trxKey);
 
             if (trx) {
-                console.log('somesing trx');
-                console.log(trx);
-
-                // const qrUrl = config.qrBaseUrl + '?sptr=' + trx.key + '_' + trx.nanoId;
-                const qrUrl = 'https://plus.shini.ps/invoice?sptr=' + trx.key + '_' + trx.nanoId;
-
-                let date = trx.dateAsString;
-
-                if (!localConfig.printTemplate || localConfig.printTemplate === 'qr') {
-                    printWithQR({
-                        qr: qrUrl,
-                        total: trx.totalafterdiscount,
-                        discount: trx.totaldiscount,
-                        paid: trx.paidamt,
-                        change: trx.customerchange,
-                        date,
-                        store: trx.branch,
-                        cashier: trx.username,
-                        type: trx.type
-                    });
-                } else if (localConfig.printTemplate === 'complete') {
-                    printComplete({
-                        qr: qrUrl,
-                        total: trx.totalafterdiscount,
-                        discount: trx.totaldiscount,
-                        paid: trx.paidamt,
-                        change: trx.customerchange,
-                        date,
-                        store: trx.branch,
-                        cashier: trx.username,
-                        type: trx.type,
-                        lines: trx.printableLines,
-                        totalTax: trx.totalTaxAmt,
-                        payments: trx.paymentSummaryList,
-                        taxDiscount: trx.taxDiscount,
-                        terminal: trx.terminalKey
-                    });
-                } else if (localConfig.printTemplate === 'opos') {
-
-                    oposServiceAxios({
-                        method: 'get',
-                        url: '/open-drawer'
-                    }).then((_res) => {
-                        console.log(_res);
-                    }).catch((_error) => {
-                        throw _error;
-                    });
-
-                    oposServiceAxios({
-                        method: 'post',
-                        url: '/opos-print',
-                        data: trx,
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    }).then((_res) => {
-                        console.log(_res);
-                    }).catch((_error) => {
-                        throw _error;
-                    });
-
-
-                }
+                oposServiceAxios({
+                    method: 'post',
+                    url: '/opos-print',
+                    data: trx,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                }).then((_res) => {
+                    console.log(_res);
+                }).catch((_error) => {
+                    log('opos-print failed: ' + (_error && _error.message));
+                });
 
                 if (trx.campaignList && Array.isArray(trx.campaignList)) {
                     trx.campaignList.forEach((campaign, index) => {
@@ -626,67 +491,21 @@ if (!gotTheLock) {
             const trxKey = req.query.trxKey;
             let trx = null;
 
-            if (localConfig.printTemplate === 'opos') {
-                trx = await fetchTrxWithFawtara(trxKey);
-            } else {
-                trx = await fetchTrx(trxKey);
-            }
+            trx = await fetchTrx(trxKey);
 
             if (trx) {
-
-                console.log('somesing trx');
-                console.log(trx);
-
-                // const qrUrl = config.qrBaseUrl + '?sptr=' + trx.key + '_' + trx.nanoId;
-                const qrUrl = 'https://plus.shini.ps/invoice?sptr=' + trx.key + '_' + trx.nanoId;
-
-                let date = trx.dateAsString;
-
-                if (!localConfig.printTemplate || localConfig.printTemplate === 'qr') {
-                    printWithQR({
-                        qr: qrUrl,
-                        total: trx.totalafterdiscount,
-                        discount: trx.totaldiscount,
-                        paid: trx.paidamt,
-                        change: trx.customerchange,
-                        date,
-                        store: trx.branch,
-                        cashier: trx.username,
-                        type: trx.type
-                    });
-                } else if (localConfig.printTemplate === 'complete') {
-                    printComplete({
-                        qr: qrUrl,
-                        total: trx.totalafterdiscount,
-                        discount: trx.totaldiscount,
-                        paid: trx.paidamt,
-                        change: trx.customerchange,
-                        date,
-                        store: trx.branch,
-                        cashier: trx.username,
-                        type: trx.type,
-                        lines: trx.printableLines,
-                        totalTax: trx.totalTaxAmt,
-                        payments: trx.paymentSummaryList,
-                        taxDiscount: trx.taxDiscount,
-                        terminal: trx.terminalKey
-                    });
-                } else if (localConfig.printTemplate === 'opos') {
-
-                    oposServiceAxios({
-                        method: 'post',
-                        url: '/opos-print',
-                        data: trx,
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    }).then((_res) => {
-                        console.log(_res);
-                    }).catch((_error) => {
-                        throw _error;
-                    });
-
-                }
+                oposServiceAxios({
+                    method: 'post',
+                    url: '/opos-print',
+                    data: trx,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                }).then((_res) => {
+                    console.log(_res);
+                }).catch((_error) => {
+                    log('opos-print failed: ' + (_error && _error.message));
+                });
 
                 if (trx.campaignList && Array.isArray(trx.campaignList)) {
                     trx.campaignList.forEach((campaign, index) => {

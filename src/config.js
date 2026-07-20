@@ -22,6 +22,7 @@ let scale = null;
 let scaleAlphabet = null;
 let autoUpdate = null;
 let arabiVisaCom = null;
+let selfService = null;
 
 const searchParams = new URLSearchParams(global.location.search);
 const hash = global.location.hash || '';
@@ -60,6 +61,10 @@ if (query.get("autoUpdate")) {
 
 if (query.get("arabiVisaCom")) {
     arabiVisaCom = query.get("arabiVisaCom");
+}
+
+if (query.get("selfService")) {
+    selfService = query.get("selfService");
 }
 
 // -----------------------------------------------------------------------------
@@ -130,6 +135,9 @@ const tenantProfiles = {
             // doesn't expose /barcode/otherScaleItems yet, so the flag stays
             // off there to avoid a permanent failing fetch on till init.
             otherScaleItems: true,
+            // Self-checkout card tender. Kept off until card terminals are
+            // wired for unattended use; Cash (CashDro) is the only tender.
+            selfServiceCardEnabled: false,
         }
     },
     palestine: {
@@ -137,11 +145,14 @@ const tenantProfiles = {
         currencySymbol: '₪',
         decimals: 2,
         features: {
-            // Cashback / Shini.me points: the Palestine backend now has the
-            // `Cashback` payment method row + customer balance wiring in
-            // place, so the cashier-side button and customer-display totals
-            // are enabled the same way as Jordan.
-            cashback: true,
+            // [cashback-disabled 2026-06-23] (C1) Cashback / Shini.me points is
+            // DISABLED at the POS. Step 1 of decoupling the POS from the Shini Me
+            // DB: the backend no longer earns/consumes points or reads loyalty
+            // balances (Cashback tender is rejected). Hiding the cashier button,
+            // balance card and customer-display cashback pill keeps the UI
+            // consistent. Re-enable once the flow runs via the Shini Me backend
+            // API. See docs/POS_CASHBACK_DISABLED.md.
+            cashback: false,
             fawtara: false,
             customCustomerName: false,
             customCustomerMobile: false,
@@ -173,14 +184,18 @@ const tenantProfiles = {
             // head office. Manage the content from the back-office "Customer
             // Display Settings" panel.
             customerDisplayConfig: true,
-            // EmployeeExtra (employee-balance tender) is LIVE in Palestine: the
-            // PS backend deducts users.employee_balance from the Shini Me
-            // datasource in the same one-shot consumeShiniMeBalances()
-            // transaction as cashback (FOR UPDATE, no queue). Keep enabled.
-            employeeExtra: true,
+            // [cashback-disabled 2026-06-23] (C2) EmployeeExtra (employee-balance
+            // tender) is DISABLED at the POS alongside Cashback. The PS backend
+            // used to deduct users.employee_balance from the Shini Me datasource
+            // in the same one-shot consumeShiniMeBalances() transaction; that
+            // direct-DB consume is removed and the tender is now rejected.
+            // Re-enable via the Shini Me backend API. See docs/POS_CASHBACK_DISABLED.md.
+            employeeExtra: false,
             // See Jordan profile — Palestine backend doesn't have this
             // endpoint yet.
             otherScaleItems: false,
+            // See Jordan — card tender stays disabled for self-checkout.
+            selfServiceCardEnabled: false,
         }
     }
 };
@@ -198,6 +213,10 @@ const config = {
     scale: scale ? scale : false,
     scaleAlphabet: scaleAlphabet ? scaleAlphabet : false,
     autoUpdate: autoUpdate ? autoUpdate : false,
+    // Self-checkout kiosk mode. When true, Terminal renders the customer-
+    // facing SelfServiceView instead of the cashier UI. Driven by
+    // ?selfService=true (or posconfig.json selfService via Electron).
+    selfService: selfService === true || selfService === 'true',
     visa: _visa,
     mobiCash: 'MobiCash',
     talabat: 'Talabat',
@@ -224,6 +243,7 @@ console.log('[POS config]', {
     systemCurrency: config.systemCurrency,
     currencySymbol: config.currencySymbol,
     decimals: config.decimals,
+    selfService: config.selfService,
     features: config.features,
 });
 

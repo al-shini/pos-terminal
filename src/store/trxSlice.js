@@ -1095,8 +1095,9 @@ export const trxSlice = createSlice({
 
             if (action.payload.paymentMode) {
                 if (state.selectedPaymentMethod === 'Voucher') {
-                    // allow up to 14 digits
-                    if (state.numberInputValue.length < 14) { state.numberInputValue = state.numberInputValue + input; }
+                    // legacy numeric vouchers (14 digits) or scanned Shini Me
+                    // loyalty codes like VCH-1750843200123-4821 (longer)
+                    if (state.numberInputValue.length < 30) { state.numberInputValue = state.numberInputValue + input; }
                 } else {
                     if (state.numberInputValue.length < 7) { state.numberInputValue = state.numberInputValue + input; }
                 }
@@ -1117,8 +1118,8 @@ export const trxSlice = createSlice({
 
             if (action.payload.paymentMode) {
                 if (state.selectedPaymentMethod === 'Voucher') {
-                    // allow up to 14 digits
-                    state.numberInputValue = (input + '').slice(0, 14);
+                    // legacy numeric vouchers or scanned Shini Me loyalty codes
+                    state.numberInputValue = (input + '').slice(0, 30);
                 } else {
                     state.numberInputValue = (input + '').slice(0, 7);
                 }
@@ -1285,6 +1286,15 @@ export const trxSlice = createSlice({
                 state.trxPaid = action.payload.totalPaid;
                 state.trxChange = action.payload.change;
                 state.trx = action.payload.trx;
+            }
+            // A loyalty item coupon (DSC-/BDL-) changes LINE prices instead of
+            // adding a payment — refresh the invoice lines to show the new
+            // per-item prices and discount badges.
+            if (action.payload.trxLines) {
+                state.scannedItems = action.payload.trxLines;
+                if (action.payload.trx) {
+                    state.trx = action.payload.trx;
+                }
             }
             state.paymentSubmitting = false;
         })

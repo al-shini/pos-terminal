@@ -23,7 +23,7 @@ import {
     checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, rescanTrx, closeTrxPayment, clearLastPaymentHistory, setPriceChangeReason, prepareScanMultiplierPreDefined,
     fullTrxTaxExempt,
     printTrx, clearOriginalTrxReference, setOriginalTrxReference, setCustomCustomerName,
-    printTrxNoDrawer
+    printTrxNoDrawer, selectLine
 } from '../../store/trxSlice';
 import { hideLoading, notify, showHardNotification, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -69,7 +69,12 @@ import RefundReferenceDialog from './RefundReferenceDialog';
 import CustomCustomerNameDialog from './CustomCustomerNameDialog';
 import CustomCustomerMobileDialog from './CustomCustomerMobileDialog';
 import ReferenceNumberDialog from './ReferenceNumberDialog';
-const { ipcRenderer } = window.require('electron');
+import SelfServiceView from './SelfService/SelfServiceView';
+// Browser-safe Electron access: in dev/browser (no Electron runtime) the two
+// ipcRenderer uses (dev-tools & update-check buttons) become harmless no-ops.
+const { ipcRenderer } = (typeof window !== 'undefined' && window.require)
+    ? window.require('electron')
+    : { ipcRenderer: { send: () => { }, on: () => { } } };
 
 
 // Import the images
@@ -149,6 +154,9 @@ const Terminal = (props) => {
     const [cashDroModalOpen, setCashDroModalOpen] = useState(false);
     const [cashDroStatus, setCashDroStatus] = useState({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
     const [cashDroPollingRef, setCashDroPollingRef] = useState(null);
+    // Self-checkout: show the "payment complete / take receipt" screen after
+    // CashDro + closeTrxPayment succeed. Cleared by SelfServiceView after a few seconds.
+    const [selfServiceShowReceipt, setSelfServiceShowReceipt] = useState(false);
     
     // Secret manager mode activation: tap logo 3x when numpad has "4994"
     const [logoTapCount, setLogoTapCount] = useState(0);
@@ -1185,6 +1193,14 @@ const Terminal = (props) => {
             return;
         }
 
+        if (config.selfService && !(terminal.terminal && terminal.terminal.cashDroIp)) {
+            dispatch(notify({
+                msg: 'Cash machine is not configured on this terminal. Ask staff for help.',
+                sev: 'error'
+            }));
+            return;
+        }
+
         // Enter payment mode if not already in it
         if (!terminal.paymentMode) {
             dispatch(clearNumberInput());
@@ -1244,17 +1260,54 @@ const Terminal = (props) => {
                         const cashReceived = droState.totalIn / 100;
                         const changeDispensed = droState.totalOut / 100;
                         const changeNotAvailable = droState.changeNotAvailable / 100;
-                        
-                        // Submit as Cash payment
-                        dispatch(submitPayment({
+                        const trxKeyForClose = trxSlice.trx ? trxSlice.trx.key : null;
+
+                        const paymentPayload = {
                             tillKey: terminal.till ? terminal.till.key : null,
-                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            trxKey: trxKeyForClose,
                             paymentMethodKey: 'Cash',
                             currency: config.systemCurrency,
                             amount: cashReceived,
                             sourceKey: 'CASHDRO-' + linkResponse.data.cashdroId,
                             visaPayment: null
-                        }));
+                        };
+
+                        // Self-checkout: submit cash then auto-close + print +
+                        // show the receipt screen. Cashier mode still requires
+                        // the OK button on the numpad (unchanged).
+                        if (config.selfService) {
+                            dispatch(submitPayment(paymentPayload))
+                                .unwrap()
+                                .then((result) => {
+                                    const customerChange = result && result.trx
+                                        ? result.trx.customerchange
+                                        : null;
+                                    const fullyPaid = result && (
+                                        result.closeTrx
+                                        || (customerChange != null && customerChange >= 0)
+                                        || (result.change != null && result.change >= 0
+                                            && result.totalPaid != null
+                                            && result.totalPaid > 0)
+                                    );
+                                    if (fullyPaid && trxKeyForClose) {
+                                        return dispatch(closeTrxPayment({ key: trxKeyForClose }))
+                                            .unwrap()
+                                            .then(() => {
+                                                setSelfServiceShowReceipt(true);
+                                            });
+                                    }
+                                    return null;
+                                })
+                                .catch((err) => {
+                                    dispatch(notify({
+                                        msg: 'CashDro payment failed: ' + (err || 'unknown'),
+                                        sev: 'error'
+                                    }));
+                                });
+                        } else {
+                            // Submit as Cash payment
+                            dispatch(submitPayment(paymentPayload));
+                        }
 
                         dispatch(notify({ 
                             msg: `CashDro: Received ${cashReceived.toFixed(2)}, Change ${changeDispensed.toFixed(2)}`, 
@@ -1312,6 +1365,67 @@ const Terminal = (props) => {
         setCashDroModalOpen(false);
         setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
         dispatch(notify({ msg: 'CashDro payment cancelled', sev: 'warning' }));
+    };
+
+    /**
+     * Self-checkout only: void a cart line with no manager QR / manager mode.
+     * Backend voidLine does not enforce manager approval — that gate lives in
+     * the cashier UI (handleVoidLine). Do not call this from cashier mode.
+     */
+    const handleSelfServiceDeleteLine = (line) => {
+        if (!line || !line.key) {
+            dispatch(notify({ msg: 'No item selected', sev: 'warning' }));
+            return;
+        }
+        confirm('Remove this item?', line.description || '', () => {
+            dispatch(selectLine(line));
+            dispatch(voidLine(line.key));
+        });
+    };
+
+    /**
+     * Self-checkout only: cancel the whole open transaction with no manager QR.
+     */
+    const handleSelfServiceCancelOrder = () => {
+        if (!trxSlice.trx) {
+            dispatch(notify({ msg: 'No open order to cancel', sev: 'warning' }));
+            return;
+        }
+        confirm('Cancel order?', 'All items will be removed', () => {
+            dispatch(voidTrx(trxSlice.trx.key));
+        });
+    };
+
+    /**
+     * Self-checkout only: back out of Pay / CashDro while keeping the cart.
+     * Mirrors handleAbort's abortPayment call, then clears the CashDro poll.
+     */
+    const handleSelfServiceCancelPayment = () => {
+        handleCancelCashDro();
+        if (trxSlice.trx && trxSlice.trx.key) {
+            axios({
+                method: 'post',
+                url: '/trx/abortPayment',
+                headers: { trxKey: trxSlice.trx.key }
+            }).then((response) => {
+                if (response && response.data) {
+                    dispatch(setTrx(response.data));
+                }
+                dispatch(abort());
+            }).catch((error) => {
+                dispatch(abort());
+                if (error.response) {
+                    dispatch(notify({
+                        msg: error.response.data || 'Could not cancel payment',
+                        sev: 'error'
+                    }));
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+            });
+        } else {
+            dispatch(abort());
+        }
     };
 
     const handleVoidLine = () => {
@@ -2522,6 +2636,37 @@ const Terminal = (props) => {
         })
     }
 
+
+    // -----------------------------------------------------------------------
+    // Self-checkout kiosk mode. All handlers / effects above still run
+    // (till init, produce fetch, CashDro, etc.). Only the cashier JSX is
+    // swapped for the customer-facing SelfServiceView — normal POS is
+    // completely untouched when config.selfService is false.
+    // -----------------------------------------------------------------------
+    if (config.selfService) {
+        return (
+            <SelfServiceView
+                produceItems={produceItems}
+                otherScaleItems={otherScaleItems}
+                images={images}
+                scaleConnected={scaleConnected}
+                cashDroModalOpen={cashDroModalOpen}
+                cashDroStatus={cashDroStatus}
+                showReceipt={selfServiceShowReceipt}
+                onDeleteLine={handleSelfServiceDeleteLine}
+                onCancelOrder={handleSelfServiceCancelOrder}
+                onPayCash={handleCashDroPayment}
+                onCancelPayment={handleSelfServiceCancelPayment}
+                onScanWeightable={scanWeightableItem}
+                onReceiptDone={() => {
+                    setSelfServiceShowReceipt(false);
+                    dispatch(clearLastPaymentHistory());
+                }}
+                onLockTill={handleLockTill}
+                onLogout={handleLogout}
+            />
+        );
+    }
 
     return (
         <FlexboxGrid

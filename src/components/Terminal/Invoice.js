@@ -7,7 +7,8 @@ import { faGift, faTag, faExclamationTriangle, faBan, faMobileScreenButton, faHa
 import BarcodeReader from 'react-barcode-reader';
 import config from '../../config';
 
-import { scanBarcode, scanNewTransaction, resetScrollAction, selectLine } from '../../store/trxSlice';
+import { scanBarcode, scanNewTransaction, resetScrollAction, selectLine, submitPayment, clearNumberInput } from '../../store/trxSlice';
+import { notify } from '../../store/uiSlice';
 
 const InvoiceItem = React.memo(({ index, style, data }) => {
     const { items, handleItemClick, selectedLine, terminal } = data;
@@ -206,6 +207,34 @@ const Invoice = (props) => {
 
     const handleScan = (scannedValue) => {
         console.log(scannedValue);
+        if (terminal.paymentMode) {
+            // Scan-to-redeem: a Shini Me loyalty coupon barcode (VCH-/DSC-/
+            // BDL-/CPN-…) scanned during payment submits a Voucher payment.
+            // The backend verifies the coupon and computes its value against
+            // the basket — nothing else is scannable in payment mode.
+            const value = ('' + scannedValue).trim();
+            if (/^(VCH|DSC|BDL|CPN)-/i.test(value) && trxSlice.trx && trxSlice.trx.key) {
+                // The scanner types into whatever field has focus too — clear
+                // the numpad so leftover characters can't be OK'd afterwards.
+                dispatch(clearNumberInput());
+                dispatch(submitPayment({
+                    tillKey: terminal.till ? terminal.till.key : null,
+                    trxKey: trxSlice.trx.key,
+                    paymentMethodKey: 'Voucher',
+                    currency: config.systemCurrency,
+                    amount: 0,
+                    voucherCode: value.toUpperCase(),
+                    sourceKey: '',
+                    visaPayment: null
+                }));
+            } else {
+                dispatch(notify({
+                    msg: 'Only loyalty coupon barcodes can be scanned during payment',
+                    sev: 'warning'
+                }));
+            }
+            return;
+        }
         if (!terminal.paymentMode) {
             if (trxSlice.trx && trxSlice.trx.key) {
                 dispatch(scanBarcode({
@@ -261,7 +290,9 @@ const Invoice = (props) => {
             height: '100%',
             minHeight: 0
         }}>
-            {!terminal.paymentMode && <BarcodeReader onError={handleScanError} onScan={handleScan} />}
+            {/* Mounted in payment mode too, so loyalty coupon barcodes can be
+                scanned straight into a Voucher payment (scan-to-redeem). */}
+            <BarcodeReader onError={handleScanError} onScan={handleScan} />
             <div style={{
                 background: 'linear-gradient(135deg, #1F2937 0%, #111827 100%)',
                 color: 'white',
