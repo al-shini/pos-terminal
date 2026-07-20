@@ -13,7 +13,7 @@ import Invoice from './Invoice';
 import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
 import terminalSlice, {
-    beginPayment, uploadCurrencies, abort, exitNumpadEntry, reset,
+    beginPayment, uploadCurrencies, abort, endPaymentMode, exitNumpadEntry, reset,
     uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer, setManagerMode, setTerminal, fetchSuspendedForTill, setManagerUser, verifyManagerMode,
     logout
 } from '../../store/terminalSlice';
@@ -1344,6 +1344,11 @@ const Terminal = (props) => {
                     setCashDroModalOpen(false);
                     setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
                     dispatch(notify({ msg: 'CashDro timeout - payment not completed', sev: 'error' }));
+                    if (config.selfService) {
+                        // Same as cancel: fully leave payment mode so scanning works again.
+                        dispatch(abort());
+                        dispatch(endPaymentMode());
+                    }
                 }
             }, 5 * 60 * 1000);
 
@@ -1354,6 +1359,10 @@ const Terminal = (props) => {
                 msg: 'CashDro error: ' + (error.response?.data || error.message), 
                 sev: 'error' 
             }));
+            if (config.selfService) {
+                dispatch(abort());
+                dispatch(endPaymentMode());
+            }
         }
     };
 
@@ -1399,9 +1408,18 @@ const Terminal = (props) => {
     /**
      * Self-checkout only: back out of Pay / CashDro while keeping the cart.
      * Mirrors handleAbort's abortPayment call, then clears the CashDro poll.
+     *
+     * Important: cashier `abort()` is two-step (paymentType → none, then exit
+     * paymentMode). CashDro sets paymentType to 'cash', so a single abort()
+     * would leave paymentMode=true and block further scanning. Always force
+     * a full exit with endPaymentMode().
      */
     const handleSelfServiceCancelPayment = () => {
         handleCancelCashDro();
+        const exitPaymentFully = () => {
+            dispatch(abort());
+            dispatch(endPaymentMode());
+        };
         if (trxSlice.trx && trxSlice.trx.key) {
             axios({
                 method: 'post',
@@ -1411,9 +1429,9 @@ const Terminal = (props) => {
                 if (response && response.data) {
                     dispatch(setTrx(response.data));
                 }
-                dispatch(abort());
+                exitPaymentFully();
             }).catch((error) => {
-                dispatch(abort());
+                exitPaymentFully();
                 if (error.response) {
                     dispatch(notify({
                         msg: error.response.data || 'Could not cancel payment',
@@ -1424,7 +1442,7 @@ const Terminal = (props) => {
                 }
             });
         } else {
-            dispatch(abort());
+            exitPaymentFully();
         }
     };
 
