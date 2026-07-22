@@ -4,6 +4,7 @@ import {
     faDeleteLeft, faTimes, faBarcode, faCheck
 } from '@fortawesome/free-solid-svg-icons';
 import classes from './SelfServiceView.module.css';
+import AR from './i18n';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back'];
 
@@ -31,18 +32,18 @@ const SelfServiceKeypad = ({ onSubmit, onCancel }) => {
     };
 
     return (
-        <div className={classes.Overlay}>
+        <div className={classes.Overlay} dir="rtl">
             <div className={`${classes.OverlayPanel} ${classes.KeypadPanel}`}>
                 <h2 className={classes.OverlayTitle}>
-                    <FontAwesomeIcon icon={faBarcode} style={{ marginRight: 10, color: '#E11E26' }} />
-                    Type the barcode
+                    <FontAwesomeIcon icon={faBarcode} style={{ marginLeft: 10, color: '#E32521' }} />
+                    {AR.typeBarcodeTitle}
                 </h2>
                 <p className={classes.OverlaySubtitle}>
-                    Use this if the barcode won&apos;t scan
+                    {AR.typeBarcodeHint}
                 </p>
 
-                <div className={classes.KeypadDisplay}>
-                    {value || <span className={classes.KeypadPlaceholder}>Enter numbers…</span>}
+                <div className={classes.KeypadDisplay} dir="ltr">
+                    {value || <span className={classes.KeypadPlaceholder}>{AR.keypadPlaceholder}</span>}
                 </div>
 
                 <div className={classes.KeypadGrid}>
@@ -87,7 +88,7 @@ const SelfServiceKeypad = ({ onSubmit, onCancel }) => {
                 <div className={classes.KeypadActions}>
                     <button type="button" className={classes.OverlayCancel} onClick={onCancel}>
                         <FontAwesomeIcon icon={faTimes} />
-                        Cancel
+                        {AR.cancel}
                     </button>
                     <button
                         type="button"
@@ -96,7 +97,7 @@ const SelfServiceKeypad = ({ onSubmit, onCancel }) => {
                         onClick={submit}
                     >
                         <FontAwesomeIcon icon={faCheck} />
-                        Add item
+                        {AR.addItem}
                     </button>
                 </div>
             </div>

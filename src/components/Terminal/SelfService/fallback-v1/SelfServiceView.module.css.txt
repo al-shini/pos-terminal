@@ -1,0 +1,1536 @@
+/* Self-checkout kiosk — Target-style: one solid brand-red canvas,
+   white rounded cards, red action buttons. Brand red #E32521. */
+
+.Shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    /* Trial: POS grey canvas (was solid brand red #E32521) */
+    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+    /* Janna first: self-service UI is Arabic (RTL) */
+    font-family: Janna, "Segoe UI", Tahoma, "Inter", sans-serif;
+    color: #111827;
+}
+
+/* ---- Top bar (part of the red canvas) ---- */
+.Header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 22px;
+    background: transparent;
+    color: #fff;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.HeaderBrand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+}
+
+.HeaderLogo {
+    height: 52px;
+    width: auto;
+    display: block;
+    /* Transparent logo sits flat on the dark canvas */
+    background: none;
+    padding: 8px 0;
+    box-sizing: border-box;
+}
+
+.HeaderTitles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.HeaderTitle {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    margin: 0;
+    line-height: 1.15;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.HeaderHint {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.HeaderRight {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
+
+.StaffBtn {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, transform 0.12s ease, opacity 0.15s ease;
+    opacity: 0.65;
+}
+
+.StaffBtn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    opacity: 1;
+}
+
+.StaffBtn:active {
+    transform: scale(0.93);
+}
+
+.StaffMenuPanel {
+    align-items: center;
+    max-width: 420px;
+}
+
+.StaffMenuActions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.StaffMenuBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 64px;
+    border-radius: 14px;
+    border: 2px solid #E5E7EB;
+    background: #F8FAFC;
+    color: #111827;
+    font-size: 18px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.StaffMenuBtn:hover {
+    background: #F3F4F6;
+}
+
+.StaffMenuBtn:active {
+    transform: scale(0.97);
+}
+
+/* ---- Active cart layout: white cards floating on red ---- */
+.Body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    min-height: 0;
+    gap: 14px;
+    padding: 0 16px;
+}
+
+.MainCol {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    background: #FFFFFF;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+}
+
+.SideCol {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+    gap: 14px;
+}
+
+.Footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 22px;
+    background: #FFFFFF;
+    border-radius: 20px;
+    margin: 14px 16px 16px;
+    flex-shrink: 0;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+    flex-wrap: nowrap;
+}
+
+.TotalBlock {
+    margin-inline-end: auto;
+    min-width: 240px;
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    min-height: 64px;
+}
+
+/* Same green as the normal POS grand total (#15803D) */
+.TotalLabel {
+    font-size: 17px;
+    font-weight: 800;
+    color: #21cf62;
+    white-space: nowrap;
+}
+
+.TotalValue {
+    font-size: 54px;
+    font-weight: 400;
+    font-family: "DSDIGI", "Segoe UI", monospace;
+    color: #21cf62;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.FooterBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: none;
+    border-radius: 14px;
+    font-size: 18px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 16px 24px;
+    min-height: 64px;
+    flex-shrink: 0;
+    transition: transform 0.12s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.FooterBtn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.FooterBtn:not(:disabled):active {
+    transform: scale(0.97);
+}
+
+.BtnCancel {
+    background: linear-gradient(135deg, #E32521 0%, #C41E1B 100%);
+    color: #fff;
+    border: none;
+    min-width: 140px;
+    box-shadow: 0 6px 18px rgba(227, 37, 33, 0.3);
+}
+
+.BtnCancel:not(:disabled):hover {
+    box-shadow: 0 10px 24px rgba(227, 37, 33, 0.45);
+}
+
+.BtnScale {
+    background: #FFFFFF;
+    color: #047857;
+    border: 2px solid #E5E7EB;
+    min-width: 130px;
+}
+
+.BtnScale:not(:disabled):hover {
+    background: #F0FDF4;
+    border-color: #A7F3D0;
+}
+
+.BtnPay {
+    background: #15803D;
+    color: #fff;
+    border: 2px solid #15803D;
+    min-width: 220px;
+    box-shadow: 0 8px 22px rgba(21, 128, 61, 0.35);
+    font-size: 22px;
+    animation: payGlow 2.6s ease-in-out infinite;
+}
+
+.BtnPay:not(:disabled):hover {
+    background: #126B34;
+    border-color: #126B34;
+    box-shadow: 0 12px 28px rgba(21, 128, 61, 0.5);
+}
+
+.BtnPay:disabled {
+    animation: none;
+}
+
+@keyframes payGlow {
+    0%, 100% { box-shadow: 0 8px 22px rgba(21, 128, 61, 0.18); }
+    50% { box-shadow: 0 8px 30px rgba(21, 128, 61, 0.38); }
+}
+
+/* ---- Idle: Target layout — big scan card + side action cards ---- */
+.IdleShell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 24px 12px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.IdleGrid {
+    display: grid;
+    grid-template-columns: 1.7fr 1fr;
+    gap: 18px;
+    width: min(980px, 100%);
+    flex: 1;
+    min-height: 0;
+    max-height: 560px;
+}
+
+.IdleMainCard {
+    background: #FFFFFF;
+    border-radius: 24px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 28px 32px;
+    text-align: center;
+    min-height: 0;
+    animation: cardRise 0.4s ease-out;
+}
+
+/* ---- Animated SVG barcode (idle hero) ---- */
+.Barcode {
+    position: relative;
+    width: min(380px, 85%);
+    height: clamp(110px, 22vh, 170px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    margin-bottom: 6px;
+}
+
+.BarcodeSvg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.BarcodeLaser {
+    position: absolute;
+    left: -5%;
+    right: -5%;
+    top: 0;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg,
+        rgba(227, 37, 33, 0) 0%,
+        #E32521 18%,
+        #FF5A55 50%,
+        #E32521 82%,
+        rgba(227, 37, 33, 0) 100%);
+    box-shadow: 0 0 14px 3px rgba(227, 37, 33, 0.55);
+    animation: laserSweep 2.6s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes laserSweep {
+    0%, 100% { top: 8%; opacity: 0.9; }
+    50% { top: 88%; opacity: 1; }
+}
+
+@keyframes cardRise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.IdleMainTitle {
+    font-size: 32px;
+    font-weight: 800;
+    color: #111827;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.IdleMainHint {
+    font-size: 17px;
+    font-weight: 600;
+    color: #6B7280;
+    margin: 0;
+    max-width: 380px;
+}
+
+.IdleSideCards {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-height: 0;
+}
+
+.IdleSideCard {
+    flex: 1;
+    background: #FFFFFF;
+    border-radius: 22px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 20px 18px;
+    text-align: center;
+    min-height: 0;
+    animation: cardRise 0.4s ease-out;
+}
+
+.IdleSideImg {
+    width: min(220px, 80%);
+    max-height: 45%;
+    object-fit: contain;
+    min-height: 0;
+}
+
+.IdleSideCardTitle {
+    font-size: 20px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.25;
+}
+
+.IdleSideBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #E32521;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 14px 22px;
+    font-size: 17px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(227, 37, 33, 0.35);
+    transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.IdleSideBtn:hover {
+    background: #C41E1B;
+    box-shadow: 0 10px 24px rgba(227, 37, 33, 0.45);
+}
+
+.IdleSideBtn:active {
+    transform: scale(0.96);
+}
+
+/* ---- Idle bottom strip: single journey illustration ---- */
+.IdleStepsBar {
+    flex-shrink: 0;
+    padding: 4px 24px 18px;
+    animation: stepsSlideUp 0.35s ease-out;
+}
+
+@keyframes stepsSlideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.IdleJourney {
+    background: #FFFFFF;
+    border-radius: 999px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    margin: 0 auto;
+    padding: 14px 34px;
+    max-width: 720px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 26px;
+}
+
+/* ---- Journey steps (pure CSS, shared by footer strip + side card) ---- */
+.JourneyStep {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    min-width: 0;
+}
+
+.JourneyStepRow {
+    flex-direction: row;
+    text-align: start;
+    gap: 12px;
+    padding: 10px 4px;
+}
+
+.JourneyStepRow + .JourneyStepRow {
+    border-top: 1px dashed #E5E7EB;
+}
+
+.JourneyIconWrap {
+    position: relative;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: #F8FAFC;
+    border: 2px solid #E5E7EB;
+    color: #374151;
+    font-size: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    animation: journeyPulse 9s ease-in-out infinite;
+}
+
+/* Gentle highlight: soft red tint, no scale jump, long quiet gaps */
+@keyframes journeyPulse {
+    0%, 24%, 100% {
+        background: #F8FAFC;
+        border-color: #E5E7EB;
+        color: #374151;
+    }
+    8%, 16% {
+        background: #FDECEB;
+        border-color: #F0A8A6;
+        color: #C41E1B;
+    }
+}
+
+.JourneyNum {
+    position: absolute;
+    bottom: -4px;
+    inset-inline-end: -4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #111827;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+}
+
+.JourneyLabel {
+    font-size: 15px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.JourneyChevron {
+    color: #E32521;
+    font-size: 18px;
+    flex-shrink: 0;
+    opacity: 0.55;
+}
+
+/* ---- Overlay screens ---- */
+.Overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(17, 24, 39, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+    backdrop-filter: blur(2px);
+    animation: overlayFadeIn 0.2s ease-out;
+}
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.OverlayPanel {
+    background: #FFFFFF;
+    border-radius: 24px;
+    width: min(920px, 96vw);
+    max-height: 90vh;
+    overflow: auto;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: auto;
+    animation: panelPopIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Full-screen takeover: dark canvas, white text, white tiles (Target style) */
+.OverlayFull {
+    position: fixed;
+    inset: 0;
+    /* Trial: POS grey (was solid brand red #E32521) */
+    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+    border-radius: 0;
+    overflow: hidden;
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    box-sizing: border-box;
+    color: #fff;
+    animation: panelPopIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes panelPopIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.OverlayTitle {
+    font-size: 28px;
+    font-weight: 800;
+    margin: 0;
+    text-align: center;
+    color: #111827;
+    flex-shrink: 0;
+}
+
+.OverlaySubtitle {
+    font-size: 16px;
+    color: #6B7280;
+    margin: 0;
+    text-align: center;
+}
+
+.OverlayFull .OverlayTitle {
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.OverlayFull .OverlaySubtitle {
+    color: rgba(255, 255, 255, 0.88);
+    font-weight: 600;
+}
+
+.DueAmount {
+    font-size: 64px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    text-align: center;
+    line-height: 1;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.PayTiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    width: 100%;
+    max-width: 720px;
+    flex-shrink: 0;
+}
+
+.PayTile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 170px;
+    border-radius: 20px;
+    border: none;
+    background: #FFFFFF;
+    color: #111827;
+    cursor: pointer;
+    padding: 18px;
+    font-family: inherit;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.PayTile:not(:disabled):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+}
+
+.PayTile:not(:disabled):active {
+    transform: scale(0.98);
+}
+
+.PayTileCash {
+    color: #111827;
+}
+
+.PayTileCash .PayTileIcon {
+    color: #16A34A;
+}
+
+.PayTileCard {
+    background: rgba(255, 255, 255, 0.82);
+    color: #9CA3AF;
+    cursor: not-allowed;
+}
+
+.PayTileCard .PayTileIcon {
+    color: #C4C9D2;
+}
+
+.PayTileIcon {
+    font-size: 56px;
+}
+
+.PayTileLabel {
+    font-size: 26px;
+    font-weight: 800;
+}
+
+.PayTileNote {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6B7280;
+    text-align: center;
+    max-width: 220px;
+}
+
+.OverlayCancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 4px;
+    padding: 14px 32px;
+    border-radius: 14px;
+    border: 2px solid #E5E7EB;
+    background: #FFFFFF;
+    color: #374151;
+    font-size: 17px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.OverlayCancel:hover {
+    background: #F3F4F6;
+}
+
+/* Cancel on red full-screens: ghost white */
+.OverlayFull .OverlayCancel {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.55);
+    color: #fff;
+}
+
+.OverlayFull .OverlayCancel:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: #fff;
+}
+
+/* ---- Cart ---- */
+.CartShell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.CartHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 22px;
+    background: #FFFFFF;
+    color: #111827;
+    flex-shrink: 0;
+    border-bottom: 2px solid #F1F5F9;
+}
+
+.CartHeaderTitle {
+    font-size: 18px;
+    font-weight: 800;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.CartHeaderTitle svg {
+    color: #E32521;
+}
+
+.CartHeaderCount {
+    background: #E32521;
+    color: #fff;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.CartKeypadBtn {
+    margin-inline-start: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 12px;
+    border: 2px solid #E5E7EB;
+    background: #F8FAFC;
+    color: #374151;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.CartKeypadBtn:hover {
+    background: #F1F5F9;
+    border-color: #CBD5E1;
+}
+
+.CartList {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 8px 0;
+}
+
+.CartRow {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 22px;
+    border-bottom: 1px solid #F1F5F9;
+    min-height: 72px;
+    animation: rowSlideIn 0.28s ease-out;
+}
+
+@keyframes rowSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.CartRowVoided {
+    opacity: 0.45;
+    text-decoration: line-through;
+}
+
+.CartQty {
+    flex-shrink: 0;
+    background: #F1F5F9;
+    color: #334155;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    font-size: 17px;
+    height: 40px;
+    border-radius: 12px;
+    min-width: 52px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+}
+
+.CartName {
+    flex: 1;
+    min-width: 0;
+    font-size: 19px;
+    font-weight: 700;
+    font-family: Janna, "Segoe UI", sans-serif;
+    color: #111827;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.CartPrice {
+    flex-shrink: 0;
+    font-size: 20px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #111827;
+    min-width: 96px;
+    text-align: right;
+}
+
+.CartDelete {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    border: 2px solid transparent;
+    background: transparent;
+    color: #9CA3AF;
+    font-size: 18px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.CartDelete:hover {
+    background: #FEF2F2;
+    border-color: #FECACA;
+    color: #DC2626;
+}
+
+.CartDelete:active {
+    transform: scale(0.95);
+}
+
+.CartEmpty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #9CA3AF;
+    padding: 40px;
+    text-align: center;
+}
+
+.CartEmptyIcon {
+    font-size: 48px;
+    opacity: 0.5;
+}
+
+/* ---- Last scanned item spotlight (active cart side column) ---- */
+.LastScanCard {
+    background: #FFFFFF;
+    border-radius: 20px;
+    border: 2px solid #E5E7EB;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+    animation: cardRise 0.3s ease-out;
+}
+
+.LastScanCardDiscount {
+    border-color: #86EFAC;
+    background: linear-gradient(180deg, #F0FDF4 0%, #FFFFFF 45%);
+}
+
+.LastScanRibbon {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #6B7280;
+    letter-spacing: 0.3px;
+}
+
+.LastScanDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #22C55E;
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+}
+
+.LastScanImg {
+    width: 132px;
+    height: 132px;
+    border-radius: 16px;
+    background: repeating-conic-gradient(#F8FAFC 0% 25%, #F1F5F9 0% 50%) 0 0 / 24px 24px;
+    border: 2px dashed #E5E7EB;
+    color: #CBD5E1;
+    font-size: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.LastScanName {
+    font-size: 20px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.3;
+    max-width: 100%;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.LastScanMeta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.LastScanQty {
+    background: #F1F5F9;
+    color: #334155;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    font-size: 16px;
+    padding: 4px 14px;
+    border-radius: 999px;
+}
+
+.LastScanSavePill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.32);
+    color: #15803D;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 4px 12px;
+    border-radius: 999px;
+}
+
+.LastScanPriceRow {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.LastScanOldPrice {
+    font-size: 18px;
+    font-weight: 700;
+    color: #9CA3AF;
+    text-decoration: line-through;
+}
+
+.LastScanPrice {
+    font-size: 40px;
+    font-weight: 400;
+    font-family: "DSDIGI", "Segoe UI", monospace;
+    color: #111827;
+    line-height: 1;
+}
+
+.LastScanCardDiscount .LastScanPrice {
+    color: #15803D;
+}
+
+/* ---- Side guide (idle only now) ---- */
+.GuideStrip {
+    display: flex;
+    flex-direction: column;
+    background: #FFFFFF;
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+}
+
+.GuideTitle {
+    font-size: 16px;
+    font-weight: 800;
+    color: #111827;
+    margin: 0 0 12px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #F1F5F9;
+    text-align: center;
+}
+
+.GuideSteps {
+    display: flex;
+    flex-direction: column;
+}
+
+.GuideSteps .JourneyLabel {
+    white-space: normal;
+    font-size: 14px;
+}
+
+.GuideSteps .JourneyIconWrap {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+}
+
+/* ---- Scale panel ---- */
+.ScalePanel {
+    width: min(1100px, 96vw);
+    max-height: 90vh;
+    height: min(90vh, 860px);
+    overflow: hidden;
+}
+
+.ScalePanel .ScaleGrid {
+    flex: 1;
+    min-height: 0;
+}
+
+.ScaleShell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    gap: 12px;
+}
+
+.ScaleHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.ScaleCats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ScaleCatBtn {
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 2px solid #E5E7EB;
+    background: #FFFFFF;
+    font-weight: 700;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    color: #374151;
+}
+
+.ScaleCatBtnActive {
+    border-color: #E32521;
+    background: #FEE2E2;
+    color: #B91C1C;
+}
+
+.ScaleGrid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    padding: 4px;
+    min-height: 0;
+}
+
+.ScaleCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 12px;
+    cursor: pointer;
+    min-height: 148px;
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.ScaleCard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.1);
+    border-color: #FBC9CC;
+}
+
+.ScaleCardImg {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+}
+
+.ScaleCardName {
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    font-family: Janna, "Segoe UI", sans-serif;
+    line-height: 1.25;
+    color: #111827;
+}
+
+.ScaleOffline {
+    background: #FEF3C7;
+    color: #92400E;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* ---- CashDro / Receipt (on red full-screens) ---- */
+.StatusBig {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    max-width: 640px;
+}
+
+.InsertedAmt {
+    font-size: 48px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.ReceiptIcon {
+    font-size: 84px;
+    color: #fff;
+    animation: checkPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes checkPop {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); }
+}
+
+.ReceiptAmtRow {
+    display: flex;
+    gap: 18px;
+    justify-content: center;
+}
+
+.ReceiptAmtBox {
+    text-align: center;
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 14px 28px;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
+    min-width: 150px;
+}
+
+.ReceiptAmtLabel {
+    font-size: 14px;
+    font-weight: 700;
+    color: #6B7280;
+}
+
+.ReceiptAmtValue {
+    font-size: 34px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #111827;
+}
+
+.ReceiptDoneBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 260px;
+    min-height: 64px;
+    padding: 16px 48px;
+    border: none;
+    border-radius: 16px;
+    background: #FFFFFF;
+    color: #E32521;
+    font-size: 22px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+    flex-shrink: 0;
+}
+
+.ReceiptDoneBtn:hover {
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.32);
+    transform: translateY(-2px);
+}
+
+.ReceiptDoneBtn:active {
+    transform: scale(0.97);
+}
+
+.ReceiptCountdown {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.CoinBounce {
+    animation: coinBounce 1.4s ease-in-out infinite;
+}
+
+@keyframes coinBounce {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(-6deg); }
+}
+
+/* ---- Manual barcode keypad ---- */
+.KeypadPanel {
+    align-items: center;
+    max-width: 520px;
+    width: 100%;
+}
+
+.KeypadDisplay {
+    width: 100%;
+    min-height: 60px;
+    border-radius: 14px;
+    background: #F8FAFC;
+    border: 2px solid #E5E7EB;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #111827;
+    letter-spacing: 4px;
+    padding: 0 18px;
+    box-sizing: border-box;
+}
+
+.KeypadPlaceholder {
+    color: #9CA3AF;
+    font-size: 18px;
+    font-weight: 600;
+    font-family: Janna, "Segoe UI", sans-serif;
+    letter-spacing: normal;
+}
+
+.KeypadGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+}
+
+.KeypadKey {
+    min-height: 58px;
+    border-radius: 14px;
+    border: 2px solid #E5E7EB;
+    background: #FFFFFF;
+    font-size: 24px;
+    font-weight: 800;
+    color: #111827;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.KeypadKey:hover {
+    background: #F8FAFC;
+}
+
+.KeypadKey:active {
+    transform: scale(0.95);
+}
+
+.KeypadKeyMuted {
+    background: #F3F4F6;
+    color: #6B7280;
+}
+
+.KeypadActions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.KeypadActions .OverlayCancel {
+    margin-top: 0;
+    flex: 1;
+}
+
+.KeypadSubmit {
+    flex: 1;
+    background: linear-gradient(135deg, #E32521 0%, #C41E1B 100%);
+    color: #fff;
+    border-color: transparent;
+    gap: 10px;
+}
+
+.KeypadSubmit:hover {
+    background: linear-gradient(135deg, #C41E1B 0%, #A81715 100%);
+}
+
+.KeypadSubmit:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* ---- Responsive fit ---- */
+@media (max-width: 1100px) {
+    .Body {
+        grid-template-columns: 1fr 260px;
+    }
+
+    .IdleGrid {
+        grid-template-columns: 1.4fr 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .IdleGrid {
+        grid-template-columns: 1fr;
+        max-height: none;
+    }
+
+    .IdleJourney {
+        gap: 16px;
+        padding: 10px 22px;
+    }
+
+    .JourneyLabel {
+        font-size: 13px;
+    }
+}
+
+@media (max-height: 720px) {
+    .IdleShell {
+        padding: 4px 20px 8px;
+    }
+
+    .IdleGrid {
+        gap: 12px;
+    }
+
+    .IdleMainCard {
+        padding: 18px 24px;
+        gap: 8px;
+    }
+
+    .IdleMainTitle {
+        font-size: 26px;
+    }
+
+    .IdleMainHint {
+        font-size: 15px;
+    }
+
+    .IdleSideCards {
+        gap: 12px;
+    }
+
+    .IdleSideCard {
+        padding: 14px;
+        gap: 10px;
+    }
+
+    .IdleSideCardTitle {
+        font-size: 17px;
+    }
+
+    .IdleSideBtn {
+        padding: 12px 18px;
+        font-size: 15px;
+    }
+
+    .IdleStepsBar {
+        padding: 2px 20px 12px;
+    }
+
+    .IdleJourney {
+        padding: 10px 26px;
+        gap: 18px;
+    }
+
+    .JourneyIconWrap {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+
+    .JourneyLabel {
+        font-size: 13px;
+    }
+
+    .Barcode {
+        height: clamp(90px, 18vh, 130px);
+    }
+
+    .OverlayFull {
+        padding: 20px 24px;
+        gap: 14px;
+    }
+
+    .OverlayFull .OverlayTitle {
+        font-size: 24px;
+    }
+
+    .DueAmount {
+        font-size: 50px;
+    }
+
+    .PayTile {
+        min-height: 130px;
+        gap: 8px;
+        padding: 14px;
+    }
+
+    .PayTileIcon {
+        font-size: 44px;
+    }
+
+    .PayTileLabel {
+        font-size: 22px;
+    }
+
+    .HeaderLogo {
+        height: 38px;
+    }
+
+    .HeaderTitle {
+        font-size: 18px;
+    }
+}
+
+@media (max-height: 600px) {
+    .IdleMainHint {
+        display: none;
+    }
+
+    .IdleStepsBar {
+        display: none;
+    }
+}

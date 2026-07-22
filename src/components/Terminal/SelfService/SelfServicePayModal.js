@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMoneyBill, faCreditCard, faTimes } from '@fortawesome/free-solid-svg-icons';
 import classes from './SelfServiceView.module.css';
 import config from '../../../config';
+import AR from './i18n';
 
 const fmt = (n) => (((Number(n) || 0) * 100) / 100).toFixed(config.decimals);
 
@@ -13,19 +14,19 @@ const SelfServicePayModal = ({ amountDue, onCash, onCancel, cardEnabled }) => {
     const enabled = cardEnabled || config.features.selfServiceCardEnabled;
 
     return (
-        <div className={classes.Overlay}>
+        <div className={classes.Overlay} dir="rtl">
             <div className={classes.OverlayFull}>
-                <h2 className={classes.OverlayTitle}>How would you like to pay?</h2>
-                <div className={classes.DueAmount}>
+                <h2 className={classes.OverlayTitle}>{AR.howToPay}</h2>
+                <div className={classes.DueAmount} dir="ltr">
                     {config.currencySymbol} {fmt(amountDue)}
                 </div>
-                <p className={classes.OverlaySubtitle}>Amount due</p>
+                <p className={classes.OverlaySubtitle}>{AR.amountDue}</p>
 
                 <div className={classes.PayTiles}>
                     <button type="button" className={`${classes.PayTile} ${classes.PayTileCash}`} onClick={onCash}>
                         <FontAwesomeIcon icon={faMoneyBill} className={classes.PayTileIcon} />
-                        <span className={classes.PayTileLabel}>Cash</span>
-                        <span className={classes.PayTileNote}>Insert cash into the machine</span>
+                        <span className={classes.PayTileLabel}>{AR.cash}</span>
+                        <span className={classes.PayTileNote}>{AR.cashNote}</span>
                     </button>
 
                     <button
@@ -33,13 +34,13 @@ const SelfServicePayModal = ({ amountDue, onCash, onCancel, cardEnabled }) => {
                         className={`${classes.PayTile} ${classes.PayTileCard}`}
                         disabled={!enabled}
                         onClick={() => { /* reserved for future card flow */ }}
-                        title={enabled ? 'Card' : 'Card payment disabled temporarily'}
+                        title={enabled ? AR.card : AR.cardDisabled}
                     >
                         <FontAwesomeIcon icon={faCreditCard} className={classes.PayTileIcon} />
-                        <span className={classes.PayTileLabel}>Card</span>
+                        <span className={classes.PayTileLabel}>{AR.card}</span>
                         {!enabled && (
                             <span className={classes.PayTileNote}>
-                                Card payment disabled temporarily
+                                {AR.cardDisabled}
                             </span>
                         )}
                     </button>
@@ -47,7 +48,7 @@ const SelfServicePayModal = ({ amountDue, onCash, onCancel, cardEnabled }) => {
 
                 <button type="button" className={classes.OverlayCancel} onClick={onCancel}>
                     <FontAwesomeIcon icon={faTimes} />
-                    Cancel
+                    {AR.cancel}
                 </button>
             </div>
         </div>

@@ -10,8 +10,16 @@ import { faTriangleExclamation, faXmark, faCheck } from '@fortawesome/free-solid
  * Signature (backwards compatible):
  *   confirm(title, message, handler)
  * Optional 4th arg allows fine-tuning variant: 'warning' | 'danger' | 'info' | 'success'
+ * Optional 5th arg opts: { confirmText, cancelText, subtitle, dir } — used by
+ * self-service mode for Arabic / RTL dialogs.
  */
-const confirm = (title, message, handler, variant = 'warning') => {
+const confirm = (title, message, handler, variant = 'warning', opts = {}) => {
+    const {
+        confirmText = 'Confirm',
+        cancelText = 'Cancel',
+        subtitle = 'Please confirm to continue',
+        dir = 'ltr',
+    } = opts;
     confirmAlert({
         customUI: ({ onClose }) => {
             const accent =
@@ -34,6 +42,7 @@ const confirm = (title, message, handler, variant = 'warning') => {
 
             return (
                 <div
+                    dir={dir}
                     style={{
                         background: '#FFFFFF',
                         width: 440,
@@ -42,7 +51,9 @@ const confirm = (title, message, handler, variant = 'warning') => {
                         boxShadow:
                             '0 24px 48px rgba(17, 24, 39, 0.28), 0 8px 16px rgba(17, 24, 39, 0.12)',
                         overflow: 'hidden',
-                        fontFamily: '"Inter", "Segoe UI", sans-serif',
+                        fontFamily: dir === 'rtl'
+                            ? 'Janna, "Segoe UI", Tahoma, sans-serif'
+                            : '"Inter", "Segoe UI", sans-serif',
                         border: '1px solid #E5E7EB'
                     }}
                 >
@@ -98,7 +109,7 @@ const confirm = (title, message, handler, variant = 'warning') => {
                                     textTransform: 'uppercase'
                                 }}
                             >
-                                Please confirm to continue
+                                {subtitle}
                             </div>
                         </div>
                     </div>
@@ -110,7 +121,9 @@ const confirm = (title, message, handler, variant = 'warning') => {
                                 style={{
                                     background: '#F8FAFC',
                                     border: '1px solid #E5E7EB',
-                                    borderLeft: `3px solid ${accent}`,
+                                    ...(dir === 'rtl'
+                                        ? { borderRight: `3px solid ${accent}` }
+                                        : { borderLeft: `3px solid ${accent}` }),
                                     borderRadius: 10,
                                     padding: '12px 14px',
                                     color: '#111827',
@@ -165,7 +178,7 @@ const confirm = (title, message, handler, variant = 'warning') => {
                             }}
                         >
                             <FontAwesomeIcon icon={faXmark} />
-                            Cancel
+                            {cancelText}
                         </Button>
                         <Button
                             appearance="primary"
@@ -192,7 +205,7 @@ const confirm = (title, message, handler, variant = 'warning') => {
                             }}
                         >
                             <FontAwesomeIcon icon={faCheck} />
-                            Confirm
+                            {confirmText}
                         </Button>
                     </div>
                 </div>

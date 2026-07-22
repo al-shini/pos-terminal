@@ -1,0 +1,441 @@
+import React, { useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faBan, faLeaf, faSackDollar, faKeyboard, faUserShield,
+    faLock, faArrowRightFromBracket, faTimes, faLockOpen
+} from '@fortawesome/free-solid-svg-icons';
+import classes from './SelfServiceView.module.css';
+import config from '../../../config';
+import axios from '../../../axios';
+import Logo from '../../../assets/full-logo.png';
+import AnimatedBarcode from './AnimatedBarcode';
+import noBarcodeImg from '../../../assets/self-service/no-barcode.png';
+import SelfServiceGuide from './SelfServiceGuide';
+import SelfServiceCart from './SelfServiceCart';
+import SelfServiceLastScan from './SelfServiceLastScan';
+import SelfServiceScalePanel from './SelfServiceScalePanel';
+import SelfServicePayModal from './SelfServicePayModal';
+import SelfServiceCashDroScreen from './SelfServiceCashDroScreen';
+import SelfServiceReceiptScreen from './SelfServiceReceiptScreen';
+import SelfServiceKeypad from './SelfServiceKeypad';
+import TouchKeyboard from '../../UI/TouchKeyboard';
+import BalanceSetup from '../BalanceSetup';
+import { scanBarcode, scanNewTransaction } from '../../../store/trxSlice';
+import { unlockTill } from '../../../store/terminalSlice';
+import { notify } from '../../../store/uiSlice';
+import AR from './i18n';
+
+// Temporarily hidden until the self-service scale flow is ready.
+const SCALE_ENABLED = false;
+
+const fmt = (n) => (((Number(n) || 0) * 100) / 100).toFixed(config.decimals);
+
+/**
+ * Customer-facing self-checkout shell.
+ *
+ * All transaction / CashDro logic lives in Terminal.js — this component only
+ * owns local UI state (pay modal, scale panel, receipt dismiss) and renders
+ * large touch-friendly controls. Cashier-mode Terminal UI is never mounted
+ * when this view is active.
+ */
+const SelfServiceView = ({
+    produceItems,
+    otherScaleItems,
+    images,
+    scaleConnected,
+    cashDroModalOpen,
+    cashDroStatus,
+    showReceipt,
+    onDeleteLine,
+    onCancelOrder,
+    onPayCash,
+    onCancelPayment,
+    onScanWeightable,
+    onReceiptDone,
+    onLockTill,
+    onLogout,
+}) => {
+    const terminal = useSelector((state) => state.terminal);
+    const trxSlice = useSelector((state) => state.trx);
+    const dispatch = useDispatch();
+
+    const [payOpen, setPayOpen] = useState(false);
+    const [scaleOpen, setScaleOpen] = useState(false);
+    const [keypadOpen, setKeypadOpen] = useState(false);
+    const [staffPwOpen, setStaffPwOpen] = useState(false);
+    const [staffPassword, setStaffPassword] = useState('');
+    const [staffVerifying, setStaffVerifying] = useState(false);
+    const [staffMenuOpen, setStaffMenuOpen] = useState(false);
+    const [staffIntent, setStaffIntent] = useState('menu'); // 'menu' | 'unlock'
+
+    const activeItems = useMemo(
+        () => (trxSlice.scannedItems || []).filter((i) => !i.voided),
+        [trxSlice.scannedItems]
+    );
+    const hasItems = activeItems.length > 0;
+    const amountDue = trxSlice.trx
+        ? Math.max(0, (trxSlice.trx.totalafterdiscount || 0) - (trxSlice.trxPaid || 0))
+        : 0;
+    const total = trxSlice.trx ? (trxSlice.trx.totalafterdiscount || 0) : 0;
+
+    // Till still needs opening balance — reuse the existing BalanceSetup UI.
+    if (terminal.display === 'balance-setup') {
+        return (
+            <div className={classes.Shell} dir="rtl">
+                <div className={classes.Header}>
+                    <div className={classes.HeaderBrand}>
+                        <img src={Logo} alt="Shini" className={classes.HeaderLogo} />
+                        <div className={classes.HeaderTitles}>
+                            <h1 className={classes.HeaderTitle}>{AR.selfCheckout}</h1>
+                            <div className={classes.HeaderHint}>{AR.tillSetupRequired}</div>
+                        </div>
+                    </div>
+                </div>
+                <div style={{ flex: 1, padding: 24 }} dir="ltr">
+                    <BalanceSetup />
+                </div>
+            </div>
+        );
+    }
+
+    const openPay = () => {
+        if (!hasItems || !trxSlice.trx) return;
+        setPayOpen(true);
+    };
+
+    const handleCash = () => {
+        setPayOpen(false);
+        if (onPayCash) onPayCash();
+    };
+
+    const handleCancelPayModal = () => {
+        setPayOpen(false);
+    };
+
+    const handleCancelCashDro = () => {
+        if (onCancelPayment) onCancelPayment();
+    };
+
+    const handleManualBarcode = (typedValue) => {
+        if (terminal.paymentMode) {
+            dispatch(notify({
+                msg: AR.finishOrCancelPayment,
+                sev: 'warning'
+            }));
+            return;
+        }
+        setKeypadOpen(false);
+        if (trxSlice.trx && trxSlice.trx.key) {
+            dispatch(scanBarcode({
+                customerKey: terminal.customer ? terminal.customer.key : null,
+                barcode: typedValue,
+                trxKey: trxSlice.trx.key,
+                trxMode: terminal.trxMode || 'Sale',
+                tillKey: terminal.till ? terminal.till.key : null,
+                multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+            }));
+        } else {
+            dispatch(scanNewTransaction({
+                customerKey: terminal.customer ? terminal.customer.key : null,
+                barcode: typedValue,
+                trxKey: null,
+                trxMode: terminal.trxMode || 'Sale',
+                tillKey: terminal.till ? terminal.till.key : null,
+                multiplier: trxSlice.multiplier ? trxSlice.multiplier : '1'
+            }));
+        }
+    };
+
+    const closeStaffPrompt = () => {
+        setStaffPwOpen(false);
+        setStaffPassword('');
+        setStaffVerifying(false);
+    };
+
+    const handleStaffVerify = () => {
+        if (!staffPassword || !terminal.loggedInUser) return;
+        setStaffVerifying(true);
+        axios({
+            method: 'post',
+            url: '/auth/login',
+            data: {
+                username: terminal.loggedInUser.username,
+                password: staffPassword,
+                terminalHardwareId: config.deviceId,
+            },
+        }).then(() => {
+            closeStaffPrompt();
+            if (staffIntent === 'unlock') {
+                dispatch(unlockTill());
+            } else {
+                setStaffMenuOpen(true);
+            }
+        }).catch((error) => {
+            setStaffVerifying(false);
+            setStaffPassword('');
+            const msg = error && error.response && error.response.status === 401
+                ? AR.incorrectPassword
+                : AR.couldNotVerify;
+            dispatch(notify({ msg, sev: 'error' }));
+        });
+    };
+
+    return (
+        <div className={classes.Shell} dir="rtl">
+            <header className={classes.Header}>
+                <div className={classes.HeaderBrand}>
+                    <img src={Logo} alt="Shini" className={classes.HeaderLogo} />
+                    <div className={classes.HeaderTitles}>
+                        <h1 className={classes.HeaderTitle}>{AR.selfCheckout}</h1>
+                    </div>
+                </div>
+                <div className={classes.HeaderRight}>
+                    {terminal.loggedInUser && (
+                        <div className={classes.HeaderHint}>
+                            {terminal.store ? terminal.store.description : ''} · {AR.ready}
+                        </div>
+                    )}
+                    <button
+                        type="button"
+                        className={classes.StaffBtn}
+                        title={AR.staffAccess}
+                        onClick={() => { setStaffIntent('menu'); setStaffPwOpen(true); }}
+                    >
+                        <FontAwesomeIcon icon={faUserShield} />
+                    </button>
+                </div>
+            </header>
+
+            {terminal.blockActions && (
+                <div className={classes.Overlay} style={{ zIndex: 2600 }} dir="rtl">
+                    <div className={`${classes.OverlayPanel} ${classes.StaffMenuPanel}`}>
+                        <h2 className={classes.OverlayTitle}>
+                            <FontAwesomeIcon icon={faLock} style={{ marginLeft: 10, color: '#E32521' }} />
+                            {AR.terminalLocked}
+                        </h2>
+                        <p className={classes.OverlaySubtitle}>{AR.askStaffUnlock}</p>
+
+                        <div className={classes.StaffMenuActions}>
+                            <button
+                                type="button"
+                                className={classes.StaffMenuBtn}
+                                onClick={() => { setStaffIntent('unlock'); setStaffPwOpen(true); }}
+                            >
+                                <FontAwesomeIcon icon={faLockOpen} />
+                                {AR.staffUnlock}
+                            </button>
+                            <button
+                                type="button"
+                                className={classes.StaffMenuBtn}
+                                onClick={() => onLogout && onLogout()}
+                            >
+                                <FontAwesomeIcon icon={faArrowRightFromBracket} />
+                                {AR.signOut}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {!hasItems && !showReceipt ? (
+                <>
+                    <div className={classes.IdleShell}>
+                        <div className={classes.IdleGrid}>
+                            <div className={classes.IdleMainCard}>
+                                <AnimatedBarcode />
+                                <h2 className={classes.IdleMainTitle}>{AR.scanToBegin}</h2>
+                                <p className={classes.IdleMainHint}>{AR.pointScanner}</p>
+                            </div>
+
+                            <div className={classes.IdleSideCards}>
+                                {SCALE_ENABLED && config.scale && (
+                                    <div className={classes.IdleSideCard}>
+                                        <div className={classes.IdleSideCardTitle}>{AR.fruitsVeg}</div>
+                                        <button
+                                            type="button"
+                                            className={classes.IdleSideBtn}
+                                            onClick={() => setScaleOpen(true)}
+                                        >
+                                            <FontAwesomeIcon icon={faLeaf} />
+                                            {AR.chooseFromList}
+                                        </button>
+                                    </div>
+                                )}
+                                <div className={classes.IdleSideCard}>
+                                    <img src={noBarcodeImg} alt="" className={classes.IdleSideImg} />
+                                    <div className={classes.IdleSideCardTitle}>{AR.noBarcode}</div>
+                                    <button
+                                        type="button"
+                                        className={classes.IdleSideBtn}
+                                        onClick={() => setKeypadOpen(true)}
+                                    >
+                                        <FontAwesomeIcon icon={faKeyboard} />
+                                        {AR.typeBarcode}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Cart (with BarcodeReader) still mounted so scans start a trx */}
+                        <div style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
+                            <SelfServiceCart onDeleteLine={onDeleteLine} />
+                        </div>
+                    </div>
+                    <SelfServiceGuide variant="footer" />
+                </>
+            ) : (
+                <>
+                    <div className={classes.Body}>
+                        <div className={classes.MainCol}>
+                            <SelfServiceCart onDeleteLine={onDeleteLine} onOpenKeypad={() => setKeypadOpen(true)} />
+                        </div>
+                        <aside className={classes.SideCol}>
+                            <SelfServiceLastScan />
+                        </aside>
+                    </div>
+
+                    <footer className={classes.Footer}>
+                        <div className={classes.TotalBlock}>
+                            <div className={classes.TotalLabel}>{AR.total}</div>
+                            <div className={classes.TotalValue} dir="ltr">
+                                {config.currencySymbol} {fmt(total)}
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            className={`${classes.FooterBtn} ${classes.BtnCancel}`}
+                            disabled={!trxSlice.trx || terminal.paymentMode || cashDroModalOpen}
+                            onClick={onCancelOrder}
+                            title={AR.cancelOrder}
+                        >
+                            <FontAwesomeIcon icon={faBan} />
+                            {AR.cancel}
+                        </button>
+
+                        {SCALE_ENABLED && config.scale && (
+                            <button
+                                type="button"
+                                className={`${classes.FooterBtn} ${classes.BtnScale}`}
+                                disabled={terminal.paymentMode || cashDroModalOpen}
+                                onClick={() => setScaleOpen(true)}
+                            >
+                                <FontAwesomeIcon icon={faLeaf} />
+                                {AR.scale}
+                            </button>
+                        )}
+
+                        <button
+                            type="button"
+                            className={`${classes.FooterBtn} ${classes.BtnPay}`}
+                            disabled={!hasItems || !trxSlice.trx || cashDroModalOpen}
+                            onClick={openPay}
+                        >
+                            <FontAwesomeIcon icon={faSackDollar} />
+                            {AR.pay}
+                        </button>
+                    </footer>
+                </>
+            )}
+
+            {payOpen && !cashDroModalOpen && !showReceipt && (
+                <SelfServicePayModal
+                    amountDue={amountDue > 0 ? amountDue : total}
+                    onCash={handleCash}
+                    onCancel={handleCancelPayModal}
+                />
+            )}
+
+            {cashDroModalOpen && (
+                <SelfServiceCashDroScreen
+                    amountDue={amountDue > 0 ? amountDue : total}
+                    cashDroStatus={cashDroStatus}
+                    onCancel={handleCancelCashDro}
+                />
+            )}
+
+            {showReceipt && (
+                <SelfServiceReceiptScreen
+                    lastPayment={trxSlice.lastTrxPayment}
+                    onDone={onReceiptDone}
+                />
+            )}
+
+            {keypadOpen && (
+                <SelfServiceKeypad
+                    onSubmit={handleManualBarcode}
+                    onCancel={() => setKeypadOpen(false)}
+                />
+            )}
+
+            {scaleOpen && (
+                <SelfServiceScalePanel
+                    produceItems={produceItems}
+                    otherScaleItems={otherScaleItems}
+                    images={images}
+                    scaleConnected={scaleConnected}
+                    onClose={() => setScaleOpen(false)}
+                    onPickItem={(item) => {
+                        if (onScanWeightable) onScanWeightable(item);
+                        setScaleOpen(false);
+                    }}
+                />
+            )}
+
+            <TouchKeyboard
+                open={staffPwOpen}
+                title={AR.staffAccess}
+                subtitle={terminal.loggedInUser ? AR.enterPasswordFor(terminal.loggedInUser.username) : AR.enterCashierPassword}
+                value={staffPassword}
+                onChange={setStaffPassword}
+                onClose={closeStaffPrompt}
+                onSubmit={handleStaffVerify}
+                mask
+                submitLabel={staffVerifying ? AR.checking : AR.unlock}
+            />
+
+            {staffMenuOpen && (
+                <div className={classes.Overlay} dir="rtl">
+                    <div className={`${classes.OverlayPanel} ${classes.StaffMenuPanel}`}>
+                        <h2 className={classes.OverlayTitle}>
+                            <FontAwesomeIcon icon={faUserShield} style={{ marginLeft: 10, color: '#E32521' }} />
+                            {AR.staffMenu}
+                        </h2>
+                        <p className={classes.OverlaySubtitle}>{AR.chooseAction}</p>
+
+                        <div className={classes.StaffMenuActions}>
+                            <button
+                                type="button"
+                                className={classes.StaffMenuBtn}
+                                onClick={() => { setStaffMenuOpen(false); if (onLockTill) onLockTill(); }}
+                            >
+                                <FontAwesomeIcon icon={faLock} />
+                                {AR.lockTill}
+                            </button>
+                            <button
+                                type="button"
+                                className={classes.StaffMenuBtn}
+                                onClick={() => { setStaffMenuOpen(false); if (onLogout) onLogout(); }}
+                            >
+                                <FontAwesomeIcon icon={faArrowRightFromBracket} />
+                                {AR.logout}
+                            </button>
+                        </div>
+
+                        <button
+                            type="button"
+                            className={classes.OverlayCancel}
+                            onClick={() => setStaffMenuOpen(false)}
+                        >
+                            <FontAwesomeIcon icon={faTimes} />
+                            {AR.close}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default SelfServiceView;

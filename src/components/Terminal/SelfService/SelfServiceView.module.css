@@ -1,5 +1,5 @@
-/* Self-checkout kiosk — light canvas, dark chrome matched to logo plate.
-   Accents: brand red #E11E26, success green #16A34A. */
+/* Self-checkout kiosk — Target-style: one solid brand-red canvas,
+   white rounded cards, red action buttons. Brand red #E32521. */
 
 .Shell {
     display: flex;
@@ -7,21 +7,22 @@
     height: 100vh;
     width: 100vw;
     overflow: hidden;
-    background: #F8FAFC;
-    font-family: "Inter", "Segoe UI", sans-serif;
+    /* Trial: POS grey canvas (was solid brand red #E32521) */
+    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+    /* Janna first: self-service UI is Arabic (RTL) */
+    font-family: Janna, "Segoe UI", Tahoma, "Inter", sans-serif;
     color: #111827;
 }
 
-/* ---- Dark top bar (logo plate) ---- */
+/* ---- Top bar (part of the red canvas) ---- */
 .Header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 22px;
-    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+    padding: 12px 22px;
+    background: transparent;
     color: #fff;
     flex-shrink: 0;
-    box-shadow: 0 4px 18px rgba(17, 24, 39, 0.28);
     z-index: 10;
 }
 
@@ -33,11 +34,13 @@
 }
 
 .HeaderLogo {
-    height: 44px;
+    height: 52px;
     width: auto;
     display: block;
-    /* Logo already has dark plate — sit flush on the bar */
-    border-radius: 4px;
+    /* Transparent logo sits flat on the dark canvas */
+    background: none;
+    padding: 8px 0;
+    box-sizing: border-box;
 }
 
 .HeaderTitles {
@@ -48,17 +51,19 @@
 }
 
 .HeaderTitle {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 800;
     letter-spacing: 0.3px;
     margin: 0;
     line-height: 1.15;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 .HeaderHint {
     font-size: 13px;
-    opacity: 0.75;
-    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 600;
     white-space: nowrap;
 }
 
@@ -73,8 +78,8 @@
     width: 40px;
     height: 40px;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.12);
     color: #fff;
     font-size: 16px;
     cursor: pointer;
@@ -82,12 +87,11 @@
     align-items: center;
     justify-content: center;
     transition: background 0.15s ease, transform 0.12s ease, opacity 0.15s ease;
-    opacity: 0.5;
+    opacity: 0.65;
 }
 
 .StaffBtn:hover {
-    background: rgba(225, 30, 38, 0.35);
-    border-color: rgba(225, 30, 38, 0.5);
+    background: rgba(255, 255, 255, 0.25);
     opacity: 1;
 }
 
@@ -119,6 +123,7 @@
     color: #111827;
     font-size: 18px;
     font-weight: 700;
+    font-family: inherit;
     cursor: pointer;
     transition: transform 0.1s ease, background 0.15s ease;
 }
@@ -131,13 +136,243 @@
     transform: scale(0.97);
 }
 
-/* ---- Active cart layout ---- */
+/* ---- Active cart layout: white cards floating on red ---- */
+/* Lidl look: flat white surface, no rounding, thin dividers.
+   Invoice list narrow; ads / last-scan get the bulk of the width. */
 .Body {
     flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 300px;
+    display: flex;
+    flex-direction: column;
     min-height: 0;
     gap: 0;
+    padding: 0;
+    background: #FFFFFF;
+}
+
+/* Lidl proportions: list ~38%, ads/actions ~62% */
+.BodyColumns {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 38fr 62fr;
+    min-height: 0;
+    gap: 0;
+}
+
+.InvoicePanel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    background: #FFFFFF;
+    border-inline-end: 1px solid #E5E7EB;
+}
+
+/* Bottom bar: total cell (under invoice) + pay button (under ads column) */
+.BottomBar {
+    display: grid;
+    grid-template-columns: 38fr 62fr;
+    border-top: 1px solid #E5E7EB;
+    background: #FFFFFF;
+    flex-shrink: 0;
+}
+
+/* Label on top, then amount + savings pill + count on one row */
+.InvoiceTotalBar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 22px 12px;
+    border-inline-end: 1px solid #E5E7EB;
+    min-width: 0;
+}
+
+.InvoiceTotalLine {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+/* Engaging red savings pill shown under the total when promos applied */
+.InvoiceSavedPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #E32521;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    padding: 4px 14px;
+    border-radius: 999px;
+    animation: cardRise 0.3s ease-out;
+}
+
+.InvoiceTotalLabel {
+    font-size: 15px;
+    font-weight: 700;
+    color: #6B7280;
+}
+
+/* Thin grey item count next to the savings pill */
+.InvoiceCountText {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6B7280;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.InvoiceTotalValue {
+    font-size: 40px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #111827;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* ---- Right action column: last scan + ads + actions ---- */
+.ActionCol {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    gap: 14px;
+    background: #FFFFFF;
+    padding: 14px 16px 16px;
+}
+
+/* White surface + contain fit so white-background art reads as transparent */
+.AdsCarousel {
+    position: relative;
+    flex: 1;
+    min-height: 140px;
+    overflow: hidden;
+    background: #FFFFFF;
+    border: none;
+}
+
+.AdSlide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+}
+
+.AdSlideActive {
+    opacity: 1;
+}
+
+.AdDots {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 7px;
+    z-index: 2;
+}
+
+.AdDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45);
+    transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.AdDotActive {
+    background: #FFFFFF;
+    transform: scale(1.25);
+}
+
+.ActionRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.ActionBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 54px;
+    border-radius: 0;
+    font-size: 15px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 10px 12px;
+    transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ActionBtn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.ActionBtn:not(:disabled):active {
+    transform: scale(0.97);
+}
+
+.ActionBtnKeypad {
+    background: #FFFFFF;
+    color: #374151;
+    border: 1px solid #E5E7EB;
+}
+
+.ActionBtnKeypad:not(:disabled):hover {
+    background: #F8FAFC;
+}
+
+.ActionBtnCancel {
+    background: #E32521;
+    color: #fff;
+    border: none;
+}
+
+/* Lidl: pay bar spans the bottom of the screen, with breathing room */
+.BtnPayBig {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: auto;
+    min-height: 60px;
+    margin: 12px 16px 16px;
+    border-radius: 0;
+    border: none;
+    background: #15803D;
+    color: #fff;
+    font-size: 22px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+}
+
+.BtnPayBig:not(:disabled):hover {
+    background: #126B34;
+}
+
+.BtnPayBig:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    animation: none;
+}
+
+.BtnPayBig:not(:disabled):active {
+    background: #0F5A2B;
 }
 
 .MainCol {
@@ -145,8 +380,10 @@
     flex-direction: column;
     min-height: 0;
     min-width: 0;
-    border-right: 1px solid #E5E7EB;
     background: #FFFFFF;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
 }
 
 .SideCol {
@@ -154,42 +391,46 @@
     flex-direction: column;
     min-height: 0;
     overflow-y: auto;
-    background: #F8FAFC;
-    padding: 14px;
-    gap: 12px;
+    gap: 14px;
 }
 
 .Footer {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 20px;
+    padding: 14px 22px;
     background: #FFFFFF;
-    border-top: 1px solid #E5E7EB;
+    border-radius: 20px;
+    margin: 14px 16px 16px;
     flex-shrink: 0;
-    box-shadow: 0 -4px 20px rgba(17, 24, 39, 0.06);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
     flex-wrap: nowrap;
 }
 
 .TotalBlock {
-    flex: 1;
-    min-width: 0;
+    margin-inline-end: auto;
+    min-width: 240px;
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    min-height: 64px;
 }
 
+/* Same green as the normal POS grand total (#15803D) */
 .TotalLabel {
-    font-size: 12px;
-    font-weight: 700;
-    color: #6B7280;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
+    font-size: 17px;
+    font-weight: 800;
+    color: #21cf62;
+    white-space: nowrap;
 }
 
 .TotalValue {
-    font-size: 38px;
-    font-weight: 800;
-    font-family: "DSDIGI", monospace;
-    color: #111827;
-    line-height: 1.1;
+    font-size: 54px;
+    font-weight: 400;
+    font-family: "DSDIGI", "Segoe UI", monospace;
+    color: #21cf62;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .FooterBtn {
@@ -201,6 +442,7 @@
     border-radius: 14px;
     font-size: 18px;
     font-weight: 800;
+    font-family: inherit;
     cursor: pointer;
     padding: 16px 24px;
     min-height: 64px;
@@ -220,38 +462,43 @@
 }
 
 .BtnCancel {
-    background: #FEE2E2;
-    color: #B91C1C;
-    border: 2px solid #FECACA;
+    background: linear-gradient(135deg, #E32521 0%, #C41E1B 100%);
+    color: #fff;
+    border: none;
     min-width: 140px;
+    box-shadow: 0 6px 18px rgba(227, 37, 33, 0.3);
 }
 
 .BtnCancel:not(:disabled):hover {
-    background: #FECACA;
+    box-shadow: 0 10px 24px rgba(227, 37, 33, 0.45);
 }
 
 .BtnScale {
-    background: #ECFDF5;
+    background: #FFFFFF;
     color: #047857;
-    border: 2px solid #A7F3D0;
+    border: 2px solid #E5E7EB;
     min-width: 130px;
 }
 
 .BtnScale:not(:disabled):hover {
-    background: #D1FAE5;
+    background: #F0FDF4;
+    border-color: #A7F3D0;
 }
 
 .BtnPay {
-    background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+    background: #15803D;
     color: #fff;
-    min-width: 200px;
-    box-shadow: 0 10px 28px rgba(22, 163, 74, 0.35);
-    font-size: 24px;
-    animation: payGlow 2.2s ease-in-out infinite;
+    border: 2px solid #15803D;
+    min-width: 220px;
+    box-shadow: 0 8px 22px rgba(21, 128, 61, 0.35);
+    font-size: 22px;
+    animation: payGlow 2.6s ease-in-out infinite;
 }
 
 .BtnPay:not(:disabled):hover {
-    box-shadow: 0 14px 32px rgba(22, 163, 74, 0.45);
+    background: #126B34;
+    border-color: #126B34;
+    box-shadow: 0 12px 28px rgba(21, 128, 61, 0.5);
 }
 
 .BtnPay:disabled {
@@ -259,179 +506,177 @@
 }
 
 @keyframes payGlow {
-    0%, 100% { box-shadow: 0 10px 28px rgba(22, 163, 74, 0.35); }
-    50% { box-shadow: 0 10px 40px rgba(22, 163, 74, 0.65); }
+    0%, 100% { box-shadow: 0 8px 22px rgba(21, 128, 61, 0.18); }
+    50% { box-shadow: 0 8px 30px rgba(21, 128, 61, 0.38); }
 }
 
-.BtnKeypad {
-    background: #EFF6FF;
-    color: #1D4ED8;
-    border: 2px solid #BFDBFE;
-    min-width: 150px;
-}
-
-.BtnKeypad:not(:disabled):hover {
-    background: #DBEAFE;
-}
-
-/* ---- Idle: hero + square cards ---- */
+/* ---- Idle: Target layout — big scan card + side action cards ---- */
 .IdleShell {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 28px 40px 20px;
-    gap: 36px;
+    padding: 8px 24px 12px;
     min-height: 0;
     overflow: hidden;
-    background:
-        radial-gradient(720px 380px at 50% 18%, rgba(225, 30, 38, 0.07) 0%, transparent 65%),
-        linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
 }
 
-.IdleHero {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 14px;
-    text-align: center;
-}
-
-.IdlePulse {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 14px;
-    padding: 18px 36px;
-    border-radius: 999px;
-    background: #FFFFFF;
-    color: #B91C1C;
-    font-weight: 800;
-    font-size: 22px;
-    border: 2px solid #FECACA;
-    box-shadow: 0 8px 28px rgba(225, 30, 38, 0.12);
-    animation: pulseSoft 2s ease-in-out infinite;
-}
-
-.IdlePulseRing {
-    position: absolute;
-    inset: -6px;
-    border-radius: 999px;
-    border: 2px solid rgba(225, 30, 38, 0.25);
-    animation: ringOut 2s ease-out infinite;
-    pointer-events: none;
-}
-
-.IdlePulseIcon {
-    font-size: 26px;
-    color: #E11E26;
-}
-
-.IdleHint {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 500;
-    color: #6B7280;
-    max-width: 420px;
-}
-
-@keyframes pulseSoft {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-}
-
-@keyframes ringOut {
-    0% { transform: scale(1); opacity: 0.7; }
-    100% { transform: scale(1.08); opacity: 0; }
-}
-
-.IdleCards {
+.IdleGrid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    width: min(440px, 90vw);
+    grid-template-columns: 1.7fr 1fr;
+    gap: 18px;
+    width: min(980px, 100%);
+    flex: 1;
+    min-height: 0;
+    max-height: 560px;
 }
 
-.IdleCardsSingle {
-    grid-template-columns: 1fr;
-    width: min(220px, 70vw);
-}
-
-.IdleCard {
-    aspect-ratio: 1;
+.IdleMainCard {
+    background: #FFFFFF;
+    border-radius: 24px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 20px 16px;
-    border-radius: 22px;
-    border: 2px solid #E5E7EB;
-    background: #FFFFFF;
-    cursor: pointer;
-    box-shadow: 0 6px 20px rgba(17, 24, 39, 0.06);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    padding: 28px 32px;
     text-align: center;
+    min-height: 0;
+    animation: cardRise 0.4s ease-out;
 }
 
-.IdleCard:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 14px 32px rgba(17, 24, 39, 0.12);
-}
-
-.IdleCard:active {
-    transform: scale(0.97);
-}
-
-.IdleCardScale {
-    border-color: #A7F3D0;
-}
-
-.IdleCardScale .IdleCardIcon {
-    background: #ECFDF5;
-    color: #047857;
-}
-
-.IdleCardKeypad {
-    border-color: #BFDBFE;
-}
-
-.IdleCardKeypad .IdleCardIcon {
-    background: #EFF6FF;
-    color: #1D4ED8;
-}
-
-.IdleCardIcon {
-    width: 72px;
-    height: 72px;
-    border-radius: 20px;
-    display: inline-flex;
+/* ---- Animated SVG barcode (idle hero) ---- */
+.Barcode {
+    position: relative;
+    width: min(380px, 85%);
+    height: clamp(110px, 22vh, 170px);
+    display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 32px;
+    padding: 0 8px;
+    margin-bottom: 6px;
 }
 
-.IdleCardLabel {
-    font-size: 18px;
+.BarcodeSvg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.BarcodeLaser {
+    position: absolute;
+    left: -5%;
+    right: -5%;
+    top: 0;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg,
+        rgba(227, 37, 33, 0) 0%,
+        #E32521 18%,
+        #FF5A55 50%,
+        #E32521 82%,
+        rgba(227, 37, 33, 0) 100%);
+    box-shadow: 0 0 14px 3px rgba(227, 37, 33, 0.55);
+    animation: laserSweep 2.6s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes laserSweep {
+    0%, 100% { top: 8%; opacity: 0.9; }
+    50% { top: 88%; opacity: 1; }
+}
+
+@keyframes cardRise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.IdleMainTitle {
+    font-size: 32px;
     font-weight: 800;
     color: #111827;
+    margin: 0;
     line-height: 1.2;
 }
 
-.IdleCardNote {
-    font-size: 13px;
+.IdleMainHint {
+    font-size: 17px;
     font-weight: 600;
-    color: #9CA3AF;
+    color: #6B7280;
+    margin: 0;
+    max-width: 380px;
 }
 
-/* ---- Idle steps footer bar ---- */
+.IdleSideCards {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-height: 0;
+}
+
+.IdleSideCard {
+    flex: 1;
+    background: #FFFFFF;
+    border-radius: 22px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 20px 18px;
+    text-align: center;
+    min-height: 0;
+    animation: cardRise 0.4s ease-out;
+}
+
+.IdleSideImg {
+    width: min(220px, 80%);
+    max-height: 45%;
+    object-fit: contain;
+    min-height: 0;
+}
+
+.IdleSideCardTitle {
+    font-size: 20px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.25;
+}
+
+.IdleSideBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #E32521;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 14px 22px;
+    font-size: 17px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(227, 37, 33, 0.35);
+    transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.IdleSideBtn:hover {
+    background: #C41E1B;
+    box-shadow: 0 10px 24px rgba(227, 37, 33, 0.45);
+}
+
+.IdleSideBtn:active {
+    transform: scale(0.96);
+}
+
+/* ---- Idle bottom strip: single journey illustration ---- */
 .IdleStepsBar {
     flex-shrink: 0;
-    background: #FFFFFF;
-    border-top: 1px solid #E5E7EB;
-    padding: 12px 20px 14px;
-    box-shadow: 0 -6px 24px rgba(17, 24, 39, 0.05);
+    padding: 4px 24px 18px;
     animation: stepsSlideUp 0.35s ease-out;
 }
 
@@ -440,66 +685,100 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-.IdleStepsInner {
-    display: flex;
-    align-items: stretch;
-    justify-content: center;
-    gap: 0;
-    width: 100%;
-    max-width: 960px;
+.IdleJourney {
+    background: #FFFFFF;
+    border-radius: 999px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
     margin: 0 auto;
+    padding: 14px 34px;
+    max-width: 720px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 26px;
 }
 
-.IdleStep {
-    flex: 1;
+/* ---- Journey steps (pure CSS, shared by footer strip + side card) ---- */
+.JourneyStep {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 4px 8px;
+    gap: 8px;
     text-align: center;
     min-width: 0;
 }
 
-.IdleStepNum {
-    width: 24px;
-    height: 24px;
+.JourneyStepRow {
+    flex-direction: row;
+    text-align: start;
+    gap: 12px;
+    padding: 10px 4px;
+}
+
+.JourneyStepRow + .JourneyStepRow {
+    border-top: 1px dashed #E5E7EB;
+}
+
+.JourneyIconWrap {
+    position: relative;
+    width: 58px;
+    height: 58px;
     border-radius: 50%;
-    background: #E11E26;
-    color: #fff;
-    font-weight: 800;
-    font-size: 12px;
+    background: #F8FAFC;
+    border: 2px solid #E5E7EB;
+    color: #374151;
+    font-size: 24px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    animation: journeyPulse 9s ease-in-out infinite;
 }
 
-.IdleStepImg {
-    width: 52px;
-    height: 52px;
-    object-fit: contain;
-    border-radius: 10px;
+/* Gentle highlight: soft red tint, no scale jump, long quiet gaps */
+@keyframes journeyPulse {
+    0%, 24%, 100% {
+        background: #F8FAFC;
+        border-color: #E5E7EB;
+        color: #374151;
+    }
+    8%, 16% {
+        background: #FDECEB;
+        border-color: #F0A8A6;
+        color: #C41E1B;
+    }
 }
 
-.IdleStepText {
+.JourneyNum {
+    position: absolute;
+    bottom: -4px;
+    inset-inline-end: -4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #111827;
+    color: #fff;
     font-size: 12px;
-    font-weight: 700;
-    color: #374151;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
 }
 
-.IdleStepDivider {
-    width: 1px;
-    align-self: center;
-    height: 48px;
-    background: #E5E7EB;
+.JourneyLabel {
+    font-size: 15px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.JourneyChevron {
+    color: #E32521;
+    font-size: 18px;
     flex-shrink: 0;
-    margin: 0 4px;
+    opacity: 0.55;
 }
 
 /* ---- Overlay screens ---- */
@@ -507,7 +786,7 @@
     position: fixed;
     inset: 0;
     z-index: 2000;
-    background: rgba(17, 24, 39, 0.55);
+    background: rgba(17, 24, 39, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -528,7 +807,7 @@
     width: min(920px, 96vw);
     max-height: 90vh;
     overflow: auto;
-    box-shadow: 0 24px 64px rgba(17, 24, 39, 0.28);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
     padding: 24px 28px;
     display: flex;
     flex-direction: column;
@@ -537,13 +816,14 @@
     animation: panelPopIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Full-screen takeover: dark canvas, white text, white tiles (Target style) */
 .OverlayFull {
-    background: #FFFFFF;
+    position: fixed;
+    inset: 0;
+    /* Trial: POS grey (was solid brand red #E32521) */
+    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
     border-radius: 0;
-    width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
-    overflow: auto;
+    overflow: hidden;
     padding: 28px 32px;
     display: flex;
     flex-direction: column;
@@ -551,12 +831,13 @@
     justify-content: center;
     gap: 20px;
     box-sizing: border-box;
+    color: #fff;
     animation: panelPopIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes panelPopIn {
-    from { opacity: 0; transform: scale(0.94) translateY(12px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 .OverlayTitle {
@@ -575,13 +856,24 @@
     text-align: center;
 }
 
+.OverlayFull .OverlayTitle {
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.OverlayFull .OverlaySubtitle {
+    color: rgba(255, 255, 255, 0.88);
+    font-weight: 600;
+}
+
 .DueAmount {
-    font-size: 52px;
+    font-size: 64px;
     font-weight: 800;
-    font-family: "DSDIGI", monospace;
-    color: #E11E26;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
     text-align: center;
     line-height: 1;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 .PayTiles {
@@ -599,18 +891,21 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    min-height: 160px;
+    min-height: 170px;
     border-radius: 20px;
-    border: 3px solid #E5E7EB;
-    background: #F8FAFC;
+    border: none;
+    background: #FFFFFF;
+    color: #111827;
     cursor: pointer;
     padding: 18px;
-    transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    font-family: inherit;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
 }
 
 .PayTile:not(:disabled):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 28px rgba(17, 24, 39, 0.12);
+    transform: translateY(-3px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
 }
 
 .PayTile:not(:disabled):active {
@@ -618,17 +913,21 @@
 }
 
 .PayTileCash {
-    border-color: #86EFAC;
-    background: linear-gradient(180deg, #ECFDF5 0%, #FFFFFF 100%);
-    color: #047857;
+    color: #111827;
+}
+
+.PayTileCash .PayTileIcon {
+    color: #16A34A;
 }
 
 .PayTileCard {
-    border-color: #E5E7EB;
-    background: #F3F4F6;
+    background: rgba(255, 255, 255, 0.82);
     color: #9CA3AF;
     cursor: not-allowed;
-    opacity: 0.85;
+}
+
+.PayTileCard .PayTileIcon {
+    color: #C4C9D2;
 }
 
 .PayTileIcon {
@@ -661,12 +960,26 @@
     color: #374151;
     font-size: 17px;
     font-weight: 700;
+    font-family: inherit;
     cursor: pointer;
     flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .OverlayCancel:hover {
     background: #F3F4F6;
+}
+
+/* Cancel on red full-screens: ghost white */
+.OverlayFull .OverlayCancel {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.55);
+    color: #fff;
+}
+
+.OverlayFull .OverlayCancel:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: #fff;
 }
 
 /* ---- Cart ---- */
@@ -677,53 +990,59 @@
     min-height: 0;
 }
 
+/* Lidl: bold heading + colored circular count badge, no divider */
 .CartHeader {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 18px;
-    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
-    color: #fff;
+    padding: 18px 22px 8px;
+    background: #FFFFFF;
+    color: #111827;
     flex-shrink: 0;
 }
 
 .CartHeaderTitle {
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
+    font-size: 20px;
+    font-weight: 800;
     margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
 }
 
 .CartHeaderCount {
-    background: rgba(255, 255, 255, 0.15);
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.CartKeypadBtn {
-    margin-left: auto;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    background: rgba(255, 255, 255, 0.1);
+    background: #E32521;
     color: #fff;
-    font-size: 16px;
-    cursor: pointer;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 800;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s ease;
+    font-variant-numeric: tabular-nums;
+}
+
+.CartKeypadBtn {
+    margin-inline-start: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 0;
+    border: 1px solid #E5E7EB;
+    background: #FFFFFF;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .CartKeypadBtn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: #F1F5F9;
+    border-color: #CBD5E1;
 }
 
 .CartList {
@@ -733,23 +1052,25 @@
     padding: 8px 0;
 }
 
+/* Lidl-style compact two-line rows: no dividers, spacing only */
 .CartRow {
     display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 12px 18px;
-    border-bottom: 1px solid #F1F5F9;
-    min-height: 72px;
+    flex-direction: column;
+    gap: 1px;
+    padding: 9px 22px;
     animation: rowSlideIn 0.28s ease-out;
 }
 
-@keyframes rowSlideIn {
-    from { opacity: 0; transform: translateX(-16px); }
-    to { opacity: 1; transform: translateX(0); }
+/* Promo rows: light green tint + accent bar so discounts pop */
+.CartRowPromo {
+    background: #F0FDF4;
+    border-inline-start: 4px solid #22C55E;
+    padding-inline-start: 18px;
 }
 
-.CartRow:nth-child(even) {
-    background: #F8FAFC;
+@keyframes rowSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .CartRowVoided {
@@ -757,25 +1078,28 @@
     text-decoration: line-through;
 }
 
-.CartQty {
-    flex-shrink: 0;
-    background: #FEE2E2;
-    color: #B91C1C;
-    font-weight: 800;
-    font-family: "DSDIGI", monospace;
-    font-size: 18px;
-    padding: 8px 12px;
-    border-radius: 12px;
-    min-width: 56px;
-    text-align: center;
+.CartRowMain {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    min-width: 0;
+}
+
+.CartRowSub {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 26px;
 }
 
 .CartName {
     flex: 1;
     min-width: 0;
-    font-size: 18px;
+    font-size: 14px;
     font-weight: 600;
     font-family: Janna, "Segoe UI", sans-serif;
+    color: #1F2937;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -783,29 +1107,66 @@
 
 .CartPrice {
     flex-shrink: 0;
-    font-size: 20px;
+    font-size: 14px;
     font-weight: 800;
-    font-family: "DSDIGI", monospace;
+    font-variant-numeric: tabular-nums;
     color: #111827;
+}
+
+.CartPriceDiscount {
+    color: #15803D;
+}
+
+.CartSubQty {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6B7280;
+    font-variant-numeric: tabular-nums;
+}
+
+.CartSubOld {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9CA3AF;
+    text-decoration: line-through;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Small green savings pill on promo lines */
+.CartPromoPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(34, 197, 94, 0.14);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    color: #15803D;
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    padding: 1px 9px;
+    border-radius: 999px;
 }
 
 .CartDelete {
     flex-shrink: 0;
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
-    border: 2px solid #FECACA;
-    background: #FEE2E2;
-    color: #B91C1C;
-    font-size: 20px;
+    margin-inline-start: auto;
+    width: 34px;
+    height: 30px;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    color: #B6BDC7;
+    font-size: 14px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
 .CartDelete:hover {
-    background: #FECACA;
+    background: #FEF2F2;
+    color: #DC2626;
 }
 
 .CartDelete:active {
@@ -829,61 +1190,145 @@
     opacity: 0.5;
 }
 
-/* ---- Side guide (active cart) ---- */
+/* ---- Last scanned item spotlight (active cart side column) ---- */
+/* Slightly rounded card with a red border */
+.LastScanCard {
+    background: #F8FAFC;
+    border-radius: 14px;
+    border: 2px solid rgba(227, 37, 33, 0.35);
+    padding: 16px 22px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: start;
+    flex-shrink: 0;
+    animation: cardRise 0.3s ease-out;
+}
+
+.LastScanCardDiscount {
+    background: #F0FDF4;
+}
+
+.LastScanRibbon {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #6B7280;
+    letter-spacing: 0.3px;
+}
+
+.LastScanDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #22C55E;
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+}
+
+.LastScanName {
+    font-size: 22px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.35;
+    min-width: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.LastScanMeta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.LastScanQty {
+    background: #E2E8F0;
+    color: #1E293B;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+    padding: 3px 12px;
+    border-radius: 999px;
+}
+
+.LastScanSavePill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.32);
+    color: #15803D;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 3px 12px;
+    border-radius: 999px;
+}
+
+.LastScanPriceRow {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.LastScanOldPrice {
+    font-size: 17px;
+    font-weight: 700;
+    color: #9CA3AF;
+    text-decoration: line-through;
+}
+
+.LastScanPrice {
+    font-size: 34px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #111827;
+    line-height: 1;
+}
+
+.LastScanCardDiscount .LastScanPrice {
+    color: #15803D;
+}
+
+/* ---- Side guide (idle only now) ---- */
 .GuideStrip {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    background: #FFFFFF;
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
 }
 
 .GuideTitle {
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 800;
-    color: #6B7280;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    margin: 0 0 2px 0;
+    color: #111827;
+    margin: 0 0 12px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #F1F5F9;
+    text-align: center;
 }
 
-.GuideStep {
+.GuideSteps {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
-    padding: 8px 10px;
-    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04);
+    flex-direction: column;
 }
 
-.GuideStepImg {
-    width: 52px;
-    height: 52px;
-    object-fit: contain;
-    border-radius: 8px;
-    background: #F8FAFC;
-    flex-shrink: 0;
+.GuideSteps .JourneyLabel {
+    white-space: normal;
+    font-size: 14px;
 }
 
-.GuideStepNum {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #E11E26;
-    color: #fff;
-    font-weight: 800;
-    font-size: 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.GuideStepText {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1F2937;
-    line-height: 1.25;
+.GuideSteps .JourneyIconWrap {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
 }
 
 /* ---- Scale panel ---- */
@@ -928,12 +1373,13 @@
     background: #FFFFFF;
     font-weight: 700;
     font-size: 14px;
+    font-family: inherit;
     cursor: pointer;
     color: #374151;
 }
 
 .ScaleCatBtnActive {
-    border-color: #E11E26;
+    border-color: #E32521;
     background: #FEE2E2;
     color: #B91C1C;
 }
@@ -993,25 +1439,26 @@
     text-align: center;
 }
 
-/* ---- CashDro / Receipt ---- */
+/* ---- CashDro / Receipt (on red full-screens) ---- */
 .StatusBig {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
-    color: #1F2937;
+    color: #fff;
     text-align: center;
     max-width: 640px;
 }
 
 .InsertedAmt {
-    font-size: 44px;
+    font-size: 48px;
     font-weight: 800;
-    font-family: "DSDIGI", monospace;
-    color: #047857;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 .ReceiptIcon {
-    font-size: 72px;
-    color: #16A34A;
+    font-size: 84px;
+    color: #fff;
     animation: checkPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -1023,27 +1470,66 @@
 
 .ReceiptAmtRow {
     display: flex;
-    gap: 36px;
+    gap: 18px;
     justify-content: center;
 }
 
 .ReceiptAmtBox {
     text-align: center;
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 14px 28px;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
+    min-width: 150px;
 }
 
 .ReceiptAmtLabel {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: #6B7280;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .ReceiptAmtValue {
-    font-size: 36px;
+    font-size: 34px;
     font-weight: 800;
-    font-family: "DSDIGI", monospace;
+    font-variant-numeric: tabular-nums;
     color: #111827;
+}
+
+.ReceiptDoneBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 260px;
+    min-height: 64px;
+    padding: 16px 48px;
+    border: none;
+    border-radius: 16px;
+    background: #FFFFFF;
+    color: #E32521;
+    font-size: 22px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+    flex-shrink: 0;
+}
+
+.ReceiptDoneBtn:hover {
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.32);
+    transform: translateY(-2px);
+}
+
+.ReceiptDoneBtn:active {
+    transform: scale(0.97);
+}
+
+.ReceiptCountdown {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .CoinBounce {
@@ -1073,7 +1559,7 @@
     justify-content: center;
     font-size: 30px;
     font-weight: 800;
-    font-family: "DSDIGI", monospace;
+    font-variant-numeric: tabular-nums;
     color: #111827;
     letter-spacing: 4px;
     padding: 0 18px;
@@ -1084,7 +1570,7 @@
     color: #9CA3AF;
     font-size: 18px;
     font-weight: 600;
-    font-family: "Inter", "Segoe UI", sans-serif;
+    font-family: Janna, "Segoe UI", sans-serif;
     letter-spacing: normal;
 }
 
@@ -1139,10 +1625,14 @@
 
 .KeypadSubmit {
     flex: 1;
-    background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+    background: linear-gradient(135deg, #E32521 0%, #C41E1B 100%);
     color: #fff;
     border-color: transparent;
     gap: 10px;
+}
+
+.KeypadSubmit:hover {
+    background: linear-gradient(135deg, #C41E1B 0%, #A81715 100%);
 }
 
 .KeypadSubmit:disabled {
@@ -1152,77 +1642,93 @@
 
 /* ---- Responsive fit ---- */
 @media (max-width: 1100px) {
-    .Body {
-        grid-template-columns: 1fr 260px;
+    .BodyColumns,
+    .BottomBar {
+        grid-template-columns: 42fr 58fr;
+    }
+
+    .IdleGrid {
+        grid-template-columns: 1.4fr 1fr;
     }
 }
 
 @media (max-width: 720px) {
-    .IdleCards {
-        width: min(380px, 92vw);
-        gap: 14px;
+    .IdleGrid {
+        grid-template-columns: 1fr;
+        max-height: none;
     }
 
-    .IdleStepText {
-        font-size: 11px;
+    .IdleJourney {
+        gap: 16px;
+        padding: 10px 22px;
     }
 
-    .IdleStepImg {
-        width: 44px;
-        height: 44px;
+    .JourneyLabel {
+        font-size: 13px;
     }
 }
 
 @media (max-height: 720px) {
     .IdleShell {
-        padding: 16px 24px 12px;
-        gap: 20px;
+        padding: 4px 20px 8px;
     }
 
-    .IdlePulse {
-        padding: 14px 28px;
-        font-size: 18px;
+    .IdleGrid {
+        gap: 12px;
     }
 
-    .IdlePulseIcon {
-        font-size: 22px;
+    .IdleMainCard {
+        padding: 18px 24px;
+        gap: 8px;
     }
 
-    .IdleHint {
-        font-size: 14px;
-    }
-
-    .IdleCardIcon {
-        width: 56px;
-        height: 56px;
+    .IdleMainTitle {
         font-size: 26px;
-        border-radius: 16px;
     }
 
-    .IdleCardLabel {
+    .IdleMainHint {
         font-size: 15px;
     }
 
-    .IdleCardNote {
-        font-size: 12px;
+    .IdleSideCards {
+        gap: 12px;
     }
 
-    .IdleCards {
-        width: min(360px, 88vw);
-        gap: 14px;
+    .IdleSideCard {
+        padding: 14px;
+        gap: 10px;
+    }
+
+    .IdleSideCardTitle {
+        font-size: 17px;
+    }
+
+    .IdleSideBtn {
+        padding: 12px 18px;
+        font-size: 15px;
     }
 
     .IdleStepsBar {
-        padding: 8px 16px 10px;
+        padding: 2px 20px 12px;
     }
 
-    .IdleStepImg {
-        width: 40px;
-        height: 40px;
+    .IdleJourney {
+        padding: 10px 26px;
+        gap: 18px;
     }
 
-    .IdleStepText {
-        font-size: 11px;
+    .JourneyIconWrap {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+
+    .JourneyLabel {
+        font-size: 13px;
+    }
+
+    .Barcode {
+        height: clamp(90px, 18vh, 130px);
     }
 
     .OverlayFull {
@@ -1230,12 +1736,12 @@
         gap: 14px;
     }
 
-    .OverlayTitle {
+    .OverlayFull .OverlayTitle {
         font-size: 24px;
     }
 
     .DueAmount {
-        font-size: 42px;
+        font-size: 50px;
     }
 
     .PayTile {
@@ -1253,24 +1759,20 @@
     }
 
     .HeaderLogo {
-        height: 36px;
+        height: 38px;
     }
 
     .HeaderTitle {
-        font-size: 17px;
+        font-size: 18px;
     }
 }
 
 @media (max-height: 600px) {
-    .IdleHint {
+    .IdleMainHint {
         display: none;
     }
 
-    .IdleCardNote {
+    .IdleStepsBar {
         display: none;
-    }
-
-    .IdleStepDivider {
-        height: 36px;
     }
 }

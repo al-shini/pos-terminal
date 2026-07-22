@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAppleWhole, faLeaf, faList, faTimes, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import classes from './SelfServiceView.module.css';
 import config from '../../../config';
+import AR from './i18n';
 
 /**
  * Simplified produce / scale picker for self-checkout.
@@ -47,22 +48,22 @@ const SelfServiceScalePanel = ({
     };
 
     return (
-        <div className={classes.Overlay}>
+        <div className={classes.Overlay} dir="rtl">
             <div className={`${classes.OverlayPanel} ${classes.ScalePanel}`}>
                 <div className={classes.ScaleHeader}>
                     <h2 className={classes.OverlayTitle} style={{ fontSize: 26, margin: 0 }}>
-                        Fruits &amp; Vegetables
+                        {AR.fruitsVegTitle}
                     </h2>
                     <button type="button" className={classes.OverlayCancel} onClick={onClose} style={{ marginTop: 0 }}>
                         <FontAwesomeIcon icon={faTimes} />
-                        Close
+                        {AR.close}
                     </button>
                 </div>
 
                 {!scaleConnected && (
                     <div className={classes.ScaleOffline}>
-                        <FontAwesomeIcon icon={faTriangleExclamation} style={{ marginRight: 8 }} />
-                        Scale not connected — weighing is unavailable. Ask staff for help.
+                        <FontAwesomeIcon icon={faTriangleExclamation} style={{ marginLeft: 8 }} />
+                        {AR.scaleOffline}
                     </div>
                 )}
 
@@ -72,24 +73,24 @@ const SelfServiceScalePanel = ({
                         className={`${classes.ScaleCatBtn} ${category === 'all' ? classes.ScaleCatBtnActive : ''}`}
                         onClick={() => setCategory('all')}
                     >
-                        <FontAwesomeIcon icon={faList} style={{ marginRight: 6 }} />
-                        All
+                        <FontAwesomeIcon icon={faList} style={{ marginLeft: 6 }} />
+                        {AR.all}
                     </button>
                     <button
                         type="button"
                         className={`${classes.ScaleCatBtn} ${category === 'fruit' ? classes.ScaleCatBtnActive : ''}`}
                         onClick={() => setCategory('fruit')}
                     >
-                        <FontAwesomeIcon icon={faAppleWhole} style={{ marginRight: 6 }} />
-                        Fruits
+                        <FontAwesomeIcon icon={faAppleWhole} style={{ marginLeft: 6 }} />
+                        {AR.fruits}
                     </button>
                     <button
                         type="button"
                         className={`${classes.ScaleCatBtn} ${category === 'vegetable' ? classes.ScaleCatBtnActive : ''}`}
                         onClick={() => setCategory('vegetable')}
                     >
-                        <FontAwesomeIcon icon={faLeaf} style={{ marginRight: 6 }} />
-                        Vegetables
+                        <FontAwesomeIcon icon={faLeaf} style={{ marginLeft: 6 }} />
+                        {AR.vegetables}
                     </button>
                     {config.features.otherScaleItems && (
                         <button
@@ -97,7 +98,7 @@ const SelfServiceScalePanel = ({
                             className={`${classes.ScaleCatBtn} ${category === 'others' ? classes.ScaleCatBtnActive : ''}`}
                             onClick={() => setCategory('others')}
                         >
-                            Others
+                            {AR.others}
                         </button>
                     )}
                 </div>
@@ -131,7 +132,7 @@ const SelfServiceScalePanel = ({
                     })}
                     {items.length === 0 && (
                         <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#9CA3AF', padding: 40 }}>
-                            No items available
+                            {AR.noItems}
                         </div>
                     )}
                 </div>

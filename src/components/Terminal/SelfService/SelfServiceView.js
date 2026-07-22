@@ -2,15 +2,19 @@ import React, { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faBan, faLeaf, faSackDollar, faBarcode, faKeyboard, faUserShield,
-    faLock, faArrowRightFromBracket, faTimes, faLockOpen
+    faBan, faLeaf, faSackDollar, faKeyboard, faUserShield,
+    faLock, faArrowRightFromBracket, faTimes, faLockOpen, faTag
 } from '@fortawesome/free-solid-svg-icons';
 import classes from './SelfServiceView.module.css';
 import config from '../../../config';
 import axios from '../../../axios';
 import Logo from '../../../assets/full-logo.png';
+import AnimatedBarcode from './AnimatedBarcode';
+import noBarcodeImg from '../../../assets/self-service/no-barcode.png';
 import SelfServiceGuide from './SelfServiceGuide';
 import SelfServiceCart from './SelfServiceCart';
+import SelfServiceLastScan from './SelfServiceLastScan';
+import SelfServiceAdsCarousel from './SelfServiceAdsCarousel';
 import SelfServiceScalePanel from './SelfServiceScalePanel';
 import SelfServicePayModal from './SelfServicePayModal';
 import SelfServiceCashDroScreen from './SelfServiceCashDroScreen';
@@ -21,6 +25,10 @@ import BalanceSetup from '../BalanceSetup';
 import { scanBarcode, scanNewTransaction } from '../../../store/trxSlice';
 import { unlockTill } from '../../../store/terminalSlice';
 import { notify } from '../../../store/uiSlice';
+import AR from './i18n';
+
+// Temporarily hidden until the self-service scale flow is ready.
+const SCALE_ENABLED = false;
 
 const fmt = (n) => (((Number(n) || 0) * 100) / 100).toFixed(config.decimals);
 
@@ -71,21 +79,32 @@ const SelfServiceView = ({
         ? Math.max(0, (trxSlice.trx.totalafterdiscount || 0) - (trxSlice.trxPaid || 0))
         : 0;
     const total = trxSlice.trx ? (trxSlice.trx.totalafterdiscount || 0) : 0;
+    const totalSaved = useMemo(
+        () =>
+            activeItems.reduce((sum, i) => {
+                const saved =
+                    i.finalprice != null && i.finalprice < i.totalprice
+                        ? i.totalprice - i.finalprice
+                        : 0;
+                return sum + saved;
+            }, 0),
+        [activeItems]
+    );
 
     // Till still needs opening balance — reuse the existing BalanceSetup UI.
     if (terminal.display === 'balance-setup') {
         return (
-            <div className={classes.Shell}>
+            <div className={classes.Shell} dir="rtl">
                 <div className={classes.Header}>
                     <div className={classes.HeaderBrand}>
                         <img src={Logo} alt="Shini" className={classes.HeaderLogo} />
                         <div className={classes.HeaderTitles}>
-                            <h1 className={classes.HeaderTitle}>Self Checkout</h1>
-                            <div className={classes.HeaderHint}>Till setup required</div>
+                            <h1 className={classes.HeaderTitle}>{AR.selfCheckout}</h1>
+                            <div className={classes.HeaderHint}>{AR.tillSetupRequired}</div>
                         </div>
                     </div>
                 </div>
-                <div style={{ flex: 1, padding: 24 }}>
+                <div style={{ flex: 1, padding: 24 }} dir="ltr">
                     <BalanceSetup />
                 </div>
             </div>
@@ -113,7 +132,7 @@ const SelfServiceView = ({
     const handleManualBarcode = (typedValue) => {
         if (terminal.paymentMode) {
             dispatch(notify({
-                msg: 'Finish or cancel payment before adding more items',
+                msg: AR.finishOrCancelPayment,
                 sev: 'warning'
             }));
             return;
@@ -168,31 +187,31 @@ const SelfServiceView = ({
             setStaffVerifying(false);
             setStaffPassword('');
             const msg = error && error.response && error.response.status === 401
-                ? 'Incorrect password'
-                : 'Could not verify password';
+                ? AR.incorrectPassword
+                : AR.couldNotVerify;
             dispatch(notify({ msg, sev: 'error' }));
         });
     };
 
     return (
-        <div className={classes.Shell}>
+        <div className={classes.Shell} dir="rtl">
             <header className={classes.Header}>
                 <div className={classes.HeaderBrand}>
                     <img src={Logo} alt="Shini" className={classes.HeaderLogo} />
                     <div className={classes.HeaderTitles}>
-                        <h1 className={classes.HeaderTitle}>Self Checkout</h1>
+                        <h1 className={classes.HeaderTitle}>{AR.selfCheckout}</h1>
                     </div>
                 </div>
                 <div className={classes.HeaderRight}>
                     {terminal.loggedInUser && (
                         <div className={classes.HeaderHint}>
-                            {terminal.store ? terminal.store.description : ''} · Ready
+                            {terminal.store ? terminal.store.description : ''} · {AR.ready}
                         </div>
                     )}
                     <button
                         type="button"
                         className={classes.StaffBtn}
-                        title="Staff access"
+                        title={AR.staffAccess}
                         onClick={() => { setStaffIntent('menu'); setStaffPwOpen(true); }}
                     >
                         <FontAwesomeIcon icon={faUserShield} />
@@ -201,13 +220,13 @@ const SelfServiceView = ({
             </header>
 
             {terminal.blockActions && (
-                <div className={classes.Overlay} style={{ zIndex: 2600 }}>
+                <div className={classes.Overlay} style={{ zIndex: 2600 }} dir="rtl">
                     <div className={`${classes.OverlayPanel} ${classes.StaffMenuPanel}`}>
                         <h2 className={classes.OverlayTitle}>
-                            <FontAwesomeIcon icon={faLock} style={{ marginRight: 10, color: '#E11E26' }} />
-                            Terminal Locked
+                            <FontAwesomeIcon icon={faLock} style={{ marginLeft: 10, color: '#E32521' }} />
+                            {AR.terminalLocked}
                         </h2>
-                        <p className={classes.OverlaySubtitle}>Ask a staff member to unlock this till</p>
+                        <p className={classes.OverlaySubtitle}>{AR.askStaffUnlock}</p>
 
                         <div className={classes.StaffMenuActions}>
                             <button
@@ -216,7 +235,7 @@ const SelfServiceView = ({
                                 onClick={() => { setStaffIntent('unlock'); setStaffPwOpen(true); }}
                             >
                                 <FontAwesomeIcon icon={faLockOpen} />
-                                Staff Unlock
+                                {AR.staffUnlock}
                             </button>
                             <button
                                 type="button"
@@ -224,7 +243,7 @@ const SelfServiceView = ({
                                 onClick={() => onLogout && onLogout()}
                             >
                                 <FontAwesomeIcon icon={faArrowRightFromBracket} />
-                                Sign Out
+                                {AR.signOut}
                             </button>
                         </div>
                     </div>
@@ -234,42 +253,40 @@ const SelfServiceView = ({
             {!hasItems && !showReceipt ? (
                 <>
                     <div className={classes.IdleShell}>
-                        <div className={classes.IdleHero}>
-                            <div className={classes.IdlePulse}>
-                                <span className={classes.IdlePulseRing} aria-hidden />
-                                <FontAwesomeIcon icon={faBarcode} className={classes.IdlePulseIcon} />
-                                Waiting for scan…
+                        <div className={classes.IdleGrid}>
+                            <div className={classes.IdleMainCard}>
+                                <AnimatedBarcode />
+                                <h2 className={classes.IdleMainTitle}>{AR.scanToBegin}</h2>
+                                <p className={classes.IdleMainHint}>{AR.pointScanner}</p>
                             </div>
-                            <p className={classes.IdleHint}>
-                                Point the scanner at a barcode to begin
-                            </p>
-                        </div>
 
-                        <div className={`${classes.IdleCards} ${!config.scale ? classes.IdleCardsSingle : ''}`}>
-                            {config.scale && (
-                                <button
-                                    type="button"
-                                    className={`${classes.IdleCard} ${classes.IdleCardScale}`}
-                                    onClick={() => setScaleOpen(true)}
-                                >
-                                    <span className={classes.IdleCardIcon}>
-                                        <FontAwesomeIcon icon={faLeaf} />
-                                    </span>
-                                    <span className={classes.IdleCardLabel}>Fruits &amp; Veg</span>
-                                    <span className={classes.IdleCardNote}>Weigh produce</span>
-                                </button>
-                            )}
-                            <button
-                                type="button"
-                                className={`${classes.IdleCard} ${classes.IdleCardKeypad}`}
-                                onClick={() => setKeypadOpen(true)}
-                            >
-                                <span className={classes.IdleCardIcon}>
-                                    <FontAwesomeIcon icon={faKeyboard} />
-                                </span>
-                                <span className={classes.IdleCardLabel}>Type barcode</span>
-                                <span className={classes.IdleCardNote}>Enter numbers</span>
-                            </button>
+                            <div className={classes.IdleSideCards}>
+                                {SCALE_ENABLED && config.scale && (
+                                    <div className={classes.IdleSideCard}>
+                                        <div className={classes.IdleSideCardTitle}>{AR.fruitsVeg}</div>
+                                        <button
+                                            type="button"
+                                            className={classes.IdleSideBtn}
+                                            onClick={() => setScaleOpen(true)}
+                                        >
+                                            <FontAwesomeIcon icon={faLeaf} />
+                                            {AR.chooseFromList}
+                                        </button>
+                                    </div>
+                                )}
+                                <div className={classes.IdleSideCard}>
+                                    <img src={noBarcodeImg} alt="" className={classes.IdleSideImg} />
+                                    <div className={classes.IdleSideCardTitle}>{AR.noBarcode}</div>
+                                    <button
+                                        type="button"
+                                        className={classes.IdleSideBtn}
+                                        onClick={() => setKeypadOpen(true)}
+                                    >
+                                        <FontAwesomeIcon icon={faKeyboard} />
+                                        {AR.typeBarcode}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Cart (with BarcodeReader) still mounted so scans start a trx */}
@@ -282,55 +299,71 @@ const SelfServiceView = ({
             ) : (
                 <>
                     <div className={classes.Body}>
-                        <div className={classes.MainCol}>
-                            <SelfServiceCart onDeleteLine={onDeleteLine} onOpenKeypad={() => setKeypadOpen(true)} />
-                        </div>
-                        <aside className={classes.SideCol}>
-                            <SelfServiceGuide variant="side" />
-                        </aside>
-                    </div>
-
-                    <footer className={classes.Footer}>
-                        <div className={classes.TotalBlock}>
-                            <div className={classes.TotalLabel}>Total</div>
-                            <div className={classes.TotalValue}>
-                                {config.currencySymbol} {fmt(total)}
+                        <div className={classes.BodyColumns}>
+                            <div className={classes.InvoicePanel}>
+                                <SelfServiceCart onDeleteLine={onDeleteLine} />
                             </div>
+
+                            <aside className={classes.ActionCol}>
+                                <SelfServiceLastScan />
+
+                                <SelfServiceAdsCarousel />
+
+                                <div className={classes.ActionRow}>
+                                    <button
+                                        type="button"
+                                        className={`${classes.ActionBtn} ${classes.ActionBtnKeypad}`}
+                                        disabled={terminal.paymentMode || cashDroModalOpen}
+                                        onClick={() => setKeypadOpen(true)}
+                                    >
+                                        <FontAwesomeIcon icon={faKeyboard} />
+                                        {AR.typeBarcode}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`${classes.ActionBtn} ${classes.ActionBtnCancel}`}
+                                        disabled={!trxSlice.trx || terminal.paymentMode || cashDroModalOpen}
+                                        onClick={onCancelOrder}
+                                        title={AR.cancelOrder}
+                                    >
+                                        <FontAwesomeIcon icon={faBan} />
+                                        {AR.cancel}
+                                    </button>
+                                </div>
+                            </aside>
                         </div>
 
-                        <button
-                            type="button"
-                            className={`${classes.FooterBtn} ${classes.BtnCancel}`}
-                            disabled={!trxSlice.trx || terminal.paymentMode || cashDroModalOpen}
-                            onClick={onCancelOrder}
-                            title="Cancel order"
-                        >
-                            <FontAwesomeIcon icon={faBan} />
-                            Cancel
-                        </button>
-
-                        {config.scale && (
+                        {/* Bottom bar: total under the invoice column, pay under the ads column */}
+                        <div className={classes.BottomBar}>
+                            <div className={classes.InvoiceTotalBar}>
+                                <span className={classes.InvoiceTotalLabel}>{AR.total}</span>
+                                <div className={classes.InvoiceTotalLine}>
+                                    <span className={classes.InvoiceTotalValue} dir="ltr">
+                                        {config.currencySymbol} {fmt(total)}
+                                    </span>
+                                    {totalSaved > 0 && (
+                                        <span className={classes.InvoiceSavedPill} dir="rtl">
+                                            <FontAwesomeIcon icon={faTag} />
+                                            {AR.youSaved}
+                                            <span dir="ltr">{config.currencySymbol} {fmt(totalSaved)}</span>
+                                        </span>
+                                    )}
+                                    <span className={classes.InvoiceCountText}>
+                                        {AR.itemCount}: {activeItems.length}
+                                    </span>
+                                </div>
+                            </div>
                             <button
                                 type="button"
-                                className={`${classes.FooterBtn} ${classes.BtnScale}`}
-                                disabled={terminal.paymentMode || cashDroModalOpen}
-                                onClick={() => setScaleOpen(true)}
+                                className={classes.BtnPayBig}
+                                disabled={!hasItems || !trxSlice.trx || cashDroModalOpen}
+                                onClick={openPay}
                             >
-                                <FontAwesomeIcon icon={faLeaf} />
-                                Scale
+                                <FontAwesomeIcon icon={faSackDollar} />
+                                {AR.pay}
                             </button>
-                        )}
-
-                        <button
-                            type="button"
-                            className={`${classes.FooterBtn} ${classes.BtnPay}`}
-                            disabled={!hasItems || !trxSlice.trx || cashDroModalOpen}
-                            onClick={openPay}
-                        >
-                            <FontAwesomeIcon icon={faSackDollar} />
-                            Pay
-                        </button>
-                    </footer>
+                        </div>
+                    </div>
                 </>
             )}
 
@@ -380,24 +413,24 @@ const SelfServiceView = ({
 
             <TouchKeyboard
                 open={staffPwOpen}
-                title="Staff Access"
-                subtitle={terminal.loggedInUser ? `Enter password for ${terminal.loggedInUser.username}` : 'Enter your cashier password'}
+                title={AR.staffAccess}
+                subtitle={terminal.loggedInUser ? AR.enterPasswordFor(terminal.loggedInUser.username) : AR.enterCashierPassword}
                 value={staffPassword}
                 onChange={setStaffPassword}
                 onClose={closeStaffPrompt}
                 onSubmit={handleStaffVerify}
                 mask
-                submitLabel={staffVerifying ? 'Checking…' : 'Unlock'}
+                submitLabel={staffVerifying ? AR.checking : AR.unlock}
             />
 
             {staffMenuOpen && (
-                <div className={classes.Overlay}>
+                <div className={classes.Overlay} dir="rtl">
                     <div className={`${classes.OverlayPanel} ${classes.StaffMenuPanel}`}>
                         <h2 className={classes.OverlayTitle}>
-                            <FontAwesomeIcon icon={faUserShield} style={{ marginRight: 10, color: '#E11E26' }} />
-                            Staff Menu
+                            <FontAwesomeIcon icon={faUserShield} style={{ marginLeft: 10, color: '#E32521' }} />
+                            {AR.staffMenu}
                         </h2>
-                        <p className={classes.OverlaySubtitle}>Choose an action</p>
+                        <p className={classes.OverlaySubtitle}>{AR.chooseAction}</p>
 
                         <div className={classes.StaffMenuActions}>
                             <button
@@ -406,7 +439,7 @@ const SelfServiceView = ({
                                 onClick={() => { setStaffMenuOpen(false); if (onLockTill) onLockTill(); }}
                             >
                                 <FontAwesomeIcon icon={faLock} />
-                                Lock Till
+                                {AR.lockTill}
                             </button>
                             <button
                                 type="button"
@@ -414,7 +447,7 @@ const SelfServiceView = ({
                                 onClick={() => { setStaffMenuOpen(false); if (onLogout) onLogout(); }}
                             >
                                 <FontAwesomeIcon icon={faArrowRightFromBracket} />
-                                Logout
+                                {AR.logout}
                             </button>
                         </div>
 
@@ -424,7 +457,7 @@ const SelfServiceView = ({
                             onClick={() => setStaffMenuOpen(false)}
                         >
                             <FontAwesomeIcon icon={faTimes} />
-                            Close
+                            {AR.close}
                         </button>
                     </div>
                 </div>
@@ -434,3 +467,4 @@ const SelfServiceView = ({
 };
 
 export default SelfServiceView;
+

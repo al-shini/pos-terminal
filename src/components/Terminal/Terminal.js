@@ -29,6 +29,7 @@ import { hideLoading, notify, showHardNotification, showLoading } from '../../st
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
 import confirm from '../UI/ConfirmDlg';
 import config from '../../config';
+import SS_AR from './SelfService/i18n';
 import errorBeep from '../../assets/error.wav';
 import QRCode from "react-qr-code";
 import useSound from 'use-sound';
@@ -1184,7 +1185,7 @@ const Terminal = (props) => {
     /* CashDro Payment Flow */
     const handleCashDroPayment = async () => {
         if (!trxSlice.trx) {
-            dispatch(notify({ msg: 'No transaction open', sev: 'warning' }));
+            dispatch(notify({ msg: config.selfService ? SS_AR.noTrxOpen : 'No transaction open', sev: 'warning' }));
             return;
         }
 
@@ -1195,7 +1196,7 @@ const Terminal = (props) => {
 
         if (config.selfService && !(terminal.terminal && terminal.terminal.cashDroIp)) {
             dispatch(notify({
-                msg: 'Cash machine is not configured on this terminal. Ask staff for help.',
+                msg: SS_AR.cashMachineNotConfigured,
                 sev: 'error'
             }));
             return;
@@ -1214,7 +1215,7 @@ const Terminal = (props) => {
         const remainingAmount = totalDue - totalPaid;
         
         if (remainingAmount <= 0) {
-            dispatch(notify({ msg: 'No remaining amount to pay', sev: 'warning' }));
+            dispatch(notify({ msg: config.selfService ? SS_AR.noRemainingAmount : 'No remaining amount to pay', sev: 'warning' }));
             return;
         }
 
@@ -1300,7 +1301,9 @@ const Terminal = (props) => {
                                 })
                                 .catch((err) => {
                                     dispatch(notify({
-                                        msg: 'CashDro payment failed: ' + (err || 'unknown'),
+                                        msg: config.selfService
+                                            ? SS_AR.paymentFailed
+                                            : 'CashDro payment failed: ' + (err || 'unknown'),
                                         sev: 'error'
                                     }));
                                 });
@@ -1310,14 +1313,18 @@ const Terminal = (props) => {
                         }
 
                         dispatch(notify({ 
-                            msg: `CashDro: Received ${cashReceived.toFixed(2)}, Change ${changeDispensed.toFixed(2)}`, 
+                            msg: config.selfService
+                                ? SS_AR.receivedChange(cashReceived.toFixed(2), changeDispensed.toFixed(2))
+                                : `CashDro: Received ${cashReceived.toFixed(2)}, Change ${changeDispensed.toFixed(2)}`, 
                             sev: 'info' 
                         }));
 
                         // Warn if machine couldn't dispense all change
                         if (changeNotAvailable > 0) {
                             dispatch(notify({ 
-                                msg: `Manual change needed: ${changeNotAvailable.toFixed(2)} ${config.systemCurrency}`, 
+                                msg: config.selfService
+                                    ? SS_AR.manualChangeNeeded(changeNotAvailable.toFixed(2), config.systemCurrency)
+                                    : `Manual change needed: ${changeNotAvailable.toFixed(2)} ${config.systemCurrency}`, 
                                 sev: 'warning' 
                             }));
                         }
@@ -1343,7 +1350,7 @@ const Terminal = (props) => {
                     setCashDroPollingRef(null);
                     setCashDroModalOpen(false);
                     setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
-                    dispatch(notify({ msg: 'CashDro timeout - payment not completed', sev: 'error' }));
+                    dispatch(notify({ msg: config.selfService ? SS_AR.cashDroTimeout : 'CashDro timeout - payment not completed', sev: 'error' }));
                     if (config.selfService) {
                         // Same as cancel: fully leave payment mode so scanning works again.
                         dispatch(abort());
@@ -1356,7 +1363,9 @@ const Terminal = (props) => {
             setCashDroModalOpen(false);
             setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
             dispatch(notify({ 
-                msg: 'CashDro error: ' + (error.response?.data || error.message), 
+                msg: config.selfService
+                    ? SS_AR.cashDroError
+                    : 'CashDro error: ' + (error.response?.data || error.message), 
                 sev: 'error' 
             }));
             if (config.selfService) {
@@ -1373,7 +1382,7 @@ const Terminal = (props) => {
         }
         setCashDroModalOpen(false);
         setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
-        dispatch(notify({ msg: 'CashDro payment cancelled', sev: 'warning' }));
+        dispatch(notify({ msg: config.selfService ? SS_AR.cashDroCancelled : 'CashDro payment cancelled', sev: 'warning' }));
     };
 
     /**
@@ -1383,12 +1392,17 @@ const Terminal = (props) => {
      */
     const handleSelfServiceDeleteLine = (line) => {
         if (!line || !line.key) {
-            dispatch(notify({ msg: 'No item selected', sev: 'warning' }));
+            dispatch(notify({ msg: SS_AR.noItemSelected, sev: 'warning' }));
             return;
         }
-        confirm('Remove this item?', line.description || '', () => {
+        confirm(SS_AR.confirmRemoveItemTitle, line.description || '', () => {
             dispatch(selectLine(line));
             dispatch(voidLine(line.key));
+        }, 'danger', {
+            confirmText: SS_AR.confirm,
+            cancelText: SS_AR.cancel,
+            subtitle: SS_AR.confirmSubtitle,
+            dir: 'rtl'
         });
     };
 
@@ -1397,11 +1411,16 @@ const Terminal = (props) => {
      */
     const handleSelfServiceCancelOrder = () => {
         if (!trxSlice.trx) {
-            dispatch(notify({ msg: 'No open order to cancel', sev: 'warning' }));
+            dispatch(notify({ msg: SS_AR.noOrderToCancel, sev: 'warning' }));
             return;
         }
-        confirm('Cancel order?', 'All items will be removed', () => {
+        confirm(SS_AR.confirmCancelOrderTitle, SS_AR.confirmCancelOrderMsg, () => {
             dispatch(voidTrx(trxSlice.trx.key));
+        }, 'danger', {
+            confirmText: SS_AR.confirm,
+            cancelText: SS_AR.cancel,
+            subtitle: SS_AR.confirmSubtitle,
+            dir: 'rtl'
         });
     };
 
@@ -1434,7 +1453,9 @@ const Terminal = (props) => {
                 exitPaymentFully();
                 if (error.response) {
                     dispatch(notify({
-                        msg: error.response.data || 'Could not cancel payment',
+                        msg: config.selfService
+                            ? SS_AR.couldNotCancelPayment
+                            : (error.response.data || 'Could not cancel payment'),
                         sev: 'error'
                     }));
                 } else {
