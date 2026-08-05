@@ -52,9 +52,19 @@ const SelfServiceCart = ({ onDeleteLine }) => {
         }
     };
 
+    // react-barcode-reader's onError is purely timing/length based (default
+    // minLength/avgTimeByChar heuristics — see node_modules/react-barcode-
+    // reader), NOT content-based: it fires whenever a scan is a hair slower
+    // than expected, regardless of what was scanned. Customer/loyalty cards
+    // carry long keys (e.g. "LC-2615789638091900") that trip this far more
+    // often than short item barcodes, so — same as the pre-existing `C-`
+    // (account customer) recovery — every customer-lookup prefix the backend
+    // understands (see PosSellTrxService#onScanBarcode) must be recovered
+    // here too, or the card scan is silently dropped.
     const handleScanError = (err) => {
-        if (err && ('' + err).startsWith('C-')) {
-            handleScan(err);
+        const value = err ? ('' + err) : '';
+        if (value.startsWith('C-') || value.startsWith('LC-') || value.startsWith('00970') || value.startsWith('00972')) {
+            handleScan(value);
         }
     };
 

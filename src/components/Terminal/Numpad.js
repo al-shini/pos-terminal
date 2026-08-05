@@ -201,23 +201,51 @@ const Numpad = (props) => {
                 <Panel className={classes.Panel} >
                     <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
                         {!trxSlice.priceChangeMode &&
-                            <Input value={trxSlice.multiplier ? ('' + trxSlice.multiplier).concat(' X') : '-'}
-                                placeholder={'X'}
-                                style={{
-                                    width: 72,
-                                    flexShrink: 0,
-                                    height: 38,
-                                    borderRadius: 10,
-                                    boxShadow: 'none',
-                                    textAlign: 'center',
-                                    color: '#111827',
-                                    fontFamily: '"DSDIGI", monospace',
-                                    fontSize: 16,
-                                    fontWeight: 700,
-                                    border: '1px solid #E5E7EB',
-                                    background: '#FFFFFF',
-                                    padding: '0 6px'
-                                }} />
+                            <div style={{ position: 'relative', flexShrink: 0 }}>
+                                <Input value={trxSlice.multiplier ? ('' + trxSlice.multiplier).concat(' X') : '-'}
+                                    placeholder={'X'}
+                                    style={{
+                                        width: 72,
+                                        flexShrink: 0,
+                                        height: 38,
+                                        borderRadius: 10,
+                                        boxShadow: 'none',
+                                        textAlign: 'center',
+                                        color: Number(trxSlice.multiplier) > 1 ? '#B45309' : '#111827',
+                                        fontFamily: '"DSDIGI", monospace',
+                                        fontSize: 16,
+                                        fontWeight: 700,
+                                        border: Number(trxSlice.multiplier) > 1 ? '1px solid #FBBF24' : '1px solid #E5E7EB',
+                                        background: Number(trxSlice.multiplier) > 1 ? '#FFFBEB' : '#FFFFFF',
+                                        padding: '0 6px'
+                                    }} />
+                                {/* [stuck-mode fix] Explicit, always-clickable way to
+                                    drop an armed qty-multiplier back to ×1 — previously
+                                    the only way out was typing nothing then hitting
+                                    backspace, which most cashiers never discovered, so
+                                    a stray armed multiplier (e.g. after a failed scan)
+                                    could sit there indefinitely. */}
+                                {Number(trxSlice.multiplier) > 1 && (
+                                    <IconButton
+                                        size="xs"
+                                        circle
+                                        appearance="primary"
+                                        color="orange"
+                                        title="Cancel quantity multiplier"
+                                        onClick={() => dispatch(clearNumberInput())}
+                                        icon={<FontAwesomeIcon icon={faTimes} />}
+                                        style={{
+                                            position: 'absolute',
+                                            top: -8,
+                                            insetInlineEnd: -8,
+                                            width: 20,
+                                            height: 20,
+                                            minWidth: 20,
+                                            padding: 0
+                                        }}
+                                    />
+                                )}
+                            </div>
                         }
                         {trxSlice.priceChangeMode &&
                             <Input value={config.currencySymbol + ' ' + (trxSlice.selectedLine ? (trxSlice.selectedLine.finalprice / trxSlice.selectedLine.qty) : '-') + ' -> '}

@@ -266,9 +266,13 @@ const Invoice = (props) => {
 
     const handleScanError = (err) => {
         console.error(err)
-        if (err && err.startsWith('C-')) {
-            // custoemr barcode
-            handleScan(err);
+        // Same recovery as before, extended to every customer-lookup prefix
+        // the backend understands (see PosSellTrxService#onScanBarcode) —
+        // react-barcode-reader's onError is timing-based, not content-based,
+        // and long loyalty-card keys (LC-…) trip it just as often as C-.
+        const value = err ? ('' + err) : '';
+        if (value.startsWith('C-') || value.startsWith('LC-') || value.startsWith('00970') || value.startsWith('00972')) {
+            handleScan(value);
         }
     };
 

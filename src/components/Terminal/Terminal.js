@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux'
 import axios from '../../axios';
 import { Button, FlexboxGrid, Divider, Input, SelectPicker, Drawer, ButtonGroup, IconButton, ButtonToolbar, Grid, Row, Col, Panel, Modal } from 'rsuite';
@@ -27,9 +27,12 @@ import {
 } from '../../store/trxSlice';
 import { hideLoading, notify, showHardNotification, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
-import confirm from '../UI/ConfirmDlg';
+import confirm, { AR_CONFIRM_OPTS } from '../UI/ConfirmDlg';
 import config from '../../config';
 import SS_AR from './SelfService/i18n';
+import { roundToCashDro, reconcileCashDro } from '../../utils/cashRounding';
+import { settleCollection, createOnceGate } from '../../utils/cashDroSettlement';
+import { arabicize } from '../../utils/arabicMessages';
 import errorBeep from '../../assets/error.wav';
 import QRCode from "react-qr-code";
 import useSound from 'use-sound';
@@ -115,6 +118,9 @@ const Terminal = (props) => {
     const [notesImages, setNotesImages] = useState([]);
     const [authQR, setAuthQR] = useState({});
     const [bopVisaIp, setBopVisaIp] = useState('');
+    // Self-checkout card-reader sale in flight: { status, message, chargeAmount }
+    // where status is 'prompting' | 'declined' | 'unknown'. Null when idle.
+    const [bopSale, setBopSale] = useState(null);
     const [passkey, setPasskey] = useState('');
     const [play] = useSound(errorBeep);
     const [groupedFastItems, setGroupedFastItems] = useState({});
@@ -154,7 +160,17 @@ const Terminal = (props) => {
     const [referenceNumberDialogOpen, setReferenceNumberDialogOpen] = useState(false);
     const [cashDroModalOpen, setCashDroModalOpen] = useState(false);
     const [cashDroStatus, setCashDroStatus] = useState({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
-    const [cashDroPollingRef, setCashDroPollingRef] = useState(null);
+    // Timers live in refs, not state: the poll loop and the walk-away timeout
+    // both need to see the CURRENT session, and a state variable captured when
+    // the session started is stale by the time they run.
+    const cashDroPollRef = useRef(null);
+    const cashDroTimeoutRef = useRef(null);
+    const cashDroBusyRef = useRef(false);
+    // Latch for the current CashDro session: whoever takes it owns the outcome.
+    const cashDroOutcomeRef = useRef(null);
+    // Set when CashDro has taken cash that could not be turned into a payment.
+    // Blocks the lane until staff clear it: { amount, cashdroId, reason, detail }
+    const [cashDroRecovery, setCashDroRecovery] = useState(null);
     // Self-checkout: show the "payment complete / take receipt" screen after
     // CashDro + closeTrxPayment succeed. Cleared by SelfServiceView after a few seconds.
     const [selfServiceShowReceipt, setSelfServiceShowReceipt] = useState(false);
@@ -903,6 +919,48 @@ const Terminal = (props) => {
     }
 
 
+    /**
+     * The customer-facing line for a CashDro collection that did not settle.
+     *
+     * 'not-closed' is called out separately on purpose: the payment is on the
+     * sale, only the receipt is missing, and telling that customer their money
+     * went unrecorded is both false and alarming.
+     */
+    const cashDroOutcomeMessage = (settlement, expectedAmount) => {
+        if (settlement.outcome === 'mismatch') {
+            return SS_AR.cashDroAmountMismatch(
+                settlement.amount.toFixed(2),
+                expectedAmount.toFixed(2)
+            );
+        }
+        if (settlement.outcome === 'not-closed') {
+            return SS_AR.cashPaidNotClosedHint;
+        }
+        return SS_AR.cashHeldHint;
+    };
+
+    /**
+     * Convert an amount held in the system currency into what a BOP sale needs.
+     *
+     * The reader is told an ISO 4217 numeric currency and an amount in that
+     * currency's minor units — hundredths for ILS and USD, thousandths for JOD.
+     * Rounding once, here, is deliberate: multiplying a float by 100 in steps
+     * yields values like 10.000000000000002, which is not a whole number of
+     * minor units and is rejected before it ever reaches the reader.
+     *
+     * `value` comes back as the same figure in major units, already rounded the
+     * identical way, so the payment recorded against the sale can never drift
+     * from the amount actually charged on the card.
+     */
+    const toBopCharge = (amountInSystemCurrency, currency, exchangeRates) => {
+        const codes = { NIS: 376, ILS: 376, JOD: 400, USD: 840 };
+        const factor = currency === 'JOD' ? 1000 : 100;
+        const rate = currency === config.systemCurrency ? 1 : ((exchangeRates || {})[currency] || 1);
+        const minorUnits = Math.round((Math.abs(Number(amountInSystemCurrency)) / rate) * factor);
+
+        return { amt: minorUnits, cur: codes[currency], value: minorUnits / factor };
+    };
+
     const autoVisaFlow = async () => {
 
         if (trxSlice.selectedCurrency === 'EUR') {
@@ -917,35 +975,13 @@ const Terminal = (props) => {
 
         dispatch(showLoading('Connecting to Auto Visa [BANK OF PALESTINE]...'));
 
-        let amt = Math.abs(trxSlice.trxChange);
+        if (trxSlice.trx && Math.abs(trxSlice.trxChange) > 0) {
 
-        if (trxSlice.trx && amt > 0) {
-
-            let cur = 376;
-
-            switch (trxSlice.selectedCurrency) {
-                case 'NIS': {
-                    cur = 376;
-                    break;
-                }
-                case 'JOD': {
-                    cur = 400;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 1000) / 100).toFixed(3);
-                    break;
-                }
-                case 'USD': {
-                    cur = 840;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.decimals);
-                    break;
-                }
-            }
-
-            let integerPart = Math.floor(amt);
-            let decimalPart = amt - integerPart;
-            decimalPart = decimalPart.toFixed(config.decimals);
-
-            amt = integerPart * 100;
-            amt += parseFloat(decimalPart) * 100;
+            const { amt, cur, value: transactionAmount } = toBopCharge(
+                trxSlice.trxChange,
+                trxSlice.selectedCurrency,
+                terminal.exchangeRates
+            );
 
             let trxId = trxSlice.trx.nanoId.replace('-', '');
             // implement BOP auto visa flow
@@ -964,8 +1000,6 @@ const Terminal = (props) => {
                     // console.log(visaResponse);
                     if (visaResponse.resp_code === 0) {
                         // success, make payment
-                        const transactionAmount = amt / 100;
-
                         dispatch(submitPayment({
                             tillKey: terminal.till ? terminal.till.key : null,
                             trxKey: trxSlice.trx ? trxSlice.trx.key : null,
@@ -983,13 +1017,21 @@ const Terminal = (props) => {
                             }
                         }))
                     } else {
-                        dispatch(notify({ msg: visaResponse.error_msg, sev: 'error' }));
+                        dispatch(notify({ msg: visaResponse.error_msg || 'Payment was not approved', sev: 'error' }));
                     }
                 }
                 dispatch(hideLoading());
             }).catch((error) => {
-                // console.log(error, error.response, error.message);
-                dispatch(notify({ msg: error.response ? error.response : error.message, sev: 'error' }));
+                const data = error.response && error.response.data;
+                // An unknown outcome means the request reached the reader but
+                // no answer came back — the card may already be charged, so the
+                // cashier has to check the reader before trying again.
+                dispatch(notify({
+                    msg: (data && data.outcomeUnknown)
+                        ? `Card reader did not answer — CHECK THE READER before retrying (ref ${data.rcpt || ''}). ${data.error || ''}`
+                        : ((data && data.error) || error.message),
+                    sev: 'error'
+                }));
                 dispatch(hideLoading());
             });
 
@@ -1183,6 +1225,42 @@ const Terminal = (props) => {
     }
 
     /* CashDro Payment Flow */
+
+    // A poll loop that outlives the component keeps hitting the server and can
+    // submit a payment against a basket that no longer exists on screen.
+    useEffect(() => () => {
+        if (cashDroPollRef.current) clearInterval(cashDroPollRef.current);
+        if (cashDroTimeoutRef.current) clearTimeout(cashDroTimeoutRef.current);
+    }, []);
+
+    /** Tear down whatever timers a CashDro session left running. */
+    const stopCashDroTimers = () => {
+        if (cashDroPollRef.current) {
+            clearInterval(cashDroPollRef.current);
+            cashDroPollRef.current = null;
+        }
+        if (cashDroTimeoutRef.current) {
+            clearTimeout(cashDroTimeoutRef.current);
+            cashDroTimeoutRef.current = null;
+        }
+    };
+
+    /** Dependencies settleCollection needs to talk to the server. */
+    const cashDroSettlementDeps = {
+        submitPayment: (payload) => dispatch(submitPayment(payload)).unwrap(),
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+    };
+
+    /**
+     * Collect cash for the WHOLE remaining balance through CashDro.
+     *
+     * Self-service is deliberately single-tender: a sale is settled entirely by
+     * cash or entirely by card, never a mix. The machine is therefore always
+     * asked for the full outstanding amount. The previous partial-amount path
+     * is what let a 70.00 sale ask the machine for only part of the total, so a
+     * customer inserting 100.00 got most of it straight back as "change" while
+     * the sale stayed open for the rest.
+     */
     const handleCashDroPayment = async () => {
         if (!trxSlice.trx) {
             dispatch(notify({ msg: config.selfService ? SS_AR.noTrxOpen : 'No transaction open', sev: 'warning' }));
@@ -1202,6 +1280,13 @@ const Terminal = (props) => {
             return;
         }
 
+        // A second session while one is live would open a second operation on
+        // the same machine and produce two payment rows for one basket.
+        if (cashDroBusyRef.current) {
+            return;
+        }
+        cashDroBusyRef.current = true;
+
         // Enter payment mode if not already in it
         if (!terminal.paymentMode) {
             dispatch(clearNumberInput());
@@ -1209,164 +1294,234 @@ const Terminal = (props) => {
             dispatch(setPaymentType({ type: 'cash', inputType: 'fixed' }));
         }
 
-        // Calculate remaining amount - use transaction total if no payments yet
+        const trxKeyForSale = trxSlice.trx.key;
         const totalDue = trxSlice.trx.totalafterdiscount || 0;
         const totalPaid = trxSlice.trxPaid || 0;
-        const remainingAmount = totalDue - totalPaid;
-        
-        if (remainingAmount <= 0) {
+        const targetAmount = totalDue - totalPaid;
+
+        if (targetAmount <= 0) {
+            cashDroBusyRef.current = false;
             dispatch(notify({ msg: config.selfService ? SS_AR.noRemainingAmount : 'No remaining amount to pay', sev: 'warning' }));
             return;
         }
 
-        setCashDroStatus({ message: 'Starting CashDro...', state: 'STARTING', totalIn: 0, changeNotAvailable: 0 });
+        setCashDroStatus({ message: 'Starting CashDro...', state: 'STARTING', totalIn: 0, changeNotAvailable: 0, targetAmount });
         setCashDroModalOpen(true);
 
         try {
-            // 1. Link transaction to CashDro (starts the machine)
+            // No amount header: the server works out the balance from the live
+            // payment rows and collects all of it. Sending a figure derived from
+            // this component's cached trxPaid would let a stale cache quietly
+            // shrink what the machine asks for, and the customer would get the
+            // difference back as change on a sale that never got fully paid.
             const linkResponse = await axios({
                 method: 'post',
                 url: '/trx/linkTrxToCashDro',
-                headers: { trxKey: trxSlice.trx.key }
+                headers: { trxKey: trxKeyForSale }
             });
 
             if (!linkResponse.data || !linkResponse.data.cashdroId) {
                 throw new Error('Failed to start CashDro operation');
             }
 
-            setCashDroStatus({ 
-                message: `Insert ${remainingAmount.toFixed(2)} ${config.systemCurrency} into CashDro machine...`, 
-                state: 'PENDING', 
-                totalIn: 0, 
-                changeNotAvailable: 0 
+            const cashdroId = linkResponse.data.cashdroId;
+            // Reconcile against what the server actually told the machine, taken
+            // from the trx it just returned, rounded the same way it rounds. The
+            // machine only handles 0.50 steps.
+            const linkedTrx = linkResponse.data;
+            // The server rebuilds paidamt from the live payment rows when it
+            // links, so this is the moment any drift in our cached figures gets
+            // corrected on screen.
+            dispatch(setTrx(linkedTrx));
+            const expectedAmount = roundToCashDro(
+                (linkedTrx.totalafterdiscount || 0) - (linkedTrx.paidamt || 0)
+            );
+
+            setCashDroStatus({
+                message: `Insert ${expectedAmount.toFixed(2)} ${config.systemCurrency} into CashDro machine...`,
+                state: 'PENDING',
+                totalIn: 0,
+                changeNotAvailable: 0,
+                // The customer-facing screen must show the figure the machine is
+                // actually waiting for, not this component's own estimate.
+                targetAmount: expectedAmount
             });
 
-            // 2. Start polling for completion
-            const pollInterval = setInterval(async () => {
+            let consecutivePollErrors = 0;
+            // Exactly one thing may end this session: a tick that settles the
+            // collection, a tick that gives up on the machine, or a cancel.
+            // Deliberately a local, so a tick left in flight from this session
+            // can never claim the outcome of a later one.
+            const claimOutcome = createOnceGate();
+            cashDroOutcomeRef.current = claimOutcome;
+
+            cashDroPollRef.current = setInterval(async () => {
+                let droState;
                 try {
                     const statusResponse = await axios({
                         method: 'post',
                         url: '/trx/checkTrxCashDroStatus',
-                        headers: { trxKey: trxSlice.trx.key }
+                        headers: { trxKey: trxKeyForSale }
                     });
-
-                    const droState = statusResponse.data;
-                    
-                    if (droState.state === 'F') { // Finished
-                        clearInterval(pollInterval);
-                        setCashDroPollingRef(null);
-                        setCashDroModalOpen(false);
-
-                        // CashDro returns amounts in cents, convert to currency
-                        const cashReceived = droState.totalIn / 100;
-                        const changeDispensed = droState.totalOut / 100;
-                        const changeNotAvailable = droState.changeNotAvailable / 100;
-                        const trxKeyForClose = trxSlice.trx ? trxSlice.trx.key : null;
-
-                        const paymentPayload = {
-                            tillKey: terminal.till ? terminal.till.key : null,
-                            trxKey: trxKeyForClose,
-                            paymentMethodKey: 'Cash',
-                            currency: config.systemCurrency,
-                            amount: cashReceived,
-                            sourceKey: 'CASHDRO-' + linkResponse.data.cashdroId,
-                            visaPayment: null
-                        };
-
-                        // Self-checkout: submit cash then auto-close + print +
-                        // show the receipt screen. Cashier mode still requires
-                        // the OK button on the numpad (unchanged).
-                        if (config.selfService) {
-                            dispatch(submitPayment(paymentPayload))
-                                .unwrap()
-                                .then((result) => {
-                                    const customerChange = result && result.trx
-                                        ? result.trx.customerchange
-                                        : null;
-                                    const fullyPaid = result && (
-                                        result.closeTrx
-                                        || (customerChange != null && customerChange >= 0)
-                                        || (result.change != null && result.change >= 0
-                                            && result.totalPaid != null
-                                            && result.totalPaid > 0)
-                                    );
-                                    if (fullyPaid && trxKeyForClose) {
-                                        return dispatch(closeTrxPayment({ key: trxKeyForClose }))
-                                            .unwrap()
-                                            .then(() => {
-                                                setSelfServiceShowReceipt(true);
-                                            });
-                                    }
-                                    return null;
-                                })
-                                .catch((err) => {
-                                    dispatch(notify({
-                                        msg: config.selfService
-                                            ? SS_AR.paymentFailed
-                                            : 'CashDro payment failed: ' + (err || 'unknown'),
-                                        sev: 'error'
-                                    }));
-                                });
-                        } else {
-                            // Submit as Cash payment
-                            dispatch(submitPayment(paymentPayload));
-                        }
-
-                        dispatch(notify({ 
-                            msg: config.selfService
-                                ? SS_AR.receivedChange(cashReceived.toFixed(2), changeDispensed.toFixed(2))
-                                : `CashDro: Received ${cashReceived.toFixed(2)}, Change ${changeDispensed.toFixed(2)}`, 
-                            sev: 'info' 
-                        }));
-
-                        // Warn if machine couldn't dispense all change
-                        if (changeNotAvailable > 0) {
-                            dispatch(notify({ 
-                                msg: config.selfService
-                                    ? SS_AR.manualChangeNeeded(changeNotAvailable.toFixed(2), config.systemCurrency)
-                                    : `Manual change needed: ${changeNotAvailable.toFixed(2)} ${config.systemCurrency}`, 
-                                sev: 'warning' 
-                            }));
-                        }
-                    } else {
-                        // Update status with current amounts
-                        setCashDroStatus(prev => ({ 
-                            ...prev, 
-                            totalIn: droState.totalIn / 100,
-                            message: `Waiting for customer... Inserted: ${(droState.totalIn / 100).toFixed(2)} ${config.systemCurrency}`
-                        }));
+                    droState = statusResponse.data;
+                    if (!droState || !droState.state) {
+                        throw new Error('Empty CashDro status');
                     }
+                    consecutivePollErrors = 0;
                 } catch (pollError) {
+                    consecutivePollErrors++;
                     console.error('CashDro poll error:', pollError);
+                    // Losing the machine for a poll or two is normal. Losing it
+                    // for ~30s means we no longer know whether cash is going in,
+                    // and silently polling forever is what left a lane frozen.
+                    if (consecutivePollErrors >= 15 && claimOutcome()) {
+                        dispatch(notify({
+                            msg: config.selfService ? SS_AR.cashDroUnreachable : 'Lost contact with CashDro — check the machine before continuing',
+                            sev: 'error'
+                        }));
+                        // The customer may already have money in the machine, so
+                        // go through the normal cancel: it tells CashDro to give
+                        // the cash back and clears the operation, which is also
+                        // what lets this sale be retried later.
+                        handleCancelCashDro().finally(() => {
+                            if (config.selfService) {
+                                dispatch(abort());
+                                dispatch(endPaymentMode());
+                            }
+                        });
+                    }
+                    return;
                 }
-            }, 2000); // Poll every 2 seconds
 
-            setCashDroPollingRef(pollInterval);
+                if (droState.state !== 'F') {
+                    setCashDroStatus((prev) => ({
+                        ...prev,
+                        totalIn: droState.totalIn / 100,
+                        message: `Waiting for customer... Inserted: ${(droState.totalIn / 100).toFixed(2)} ${config.systemCurrency}`
+                    }));
+                    return;
+                }
 
-            // 3. Timeout after 5 minutes
-            setTimeout(() => {
-                if (cashDroPollingRef) {
-                    clearInterval(cashDroPollingRef);
-                    setCashDroPollingRef(null);
-                    setCashDroModalOpen(false);
-                    setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
-                    dispatch(notify({ msg: config.selfService ? SS_AR.cashDroTimeout : 'CashDro timeout - payment not completed', sev: 'error' }));
+                // Finished — from here the cash is inside the machine. A slow
+                // status reply can leave two ticks in flight, and both would
+                // settle this same collection; the latch keeps that to one.
+                if (!claimOutcome()) {
+                    return;
+                }
+
+                // Hold the screen on a non-cancellable "finalizing" state rather
+                // than dropping the customer back on the cart while the payment
+                // is still being recorded (and possibly retried).
+                stopCashDroTimers();
+                setCashDroStatus((prev) => ({ ...prev, state: 'FINALIZING', message: 'Recording payment...' }));
+
+                const reconciliation = reconcileCashDro({
+                    totalInCents: droState.totalIn,
+                    totalOutCents: droState.totalOut,
+                    changeNotAvailableCents: droState.changeNotAvailable,
+                    expected: expectedAmount
+                });
+                const { received: cashReceived, dispensed: changeDispensed, changeOwed } = reconciliation;
+
+                dispatch(notify({
+                    msg: config.selfService
+                        ? SS_AR.receivedChange(cashReceived.toFixed(2), changeDispensed.toFixed(2))
+                        : `CashDro: Received ${cashReceived.toFixed(2)}, Change ${changeDispensed.toFixed(2)}`,
+                    sev: 'info'
+                }));
+
+                if (changeOwed > 0) {
+                    dispatch(notify({
+                        msg: config.selfService
+                            ? SS_AR.manualChangeNeeded(changeOwed.toFixed(2), config.systemCurrency)
+                            : `Manual change needed: ${changeOwed.toFixed(2)} ${config.systemCurrency}`,
+                        sev: 'warning'
+                    }));
+                }
+
+                const settlement = await settleCollection({
+                    reconciliation,
+                    expectedAmount,
+                    cashdroId,
+                    buildPayload: (amount) => ({
+                        tillKey: terminal.till ? terminal.till.key : null,
+                        trxKey: trxKeyForSale,
+                        paymentMethodKey: 'Cash',
+                        currency: config.systemCurrency,
+                        // The gross amount inserted: the server derives the
+                        // customer's change from it, and CashDro's own 0.50-step
+                        // rounding means the net kept can sit just under the sale
+                        // total on amounts that are not a round half unit.
+                        amount,
+                        sourceKey: 'CASHDRO-' + cashdroId,
+                        visaPayment: null
+                    }),
+                    // A cashier finishes the sale on the numpad OK button and may
+                    // legitimately be taking only part of the balance in cash, so
+                    // neither auto-closing nor the shortfall check applies to them.
+                    closeSale: config.selfService
+                        ? () => dispatch(closeTrxPayment({ key: trxKeyForSale })).unwrap()
+                        : null,
+                    requireFullSettlement: config.selfService,
+                    ...cashDroSettlementDeps
+                });
+
+                cashDroBusyRef.current = false;
+                setCashDroModalOpen(false);
+
+                if (settlement.outcome === 'settled') {
+                    setSelfServiceShowReceipt(true);
+                    return;
+                }
+                if (settlement.outcome === 'recorded') {
+                    return;
+                }
+
+                console.error('CashDro settlement needs attention', settlement);
+                dispatch(notify({
+                    msg: config.selfService
+                        ? cashDroOutcomeMessage(settlement, expectedAmount)
+                        : `CashDro op ${cashdroId}: ${settlement.outcome} — ${settlement.detail}.`
+                            + ` Machine settled ${settlement.amount.toFixed(2)}. Do not re-run it; reconcile manually.`,
+                    sev: 'error'
+                }));
+
+                // The kiosk has no staff standing at it, so anything unresolved
+                // has to hold the lane. A cashier is already looking at the
+                // notification above and can act on their own screen.
+                if (config.selfService) {
+                    setCashDroRecovery(settlement);
+                }
+            }, 2000);
+
+            // Walk-away timeout. Uses a ref so it can actually see the live
+            // session — the old version tested a state variable captured before
+            // polling started, so it never fired and a stalled lane polled
+            // forever with the modal up.
+            cashDroTimeoutRef.current = setTimeout(() => {
+                if (!cashDroPollRef.current) {
+                    return;
+                }
+                dispatch(notify({ msg: config.selfService ? SS_AR.cashDroTimeout : 'CashDro timeout - payment not completed', sev: 'error' }));
+                handleCancelCashDro().finally(() => {
                     if (config.selfService) {
-                        // Same as cancel: fully leave payment mode so scanning works again.
                         dispatch(abort());
                         dispatch(endPaymentMode());
                     }
-                }
+                });
             }, 5 * 60 * 1000);
 
         } catch (error) {
+            // Failure before the machine started collecting: no cash at risk.
+            stopCashDroTimers();
+            cashDroBusyRef.current = false;
             setCashDroModalOpen(false);
             setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
-            dispatch(notify({ 
+            dispatch(notify({
                 msg: config.selfService
                     ? SS_AR.cashDroError
-                    : 'CashDro error: ' + (error.response?.data || error.message), 
-                sev: 'error' 
+                    : 'CashDro error: ' + (error.response?.data || error.message),
+                sev: 'error'
             }));
             if (config.selfService) {
                 dispatch(abort());
@@ -1375,14 +1530,345 @@ const Terminal = (props) => {
         }
     };
 
+    /**
+     * Cancel an in-progress CashDro operation — cashier "Cancel Payment"
+     * button AND the self-service Cancel flow both funnel through here.
+     *
+     * Money safety: if the customer already inserted part of the amount
+     * (e.g. 5 of 10 due) before cancelling, CashDro must physically return
+     * it — it must NOT just stop accepting more while keeping what's in the
+     * machine. CashDro's own "cancel" verb IS the return instruction (see
+     * /trx/cancelTrxCashDro on the backend), so hitting that endpoint is
+     * both necessary and sufficient; we deliberately use the narrow
+     * cancelTrxCashDro endpoint here (not /trx/abortPayment) so this can
+     * never void a cashier's other, already-applied split-tender payments.
+     *
+     * Returns the axios promise so callers (self-service) can chain the
+     * payment-mode exit only after the machine has actually been told to
+     * give the cash back.
+     */
     const handleCancelCashDro = () => {
-        if (cashDroPollingRef) {
-            clearInterval(cashDroPollingRef);
-            setCashDroPollingRef(null);
+        // Once the machine has committed the cash there is nothing to cancel,
+        // and asking it to return money it has already banked would leave the
+        // sale and the drawer disagreeing.
+        if (cashDroStatus.state === 'FINALIZING') {
+            return Promise.resolve();
         }
+        // Claim this session's outcome before asking the machine to give the
+        // cash back. clearInterval cannot stop a tick that is already awaiting
+        // the machine, and such a tick arriving with "Finished" after the cash
+        // has been returned would record a payment for money the customer is
+        // holding in their hand.
+        if (cashDroOutcomeRef.current) {
+            cashDroOutcomeRef.current();
+        }
+        stopCashDroTimers();
+        cashDroBusyRef.current = false;
         setCashDroModalOpen(false);
         setCashDroStatus({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
-        dispatch(notify({ msg: config.selfService ? SS_AR.cashDroCancelled : 'CashDro payment cancelled', sev: 'warning' }));
+
+        const trxKey = trxSlice.trx ? trxSlice.trx.key : null;
+        if (!trxKey) {
+            dispatch(notify({ msg: config.selfService ? SS_AR.cashDroCancelled : 'CashDro payment cancelled', sev: 'warning' }));
+            return Promise.resolve();
+        }
+
+        return axios({
+            method: 'post',
+            url: '/trx/cancelTrxCashDro',
+            headers: { trxKey }
+        }).then((response) => {
+            if (response && response.data) {
+                dispatch(setTrx(response.data));
+            }
+            dispatch(notify({ msg: config.selfService ? SS_AR.cashDroCancelled : 'CashDro payment cancelled', sev: 'warning' }));
+        }).catch((error) => {
+            // The modal is already closed above so the lane isn't blocked,
+            // but the cash may genuinely still be sitting in the machine —
+            // this must be loud, not a quiet warning toast.
+            console.error('CashDro cancel/return failed', error);
+            dispatch(notify({
+                msg: config.selfService
+                    ? SS_AR.cashDroReturnFailed
+                    : 'CashDro cancel failed — could not confirm the machine returned the inserted cash. Check the machine before the customer/cashier walks away.',
+                sev: 'error'
+            }));
+        });
+    };
+
+    /**
+     * Self-checkout card payment on the BOP reader linked to this station.
+     *
+     * Runs the charge first, then follows the same submit → close → receipt
+     * sequence as the other self-service tenders. The customer never sees a
+     * retry button on an indeterminate result: if the reader stops answering
+     * mid-sale the card may already have been charged, so that case parks on a
+     * "wait for staff" screen instead.
+     */
+    const runSelfServiceBopSale = (chargeAmount) => {
+        const trxKeyForClose = trxSlice.trx.key;
+        const trxId = trxSlice.trx.nanoId.replace('-', '');
+        const { amt, cur, value } = toBopCharge(chargeAmount, config.systemCurrency, terminal.exchangeRates);
+
+        setBopSale({ status: 'prompting', message: null, chargeAmount: value });
+
+        axios({
+            method: 'post',
+            url: `http://127.0.0.1:${config.expressPort ? config.expressPort : '3001'}/bopVisaSale`,
+            data: { trxId, amt, cur, terminal: terminal.terminal },
+            // Hard ceiling above every layer below it (300s reader timeout +
+            // 60s electron backstop + margin). Without one, any reply that
+            // never arrives left the kiosk on the "waiting for the reader"
+            // screen until someone killed the app.
+            timeout: 390 * 1000
+        }).then((response) => {
+            const visaResponse = (response && response.data) || {};
+
+            // Some firmware sends the code as a string; reading "0" as a
+            // decline would send a customer away from a card that was charged.
+            if (Number(visaResponse.resp_code) !== 0) {
+                setBopSale({
+                    status: 'declined',
+                    message: visaResponse.error_msg || null,
+                    chargeAmount: value
+                });
+                return null;
+            }
+
+            return dispatch(submitPayment({
+                tillKey: terminal.till ? terminal.till.key : null,
+                trxKey: trxKeyForClose,
+                // config.visa is the same payment_method.key the cashier Visa
+                // button uses, so reports and receipts resolve a real
+                // description rather than a literal string.
+                paymentMethodKey: config.visa,
+                currency: config.systemCurrency,
+                amount: value,
+                sourceKey: 'AUTO VISA',
+                visaPayment: {
+                    amt: visaResponse.sale ? visaResponse.sale.amt : visaResponse.amt,
+                    curr: visaResponse.sale ? visaResponse.sale.cur : visaResponse.cur,
+                    pan: visaResponse.card ? visaResponse.card.pan : null,
+                    respCode: visaResponse.resp_code,
+                    authCode: visaResponse.auth_code,
+                    fullResponseJson: JSON.stringify(visaResponse)
+                }
+            }))
+                .unwrap()
+                .then((result) => {
+                    const paid = result && result.trx ? (result.trx.paidamt || 0) : null;
+                    const total = result && result.trx ? (result.trx.totalafterdiscount || 0) : null;
+                    // closeTrx is the server's own verdict and is authoritative;
+                    // the totals are a cross-check for the case where it is
+                    // absent. The epsilon keeps a cent of float noise from
+                    // holding up a sale that is paid in full.
+                    const fullyPaid = result && (
+                        result.closeTrx
+                        || (result.trx && result.trx.customerchange != null && result.trx.customerchange >= 0)
+                        || (paid != null && total != null && paid + 0.0001 >= total)
+                    );
+
+                    if (fullyPaid && trxKeyForClose) {
+                        setBopSale(null);
+                        return dispatch(closeTrxPayment({ key: trxKeyForClose }))
+                            .unwrap()
+                            .then(() => setSelfServiceShowReceipt(true));
+                    }
+
+                    // Everything that mattered succeeded: the card was charged
+                    // and the payment is recorded against the sale. Only the
+                    // balance is wrong, which is a reconciliation question for
+                    // staff and NOT the indeterminate "we don't know what the
+                    // reader did" case — so log the evidence loudly rather than
+                    // leaving the next person to guess from a screenshot.
+                    const stillDue = paid != null && total != null
+                        ? Math.max(0, total - paid)
+                        : null;
+                    console.error('BOP sale recorded but the sale is not settled', {
+                        trxId,
+                        authCode: visaResponse.auth_code,
+                        charged: value,
+                        closeTrx: result ? result.closeTrx : null,
+                        paidamt: paid,
+                        totalafterdiscount: total,
+                        customerchange: result && result.trx ? result.trx.customerchange : null,
+                        payments: result ? result.payments : null
+                    });
+                    setBopSale({
+                        status: 'unknown',
+                        message: `auth ${visaResponse.auth_code || '-'} / ref ${trxId}`
+                            + (stillDue != null ? ` — remaining ${stillDue.toFixed(2)}` : ''),
+                        chargeAmount: value
+                    });
+                    return null;
+                })
+                .catch((error) => {
+                    // The card WAS charged but recording it failed. Never retry
+                    // from here — a staff member has to reconcile it.
+                    setBopSale({
+                        status: 'unknown',
+                        message: `auth ${visaResponse.auth_code || '-'} / ref ${trxId} — ${error.message || error}`,
+                        chargeAmount: value
+                    });
+                });
+        }).catch((error) => {
+            const data = error.response && error.response.data;
+            if (data && data.outcomeUnknown) {
+                // Whatever the reader did, we could not read the answer, so the
+                // card may be charged. Park it for staff with everything they
+                // need to find the transaction on the reader itself.
+                const parts = [`ref ${data.rcpt || trxId}`];
+                if (data.authCode) parts.push(`auth ${data.authCode}`);
+                if (data.terminalMessage) parts.push(data.terminalMessage);
+                if (data.amountMismatch) parts.push(data.error);
+                setBopSale({ status: 'unknown', message: parts.join(' / '), chargeAmount: value });
+                return;
+            }
+            // Our own deadline fired with the request already accepted by the
+            // station. The card may well have been charged in the meantime, so
+            // this is the unknown-outcome path too — never "safe to retry".
+            // (A refused connection is different: nothing ever reached the
+            // reader, and it falls through to the plain failure below.)
+            if (error.code === 'ECONNABORTED') {
+                console.error('BOP sale gave no answer in time', error);
+                setBopSale({ status: 'unknown', message: `ref ${trxId} — no answer from the station`, chargeAmount: value });
+                return;
+            }
+            // Nothing reached the card: a station that is not linked, a reader
+            // already busy, or keys that failed their pre-flight check. Safe to
+            // send the customer back to the cart.
+            setBopSale({
+                status: 'declined',
+                message: (data && data.error) || error.message,
+                chargeAmount: value
+            });
+        });
+    };
+
+    /**
+     * Self-checkout Visa tender.
+     *
+     * With a BOP reader linked to this station the customer pays on the reader
+     * directly (runSelfServiceBopSale). Without one there is no card-terminal
+     * integration, so a supervisor/head cashier charges the card on their own
+     * physical terminal — but only after scanning an authorized QR shown on the
+     * self-checkout screen, exactly the same role-gated QR used for normal-POS
+     * voids / price changes (see auth/validateQR on the backend). Once scanned,
+     * trxSlice.checkOperationQrAuth's 'SelfServiceVisa' case submits the
+     * payment and closes the sale for us.
+     */
+    // Always charges the entire outstanding balance: self-service is
+    // single-tender, so a card sale settles the whole basket or nothing. On the
+    // supervisor-QR path the amount rides along on the authQR object as
+    // `chargeAmount`, since submitPayment only happens once the manager's phone
+    // scan is detected (see trxSlice's checkOperationQrAuth 'SelfServiceVisa').
+    const handleSelfServiceVisaPayment = () => {
+        if (!trxSlice.trx) {
+            dispatch(notify({ msg: SS_AR.noTrxOpen, sev: 'warning' }));
+            return;
+        }
+        if (terminal.trxMode === 'Refund') {
+            dispatch(notify({ msg: 'Visa payment does not support refunds', sev: 'warning' }));
+            return;
+        }
+
+        const totalDue = trxSlice.trx.totalafterdiscount || 0;
+        // [stale-paid fix] Price the charge off the sale's own paidamt, which
+        // the server sends with every scan and every payment, rather than the
+        // trxPaid cache that only the payment paths keep current. Getting this
+        // wrong charges a real card the wrong amount, so it is worth saying
+        // loudly when the two disagree.
+        const totalPaid = trxSlice.trx.paidamt || 0;
+        if (Math.abs(totalPaid - (trxSlice.trxPaid || 0)) > 0.0001) {
+            console.warn('Paid-amount cache disagrees with the sale; charging off the sale', {
+                trxKey: trxSlice.trx.key,
+                trxPaidamt: totalPaid,
+                cachedTrxPaid: trxSlice.trxPaid
+            });
+        }
+        const remainingAmount = totalDue - totalPaid;
+        if (remainingAmount <= 0) {
+            dispatch(notify({ msg: SS_AR.noRemainingAmount, sev: 'warning' }));
+            return;
+        }
+
+        const chargeAmount = remainingAmount;
+
+        if (!terminal.paymentMode) {
+            dispatch(clearNumberInput());
+            dispatch(beginPayment());
+            dispatch(setPaymentType({ type: 'visa', inputType: 'fixed' }));
+        }
+
+        // A linked reader charges the card here and now; everything below is
+        // the supervisor-approval fallback for stations without one.
+        if (terminal.terminal && terminal.terminal.bopVisaIp && terminal.terminal.bopVisaPublicRsa) {
+            runSelfServiceBopSale(chargeAmount);
+            return;
+        }
+
+        // [QR robustness] Reset the poll state FIRST. If a previous Visa
+        // attempt's poll loop is still (or was) 'pending' when a new QR is
+        // requested — e.g. cancel-and-retry — qrAuthState going 'pending' ->
+        // 'pending' again is a Redux no-op, so the effect that kicks off
+        // checkOperationQrAuth for the NEW qrAuthKey never fires and the
+        // screen silently polls nothing (or the old, now-dead key). Forcing
+        // 'idle' here guarantees the later startQrAuthCheck() is a real
+        // 'idle' -> 'pending' transition once the fresh QR is set below.
+        dispatch(holdQrAuthCheck());
+
+        // Clear any stale QR (e.g. from a previous Visa attempt) so the
+        // screen shows a spinner instead of a leftover/used code while the
+        // new one is generated.
+        setAuthQR({});
+
+        axios({
+            method: 'post',
+            url: '/utilities/generateQR',
+            data: {
+                hardwareId: config.deviceId,
+                source: 'SelfServiceVisa',
+                sourceKey: trxSlice.trx.key,
+                creator: terminal.loggedInUser ? terminal.loggedInUser.key : null
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                setAuthQR({
+                    ...response.data,
+                    source: 'SelfServiceVisa',
+                    chargeAmount
+                });
+            } else {
+                dispatch(notify({ msg: SS_AR.couldNotVerify, sev: 'error' }));
+                dispatch(abort());
+                dispatch(endPaymentMode());
+            }
+        }).catch((error) => {
+            dispatch(abort());
+            dispatch(endPaymentMode());
+            if (error.response) {
+                dispatch(notify({ msg: error.response.data || SS_AR.couldNotVerify, sev: 'error' }));
+            } else {
+                dispatch(notify({ msg: error.message, sev: 'error' }));
+            }
+        });
+    };
+
+    /**
+     * Self-checkout only: cancel a pending Visa QR approval and fully leave
+     * payment mode (mirrors handleSelfServiceCancelPayment's CashDro path).
+     */
+    const handleCancelSelfServiceVisaPayment = () => {
+        // An indeterminate reader result must not be dismissable by the
+        // customer — that screen stays up until staff intervene.
+        if (bopSale && bopSale.status === 'unknown') {
+            return;
+        }
+        setBopSale(null);
+        dispatch(holdQrAuthCheck());
+        dispatch(abort());
+        dispatch(endPaymentMode());
+        dispatch(notify({ msg: SS_AR.visaCancelled, sev: 'warning' }));
     };
 
     /**
@@ -1425,46 +1911,31 @@ const Terminal = (props) => {
     };
 
     /**
-     * Self-checkout only: back out of Pay / CashDro while keeping the cart.
-     * Mirrors handleAbort's abortPayment call, then clears the CashDro poll.
+     * Self-checkout only: back out of the CashDro screen while keeping the
+     * cart. handleCancelCashDro() (above) does the actual machine
+     * cancel-and-return call — this just waits for that to settle, then
+     * fully exits payment mode either way (customer must be able to keep
+     * scanning even if the machine call errored, though that error is
+     * already surfaced loudly by handleCancelCashDro itself).
      *
      * Important: cashier `abort()` is two-step (paymentType → none, then exit
      * paymentMode). CashDro sets paymentType to 'cash', so a single abort()
      * would leave paymentMode=true and block further scanning. Always force
      * a full exit with endPaymentMode().
+     *
+     * Deliberately does NOT also call /trx/abortPayment: that endpoint voids
+     * every payment on the trx, which is unnecessary here (self-service never
+     * has a prior recorded payment to void at this point — a payment is only
+     * ever written once CashDro/Visa/Employee fully succeeds) and would
+     * race with handleCancelCashDro's cancelTrxCashDro call over the same
+     * cashdroId.
      */
     const handleSelfServiceCancelPayment = () => {
-        handleCancelCashDro();
         const exitPaymentFully = () => {
             dispatch(abort());
             dispatch(endPaymentMode());
         };
-        if (trxSlice.trx && trxSlice.trx.key) {
-            axios({
-                method: 'post',
-                url: '/trx/abortPayment',
-                headers: { trxKey: trxSlice.trx.key }
-            }).then((response) => {
-                if (response && response.data) {
-                    dispatch(setTrx(response.data));
-                }
-                exitPaymentFully();
-            }).catch((error) => {
-                exitPaymentFully();
-                if (error.response) {
-                    dispatch(notify({
-                        msg: config.selfService
-                            ? SS_AR.couldNotCancelPayment
-                            : (error.response.data || 'Could not cancel payment'),
-                        sev: 'error'
-                    }));
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
-                }
-            });
-        } else {
-            exitPaymentFully();
-        }
+        handleCancelCashDro().finally(exitPaymentFully);
     };
 
     const handleVoidLine = () => {
@@ -1472,7 +1943,7 @@ const Terminal = (props) => {
             if (terminal.paymentMode) {
 
                 if (trxSlice.selectedPayment) {
-                    confirm('Void Payment?', trxSlice.selectedPayment.amount + ' ' + trxSlice.selectedPayment.currency,
+                    confirm('إلغاء الدفعة؟', trxSlice.selectedPayment.amount + ' ' + trxSlice.selectedPayment.currency,
                         () => {
                             if (terminal.managerMode) {
                                 dispatch(voidPayment(trxSlice.selectedPayment.key));
@@ -1505,7 +1976,8 @@ const Terminal = (props) => {
                                     }
                                 });
                             }
-                        }
+                        },
+                        'danger', AR_CONFIRM_OPTS()
                     )
 
                 } else {
@@ -1513,7 +1985,7 @@ const Terminal = (props) => {
                 }
             } else {
                 if (trxSlice.selectedLine) {
-                    confirm('Void Line?', trxSlice.selectedLine.description,
+                    confirm('حذف السطر؟', trxSlice.selectedLine.description,
                         () => {
                             if (terminal.managerMode) {
                                 dispatch(voidLine(trxSlice.selectedLine.key));
@@ -1546,7 +2018,8 @@ const Terminal = (props) => {
                                     }
                                 });
                             }
-                        }
+                        },
+                        'danger', AR_CONFIRM_OPTS()
                     )
                 } else {
                     dispatch(notify({ msg: 'No transaction line selected', sev: 'warning' }));
@@ -1708,10 +2181,21 @@ const Terminal = (props) => {
         }
     }, [terminal.managerMode]);
 
+    // Self-checkout only: the manual-Visa QR case in trxSlice.checkOperationQrAuth
+    // submits the payment and closes the sale itself (no Terminal.js .then()
+    // chain to hook into, unlike the CashDro flow), so watch for the sale
+    // actually closing (lastTrxPayment gets populated by closeTrxPayment.fulfilled)
+    // and flip on the receipt screen from here instead.
+    useEffect(() => {
+        if (config.selfService && trxSlice.lastTrxPayment && authQR.source === 'SelfServiceVisa') {
+            setSelfServiceShowReceipt(true);
+        }
+    }, [trxSlice.lastTrxPayment]);
+
 
     const handleVoidTrx = () => {
         if (trxSlice.trx) {
-            confirm('Void Transaction?', '',
+            confirm('إلغاء الفاتورة؟', '',
                 () => {
                     if (terminal.managerMode) {
                         dispatch(voidTrx(trxSlice.trx.key));
@@ -1744,7 +2228,8 @@ const Terminal = (props) => {
                             }
                         });
                     }
-                }
+                },
+                'danger', AR_CONFIRM_OPTS()
             )
         } else {
             dispatch(notify({
@@ -1756,7 +2241,7 @@ const Terminal = (props) => {
 
     const handleSuspendTrx = () => {
         if (trxSlice.trx) {
-            confirm('Suspend Transaction?', '',
+            confirm('تعليق الفاتورة؟', '',
                 () => {
                     if (terminal.managerMode) {
 
@@ -1791,7 +2276,8 @@ const Terminal = (props) => {
                             }
                         });
                     }
-                }
+                },
+                'warning', AR_CONFIRM_OPTS()
             )
         } else {
             dispatch(notify({
@@ -1802,7 +2288,7 @@ const Terminal = (props) => {
     }
 
     const handleSwitchToRefund = () => {
-        confirm(`Refund Mode ?`, '',
+        confirm(`وضع الإرجاع؟`, '',
             () => {
                 // Jordan cashiers must scan the original receipt serial before
                 // refunding (audit + duplicate-refund guard). The Palestine
@@ -1813,7 +2299,8 @@ const Terminal = (props) => {
                 } else {
                     handleRefundReferenceValidated(null);
                 }
-            }
+            },
+            'info', AR_CONFIRM_OPTS()
         )
     }
 
@@ -1864,8 +2351,9 @@ const Terminal = (props) => {
     const handleLockTill = () => {
         if (terminal.till) {
             if (terminal.till.status === 'O') {
-                confirm('Lock Till?', 'This marks as closable',
-                    () => { dispatch(lockTill()) }
+                confirm('إقفال الصندوق؟', 'سيتم تحديده كجاهز للإغلاق',
+                    () => { dispatch(lockTill()) },
+                    'warning', AR_CONFIRM_OPTS()
                 )
             } else {
                 dispatch(notify({
@@ -1882,7 +2370,7 @@ const Terminal = (props) => {
                 if (terminal.managerMode) {
                     dispatch(fullTrxTaxExempt());
                 } else {
-                    confirm('Apply Tax Exempt?', 'This cannot be undone',
+                    confirm('تطبيق الإعفاء الضريبي؟', 'لا يمكن التراجع عن هذا الإجراء',
                         () => {
                             axios({
                                 method: 'post',
@@ -1911,7 +2399,8 @@ const Terminal = (props) => {
                                     dispatch(notify({ msg: error.message, sev: 'error' }));
                                 }
                             });
-                        }
+                        },
+                        'danger', AR_CONFIRM_OPTS()
                     )
                 }
             } else {
@@ -2647,30 +3136,51 @@ const Terminal = (props) => {
         return tmp;
     }
 
+    // The stored value is the transport target: an IP for a networked reader,
+    // or a COM port name for one on a serial cable.
     const initTerminalWithBopVisa = () => {
         if (!bopVisaIp) {
-            dispatch(notify({ msg: 'No BOP Visa IP specified', sev: 'error' }));
+            dispatch(notify({ msg: 'Enter the BOP Visa IP address or COM port first', sev: 'error' }));
             return;
         }
 
-        dispatch(showLoading());
+        dispatch(showLoading('Pairing with the card reader — follow the prompts on the device...'));
         axios({
             method: 'post',
             url: `http://127.0.0.1:${config.expressPort ? config.expressPort : '3001'}/linkTerminalWithBopVisa`,
             data: {
                 terminalKey: terminal.terminal.key,
-                bopVisaIp: bopVisaIp
+                bopVisaIp: bopVisaIp.trim()
             }
         }).then((response) => {
-            // console.log(response);
-            if (response && response.data && response.status !== 500) {
+            if (response && response.data && response.data.key) {
                 dispatch(setTerminal(response.data));
-                dispatch(notify({ msg: 'BOP Visa Linked' }))
+                dispatch(notify({ msg: 'BOP Visa linked @ ' + bopVisaIp.trim() }));
+                setBopVisaIp('');
             }
             dispatch(hideLoading());
         }).catch((error) => {
-            console.error(error.response);
-            dispatch(notify({ msg: 'could not link visa '.concat(error.response.data.code ? error.response.data.code : JSON.stringify(error.response)), sev: 'error' }));
+            const data = error.response && error.response.data;
+            dispatch(notify({ msg: 'Could not link: ' + ((data && data.error) || error.message), sev: 'error' }));
+            dispatch(hideLoading());
+        })
+    }
+
+    const unlinkTerminalFromBopVisa = () => {
+        dispatch(showLoading());
+        axios({
+            method: 'post',
+            url: `http://127.0.0.1:${config.expressPort ? config.expressPort : '3001'}/unlinkTerminalFromBopVisa`,
+            data: { terminalKey: terminal.terminal.key }
+        }).then((response) => {
+            if (response && response.data && response.data.key) {
+                dispatch(setTerminal(response.data));
+                dispatch(notify({ msg: 'BOP Visa unlinked' }));
+            }
+            dispatch(hideLoading());
+        }).catch((error) => {
+            const data = error.response && error.response.data;
+            dispatch(notify({ msg: 'Could not unlink: ' + ((data && data.error) || error.message), sev: 'error' }));
             dispatch(hideLoading());
         })
     }
@@ -2687,6 +3197,7 @@ const Terminal = (props) => {
             <SelfServiceView
                 produceItems={produceItems}
                 otherScaleItems={otherScaleItems}
+                topScaleBarcodes={topScaleBarcodes}
                 images={images}
                 scaleConnected={scaleConnected}
                 cashDroModalOpen={cashDroModalOpen}
@@ -2696,6 +3207,28 @@ const Terminal = (props) => {
                 onCancelOrder={handleSelfServiceCancelOrder}
                 onPayCash={handleCashDroPayment}
                 onCancelPayment={handleSelfServiceCancelPayment}
+                onPayVisa={handleSelfServiceVisaPayment}
+                onCancelVisaPayment={handleCancelSelfServiceVisaPayment}
+                authQR={authQR}
+                cashHeld={cashDroRecovery}
+                onClearCashHeld={() => {
+                    // Staff have looked at the machine and the sale. Release the
+                    // lane, but leave the sale OPEN so they can settle it from a
+                    // cashier terminal — silently voiding a basket the store has
+                    // already taken cash for is the worse failure.
+                    setCashDroRecovery(null);
+                    dispatch(abort());
+                    dispatch(endPaymentMode());
+                }}
+                cardTerminal={bopSale}
+                onClearCardTerminalSale={() => {
+                    // Staff-verified escape from an indeterminate card sale.
+                    // The sale itself is left open on purpose so whatever they
+                    // found on the reader can still be settled properly.
+                    setBopSale(null);
+                    dispatch(abort());
+                    dispatch(endPaymentMode());
+                }}
                 onScanWeightable={scanWeightableItem}
                 onReceiptDone={() => {
                     setSelfServiceShowReceipt(false);
@@ -3383,7 +3916,14 @@ const Terminal = (props) => {
                             </Button>
                         ) : (
                             <Button className={`${classes.POSButton} ${classes.ModeButton}`}
-                                disabled={!trxSlice.selectedLine || !trxSlice.selectedLine.key}
+                                // [stuck-mode fix] Only require a selected line to ENTER
+                                // price-change mode. Once priceChangeMode is already ON,
+                                // this button always reads "Cancel" and must stay
+                                // clickable no matter what — voiding/suspending the trx
+                                // (or otherwise losing the selected line) used to disable
+                                // this button forever with priceChangeMode stuck true and
+                                // no other way to turn it off short of an app restart.
+                                disabled={!trxSlice.priceChangeMode && (!trxSlice.selectedLine || !trxSlice.selectedLine.key)}
                                 onClick={handlePriceChange}
                                 appearance='primary' color={trxSlice.priceChangeMode ? 'orange' : 'blue'}>
                                 <FontAwesomeIcon icon={faTags} />
@@ -3951,7 +4491,7 @@ const Terminal = (props) => {
                     <VirtualKeyboardInput key='adminPasskey' input={passkey} setInput={setPasskey} />
                 </Panel>
                 <Panel bordered header='BOP VISA Integration' style={{ margin: '10px' }}>
-                    {!terminal.terminal.bopVisaIp && <Input key='bopvisasetupIp' placeholder='BOP Visa IP'
+                    {!terminal.terminal.bopVisaIp && <Input key='bopvisasetupIp' placeholder='IP or COM port'
                         style={{ width: 150, display: 'inline-block', marginRight: 5 }}
                         value={bopVisaIp}
                         onChange={(e) => { setBopVisaIp(e) }} >
@@ -3966,7 +4506,14 @@ const Terminal = (props) => {
                     </Button>}
 
                     {terminal.terminal.bopVisaIp && <div style={{ textAlign: 'center' }}>
-                        <FontAwesomeIcon icon={faCheck} /> Already Linked @ {terminal.terminal.bopVisaIp}
+                        <div>
+                            <FontAwesomeIcon icon={faCheck} /> Already Linked @ {terminal.terminal.bopVisaIp}
+                        </div>
+                        <Button key='bopvisaunlink' appearance='ghost' color='red'
+                            style={{ marginTop: 8 }}
+                            onClick={unlinkTerminalFromBopVisa} >
+                            Unlink
+                        </Button>
                     </div>}
                     <br />
                 </Panel>

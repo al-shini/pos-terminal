@@ -406,8 +406,26 @@ export const terminalSlice = createSlice({
         exitNumpadEntry: (state) => {
             state.paymentInput = 'fixed';
         },
+        // [stuck-payment fix] Was ONLY state.paymentMode = false — every call
+        // site's comment/intent says "fully exit payment mode back to the
+        // cart", but `display` (which decides whether <Invoice> — with the
+        // barcode scanner — or <Payments> renders, see Terminal.js) was never
+        // touched here. abort() only flips display back to 'ready' on the
+        // branch where paymentType was ALREADY 'none' *at the time it fires*
+        // — dispatch(abort()); dispatch(endPaymentMode()) are two SEPARATE,
+        // sequential dispatches, so if paymentType was e.g. 'cash' when
+        // abort() ran, abort() only zeroes paymentType and endPaymentMode()
+        // (old code) only zeroed paymentMode — display was stuck on
+        // 'payment' forever: no scanner mounted, and the Payments OK button
+        // no-ops because paymentMode is now false. Only an app restart
+        // recovered. Make this the one true "fully exit payment UI" action,
+        // mirroring reset()'s fields, so every existing call site (which
+        // already assumed this was a full exit) actually gets one.
         endPaymentMode: (state) => {
             state.paymentMode = false;
+            state.display = 'ready';
+            state.paymentType = 'none';
+            state.paymentInput = 'numpad';
         }
         ,
         abort: (state) => {

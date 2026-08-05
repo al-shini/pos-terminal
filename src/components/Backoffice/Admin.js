@@ -18,8 +18,9 @@ import InvoicesLookup from './InvoicesLookup';
 import CustomerLookup from './CustomerLookup';
 import Reports from './Reports';
 import InvoicePrintA4 from './InvoicePrintA4';
-import confirm from '../UI/ConfirmDlg';
+import confirm, { AR_CONFIRM_OPTS } from '../UI/ConfirmDlg';
 import config from '../../config';
+import { arabicize } from '../../utils/arabicMessages';
 import {
     setActiveTab,
     setGlobalSearchQuery,
@@ -101,9 +102,9 @@ const Admin = () => {
     };
 
     const handleExit = () => {
-        confirm('Exit Back Office?', 'The admin console window will close.', () => {
+        confirm('إغلاق لوحة التحكم؟', 'ستُغلق نافذة لوحة التحكم الإدارية.', () => {
             window.close();
-        }, 'danger');
+        }, 'danger', AR_CONFIRM_OPTS());
     };
 
     const handleSuperAdminToggle = () => {
@@ -339,7 +340,7 @@ const Admin = () => {
                 open={uiSlice.toastOpen}
             >
                 <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
-                    {uiSlice.toastMsg}
+                    {arabicize(uiSlice.toastMsg, uiSlice.toastType)}
                 </Alert>
             </Snackbar>
         </div>

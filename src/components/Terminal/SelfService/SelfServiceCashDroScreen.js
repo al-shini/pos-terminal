@@ -25,7 +25,14 @@ const SelfServiceCashDroScreen = ({ amountDue, cashDroStatus, onCancel }) => {
         message = inserted > 0
             ? AR.waitingCustomerMsg(fmt(inserted), config.systemCurrency)
             : AR.insertAmountMsg(fmt(amountDue), config.systemCurrency);
+    } else if (state === 'FINALIZING') {
+        message = AR.finalizingPayment;
     }
+
+    // The machine has already taken and committed the cash by this point, so
+    // there is nothing left to cancel — offering the button would only invite
+    // a customer to walk away mid-settlement.
+    const cancellable = state !== 'FINALIZING';
 
     return (
         <div className={classes.Overlay} dir="rtl">
@@ -49,10 +56,12 @@ const SelfServiceCashDroScreen = ({ amountDue, cashDroStatus, onCancel }) => {
                     {message}
                 </p>
 
-                <button type="button" className={classes.OverlayCancel} onClick={onCancel}>
-                    <FontAwesomeIcon icon={faTimes} />
-                    {AR.cancelPayment}
-                </button>
+                {cancellable && (
+                    <button type="button" className={classes.OverlayCancel} onClick={onCancel}>
+                        <FontAwesomeIcon icon={faTimes} />
+                        {AR.cancelPayment}
+                    </button>
+                )}
             </div>
         </div>
     );

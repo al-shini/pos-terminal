@@ -10,7 +10,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { notify } from '../../store/uiSlice';
 import { setWorkDay, endDay } from '../../store/backofficeSlice';
-import confirm from '../../components/UI/ConfirmDlg';
+import confirm, { AR_CONFIRM_OPTS } from '../../components/UI/ConfirmDlg';
 import HourlySalesChart from './HourlySalesChart';
 import config from '../../config';
 
@@ -79,10 +79,11 @@ const WorkDaySetup = () => {
     const handleCloseDay = () => {
         if (!hasWorkDay) return;
         confirm(
-            'End Day?',
-            'Are you sure you want to close day ' + workDay.description + '?',
+            'إنهاء اليوم؟',
+            'هل أنت متأكد من إغلاق اليوم ' + workDay.description + '؟',
             () => { dispatch(endDay()); },
-            'danger'
+            'danger',
+            AR_CONFIRM_OPTS()
         );
     };
 

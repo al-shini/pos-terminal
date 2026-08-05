@@ -13,6 +13,18 @@ import { faTriangleExclamation, faXmark, faCheck } from '@fortawesome/free-solid
  * Optional 5th arg opts: { confirmText, cancelText, subtitle, dir } — used by
  * self-service mode for Arabic / RTL dialogs.
  */
+/**
+ * Shared opts for Arabic/RTL confirm dialogs used outside self-service
+ * (which already builds its own via SelfService/i18n.js). Pass as the
+ * 5th arg: confirm('عنوان', 'رسالة', handler, 'danger', AR_CONFIRM_OPTS()).
+ */
+export const AR_CONFIRM_OPTS = (subtitle) => ({
+    confirmText: 'تأكيد',
+    cancelText: 'إلغاء',
+    subtitle: subtitle || 'يرجى التأكيد للمتابعة',
+    dir: 'rtl',
+});
+
 const confirm = (title, message, handler, variant = 'warning', opts = {}) => {
     const {
         confirmText = 'Confirm',
@@ -144,7 +156,7 @@ const confirm = (title, message, handler, variant = 'warning', opts = {}) => {
                                     padding: '4px 0'
                                 }}
                             >
-                                This action may not be reversible.
+                                {dir === 'rtl' ? 'قد لا يمكن التراجع عن هذا الإجراء.' : 'This action may not be reversible.'}
                             </div>
                         )}
                     </div>

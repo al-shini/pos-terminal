@@ -16,8 +16,10 @@ import SystemUpdateAltRoundedIcon from '@mui/icons-material/SystemUpdateAltRound
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import KeyboardRoundedIcon from '@mui/icons-material/KeyboardRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import Tooltip from '@mui/material/Tooltip';
 import TouchKeyboard from '../UI/TouchKeyboard';
+import PosConfigEditor from './PosConfigEditor';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import QRCode from 'react-qr-code';
 import { CircularProgress } from '@mui/material';
@@ -85,6 +87,9 @@ const Login = () => {
     const [kb, setKb] = useState({ field: null });
     const openKeyboard = (field) => setKb({ field });
     const closeKeyboard = () => setKb({ field: null });
+
+    // posconfig.json editor (gear button, pre-login)
+    const [configOpen, setConfigOpen] = useState(false);
 
     // Update download lifecycle — tracks streaming from GitHub to a temp path.
     // status: idle | downloading | launching | error | done
@@ -375,6 +380,18 @@ const Login = () => {
                     </Box>
                 </Tooltip>
 
+                {/* Below reload — edit C:/pos/posconfig.json, then restart the app */}
+                <Tooltip title="Terminal configuration — edit posconfig.json" arrow placement="right">
+                    <Box
+                        role="button"
+                        aria-label="Terminal configuration"
+                        onClick={() => setConfigOpen(true)}
+                        sx={{ ...styles.reloadBtn, top: 60 }}
+                    >
+                        <SettingsRoundedIcon sx={{ fontSize: 20 }} />
+                    </Box>
+                </Tooltip>
+
                 {/* LEFT — Brand hero panel */}
                 <Box sx={styles.hero}>
                     {/* Animated ambient blobs + subtle grid */}
@@ -644,6 +661,9 @@ const Login = () => {
                 }}
                 submitLabel={kb.field === 'password' ? 'Sign In' : 'Next'}
             />
+
+            {/* Create / edit C:/pos/posconfig.json before signing in */}
+            <PosConfigEditor open={configOpen} onClose={() => setConfigOpen(false)} />
         </ThemeProvider>
     );
 };

@@ -15,6 +15,8 @@ import Admin from './components/Backoffice/Admin';
 import { hideHardNotification, hideItemScanError, hideLoading, hideToast } from './store/uiSlice';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from "@mui/material/Alert";
+import config from './config';
+import { arabicize } from './utils/arabicMessages';
 
 
 const App = () => {
@@ -48,21 +50,24 @@ const App = () => {
           disabled={(timestamp - uiSlice.loadingTimestamp) < uiSlice.loadingTimeout} onClick={() => {
             // dispatch(hideLoading());
             window.location.reload();
-          }}> Restart
+          }}> إعادة تشغيل
           {((uiSlice.loadingTimeout - (timestamp - uiSlice.loadingTimestamp)) / 1000).toFixed(0) > 0 && <b style={{ marginLeft: '5px' }}>
             ({((uiSlice.loadingTimeout - (timestamp - uiSlice.loadingTimestamp)) / 1000).toFixed(0)})
           </b>}
         </Button>
       </Backdrop>
 
+      {/* Self-service mode renders its own Arabic scan-error overlay
+          (SelfServiceScanError inside SelfServiceView), so the generic
+          English backdrop is suppressed there. */}
       <Backdrop
         sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
-        open={uiSlice.itemScanError}
+        open={uiSlice.itemScanError && !config.selfService}
       >
         <div style={{ textAlign: 'center' }}>
 
           <h3 style={{background: 'white', padding: 20, borderRadius: 50,
-            color: 'black'}}>{uiSlice.itemScanErrorMessage} </h3>
+            color: 'black'}}>{arabicize(uiSlice.itemScanErrorMessage, 'error')} </h3>
           <br />
           <h3>
             <Button appearance='primary'
@@ -70,7 +75,7 @@ const App = () => {
               style={{ fontSize: '35px', padding: 20 }}
               color='green' onClick={() => {
                 dispatch(hideItemScanError());
-              }}> OK
+              }}> موافق
             </Button>
           </h3>
         </div>
@@ -83,7 +88,7 @@ const App = () => {
         <div style={{ textAlign: 'center' }}>
 
           <h3 style={{background: 'white', padding: 20, borderRadius: 50,
-            color: 'black'}}>{uiSlice.hardNotificationMessage} </h3>
+            color: 'black'}}>{arabicize(uiSlice.hardNotificationMessage, 'error')} </h3>
           <br />
           <h3>
             <Button appearance='primary'
@@ -91,7 +96,7 @@ const App = () => {
               style={{ fontSize: '35px', padding: 20 }}
               color='green' onClick={() => {
                 dispatch(hideHardNotification());
-              }}> OK
+              }}> موافق
             </Button>
           </h3>
         </div>
@@ -104,7 +109,7 @@ const App = () => {
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         open={uiSlice.toastOpen} autoHideDuration={2500} >
         <Alert severity={uiSlice.toastType} sx={{ width: '100%' }}>
-          {uiSlice.toastMsg}
+          {arabicize(uiSlice.toastMsg, uiSlice.toastType)}
         </Alert>
       </Snackbar>
 

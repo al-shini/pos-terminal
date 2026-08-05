@@ -3,23 +3,49 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser')
+const PDFDocument = require('pdfkit');
+const { exec } = require("child_process");
+const stream = require('./stream');
+const qr = require('qrcode');
 const { app, BrowserWindow, dialog, screen } = require("electron");
 const isDev = require("electron-is-dev");
-const crypto = require('crypto');
-const net = require('net');
 const { autoUpdater } = require("electron-updater")
 const { print } = require("pdf-to-printer");
 const { SerialPort, ByteLengthParser } = require('serialport')
+const printComplete = require('./printComplete');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const logger = require('./logger');
+const bopVisa = require('./bopVisa');
 const { ipcMain } = require('electron');
 const https = require('https');
 const os = require('os');
 
-let localConfigFile = fs.readFileSync('C:/pos/posconfig.json');
-// let localConfigFile = fs.readFileSync('/etc/pos/posconfig.json');
+// Local terminal configuration. Missing/corrupt files no longer crash the
+// app at boot: we fall back to an empty config (and create the file) so the
+// terminal can still reach the login screen, where the on-screen editor
+// (gear button → PosConfigEditor) can create/fix the file and restart.
+const LOCAL_CONFIG_PATH = 'C:/pos/posconfig.json';
 
-let localConfig = JSON.parse(localConfigFile);
+const readLocalConfigFromDisk = () => {
+    const raw = fs.readFileSync(LOCAL_CONFIG_PATH);
+    return JSON.parse(raw);
+};
+
+let localConfig;
+try {
+    localConfig = readLocalConfigFromDisk();
+} catch (ex) {
+    console.error(`Could not read ${LOCAL_CONFIG_PATH}: ${ex && ex.message} — starting with empty config`);
+    localConfig = {};
+    try {
+        fs.mkdirSync('C:/pos', { recursive: true });
+        if (!fs.existsSync(LOCAL_CONFIG_PATH)) {
+            fs.writeFileSync(LOCAL_CONFIG_PATH, JSON.stringify({}, null, 4));
+        }
+    } catch (writeEx) {
+        console.error(`Could not create ${LOCAL_CONFIG_PATH}: ${writeEx && writeEx.message}`);
+    }
+}
 const config = {
     qrBaseUrl: 'http://46.43.70.210:81/process-customer-entry.xhtml'
 }
@@ -155,7 +181,10 @@ function createWindow() {
         }
     });
 
-    let params = `serverIp=${localConfig.serverIp}&deviceId=${localConfig.deviceId}`;
+    // Guard against a missing/empty posconfig.json (first boot before the
+    // login-screen editor creates it): send sane fallbacks instead of the
+    // literal string "undefined", which config.js would treat as a real value.
+    let params = `serverIp=${localConfig.serverIp || '127.0.0.1'}&deviceId=${localConfig.deviceId || ''}`;
 
     if (localConfig.admin) {
         params += `&admin=true`;
@@ -336,69 +365,79 @@ if (!gotTheLock) {
     expressApp.use(bodyParser.json())
     expressApp.use(bodyParser.urlencoded({ extended: false }))
 
-    const fixRsaFormat = (data) => {
-        data = data.replace('-----BEGIN PUBLIC KEY-----', '');
-        data = data.replace('-----END PUBLIC KEY-----', '');
-        data = data.replace('-----BEGIN PRIVATE KEY-----', '');
-        data = data.replace('-----END PRIVATE KEY-----', '');
-        data = data.replace(/(\r\n|\n|\r)/gm, "");
-        return data;
-    }
+    // Receipt with a QR pointing at the online invoice — used when
+    // posconfig.json sets printTemplate to 'qr' (or leaves it unset).
+    // The PDF is written to C:\pos\invoice.pdf then sent to the printer
+    // according to printMethod: 'default' → Windows default printer via
+    // pdf-to-printer, 'ptp' (or unset) → the legacy ptp.exe helper.
+    const printWithQR = (object) => {
+        let writeStream = new stream.WritableBufferStream();
+        const qrFileName = 'C:\\pos\\qr.png'
+        const logo = 'C:\\pos\\logo.png'
+        const invoiceFileName = 'C:\\pos\\invoice.pdf'
 
-    const generateEncryptedKeyFromVisaPubKey = (visaPublicRsaKey) => {
-        try {
-            const key = crypto.randomBytes(32);
-            let prefixedKey = '-----BEGIN PUBLIC KEY-----\n'.concat(visaPublicRsaKey).concat('\n-----END PUBLIC KEY-----');
-            const encryptedKey = crypto.publicEncrypt({
-                key: prefixedKey,
-                padding: crypto.constants.RSA_PKCS1_PADDING
-            }, key);
-
-            return {
-                key,
-                encryptedKey
-            };
-        } catch (e) {
-            logger.info(e);
-            throw e;
-        }
-    }
-
-    const encryptObject = (object, visaPublicRsaKey) => {
-        try {
-            const objectAsText = JSON.stringify(object);
-            const _key = generateEncryptedKeyFromVisaPubKey(visaPublicRsaKey);
-            const cipher = crypto.createCipheriv('aes-256-ecb', _key.key, '');
-            let encryptedObject = cipher.update(objectAsText, 'utf-8', 'base64');
-            encryptedObject += cipher.final('base64');
-
-            return {
-                k: _key.encryptedKey.toString('base64'),
-                d: encryptedObject
+        const doc = new PDFDocument({
+            size: [203, 400],
+            margins: { // by default, all are 72
+                top: 5,
+                bottom: 5,
+                left: 5,
+                right: 5
             }
-        } catch (e) {
-            logger.info(e);
-            throw e;
-        }
-    }
+        });
 
-    const decryptObject = (cipherJson, terminalPrivateRsaKey) => {
-        try {
-            const encryptedMsg = JSON.parse(cipherJson);
-            const plainAesKey = crypto.privateDecrypt({
-                key: terminalPrivateRsaKey,
-                padding: crypto.constants.RSA_PKCS1_PADDING
-            }, Buffer.from(encryptedMsg.k, 'base64'));
+        qr.toFile(qrFileName, object.qr, (ex, url) => {
+            if (ex) {
+                logger.info('ex', ex);
+            }
 
-            const aes32Key = Buffer.alloc(32);
-            plainAesKey.copy(aes32Key, 0, 0, 32);
+            doc.pipe(writeStream);
+            doc.fontSize(15);
+            let g = 50;
 
-            const decCipher = crypto.createDecipheriv('aes-256-ecb', aes32Key, '');
-            return decCipher.update(encryptedMsg.d, 'base64', 'utf-8') + decCipher.final('utf-8');
-        } catch (e) {
-            logger.info(e);
-            throw e;
-        }
+            doc.font('C:\\pos\\arial.ttf')
+            doc.image(logo, 55, 15 + g, { width: 100, height: 25 });
+            doc.image(qrFileName, 110, 40 + g, { width: 100, height: 100 });
+            doc.font('C:\\pos\\VT323.ttf');
+            doc.text('Total: ' + object.total + '', 15, 50 + g);
+            doc.text('Discount: ' + object.discount + '', 15, 65 + g);
+            doc.text('Paid: ' + object.paid + '', 15, 80 + g);
+            doc.text('Change: ' + object.change + '', 15, 95 + g);
+            doc.text('Type: ' + object.type, 15, 110 + g);
+
+            doc.fontSize(13)
+            doc.text('Store: ' + object.store, 15, 140 + g);
+            doc.text('Cashier: ' + object.cashier, 15, 160 + g);
+            doc.text(object.date, 15, 182 + g);
+
+            doc.end()
+
+            writeStream.on('finish', () => {
+                const base64 = writeStream.toBuffer().toString('base64')
+                fs.writeFile(invoiceFileName, base64, 'base64', (err) => {
+                    if (err) {
+                        logger.info('ERROR', err);
+                    }
+                    logger.info('printing...............................');
+                    if (localConfig.printMethod && localConfig.printMethod === 'default') {
+                        print('C:\\pos\\invoice.pdf', {}).catch((e) => {
+                            logger.error('pdf-to-printer failed: ' + (e && e.message));
+                        });
+                    } else if (!localConfig.printMethod || localConfig.printMethod === 'ptp') {
+                        exec(
+                            'ptp.exe invoice.pdf', {
+                            cwd: 'C:\\pos\\',
+                            windowsHide: true
+                        }, (e) => {
+                            if (e) {
+                                logger.error('ptp.exe failed: ' + (e && e.message));
+                            }
+                        });
+                    }
+                });
+            });
+
+        })
     }
 
     const fetchTrx = async (trxKey) => {
@@ -412,32 +451,99 @@ if (!gotTheLock) {
         return response && response.data ? response.data : null;
     };
 
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // Fawtara QR is generated asynchronously on the backend after the sale
+    // closes; the OPOS template prints it, so poll briefly until it lands.
+    const fetchTrxWithFawtara = async (trxKey) => {
+        const maxAttempts = 8;
+        const delayMs = 500;
+        let trx = null;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            trx = await fetchTrx(trxKey);
+            if (!trx) {
+                return null;
+            }
+            if (trx.type !== 'Sale' || (trx.fawtaraQrString && trx.fawtaraQrString.trim().length > 0)) {
+                return trx;
+            }
+            await sleep(delayMs);
+        }
+        return trx;
+    };
+
+    // Dispatch the receipt according to posconfig.json:
+    //   printTemplate 'qr' (default) → small QR slip via printWithQR
+    //   printTemplate 'complete'     → full itemised PDF via printComplete
+    //   printTemplate 'opos'         → hand off to the OPOS service (:6666)
+    const printReceiptForTrx = (trx) => {
+        const qrUrl = 'https://plus.shini.ps/invoice?sptr=' + trx.key + '_' + trx.nanoId;
+        const date = trx.dateAsString;
+
+        if (!localConfig.printTemplate || localConfig.printTemplate === 'qr') {
+            printWithQR({
+                qr: qrUrl,
+                total: trx.totalafterdiscount,
+                discount: trx.totaldiscount,
+                paid: trx.paidamt,
+                change: trx.customerchange,
+                date,
+                store: trx.branch,
+                cashier: trx.username,
+                type: trx.type
+            });
+        } else if (localConfig.printTemplate === 'complete') {
+            printComplete({
+                qr: qrUrl,
+                total: trx.totalafterdiscount,
+                discount: trx.totaldiscount,
+                paid: trx.paidamt,
+                change: trx.customerchange,
+                date,
+                store: trx.branch,
+                cashier: trx.username,
+                type: trx.type,
+                lines: trx.printableLines,
+                totalTax: trx.totalTaxAmt,
+                payments: trx.paymentSummaryList,
+                taxDiscount: trx.taxDiscount,
+                terminal: trx.terminalKey
+            });
+        } else if (localConfig.printTemplate === 'opos') {
+            oposServiceAxios({
+                method: 'post',
+                url: '/opos-print',
+                data: trx,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }).then((_res) => {
+                console.log(_res);
+            }).catch((_error) => {
+                log('opos-print failed: ' + (_error && _error.message));
+            });
+        }
+    };
+
     expressApp.get('/printTrx', async (req, res) => {
         try {
             const trxKey = req.query.trxKey;
             let trx = null;
 
-            // Pop the cash drawer FIRST — it needs no trx data, so it must not wait
-            // behind the transaction fetch. Fire-and-forget against the OPOS service,
-            // which keeps the drawer hot on localhost:6666.
-            oposServiceAxios({ method: 'get', url: '/open-drawer' })
-                .catch((_error) => log('open-drawer failed: ' + (_error && _error.message)));
+            if (localConfig.printTemplate === 'opos') {
+                // Pop the cash drawer FIRST — it needs no trx data, so it must not
+                // wait behind the transaction fetch. Fire-and-forget against the
+                // OPOS service, which keeps the drawer hot on localhost:6666.
+                oposServiceAxios({ method: 'get', url: '/open-drawer' })
+                    .catch((_error) => log('open-drawer failed: ' + (_error && _error.message)));
 
-            trx = await fetchTrx(trxKey);
+                trx = await fetchTrxWithFawtara(trxKey);
+            } else {
+                trx = await fetchTrx(trxKey);
+            }
 
             if (trx) {
-                oposServiceAxios({
-                    method: 'post',
-                    url: '/opos-print',
-                    data: trx,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                }).then((_res) => {
-                    console.log(_res);
-                }).catch((_error) => {
-                    log('opos-print failed: ' + (_error && _error.message));
-                });
+                printReceiptForTrx(trx);
 
                 if (trx.campaignList && Array.isArray(trx.campaignList)) {
                     trx.campaignList.forEach((campaign, index) => {
@@ -491,21 +597,14 @@ if (!gotTheLock) {
             const trxKey = req.query.trxKey;
             let trx = null;
 
-            trx = await fetchTrx(trxKey);
+            if (localConfig.printTemplate === 'opos') {
+                trx = await fetchTrxWithFawtara(trxKey);
+            } else {
+                trx = await fetchTrx(trxKey);
+            }
 
             if (trx) {
-                oposServiceAxios({
-                    method: 'post',
-                    url: '/opos-print',
-                    data: trx,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                }).then((_res) => {
-                    console.log(_res);
-                }).catch((_error) => {
-                    log('opos-print failed: ' + (_error && _error.message));
-                });
+                printReceiptForTrx(trx);
 
                 if (trx.campaignList && Array.isArray(trx.campaignList)) {
                     trx.campaignList.forEach((campaign, index) => {
@@ -555,187 +654,227 @@ if (!gotTheLock) {
     })
 
 
+    // -----------------------------------------------------------------------
+    // BOP Visa payment terminal
+    //
+    // `bopVisaIp` carries the transport target: an IPv4 address for a networked
+    // terminal, or a COM port name ("COM1") for one on a serial cable. The
+    // backend stores the field verbatim, so both transports share it and adding
+    // serial needed no schema change. Everything protocol-related lives in
+    // ./bopVisa.js.
+    // -----------------------------------------------------------------------
+
+    const BOP_KEY_DIR = 'C:\\pos';
+
+    // DTR/RTS default to asserted (see SERIAL_DEFAULTS in bopVisa.js — a low
+    // RTS stalls readers on cables that wire the handshake pins). Set
+    // bopVisaDtr/bopVisaRts to false in pos-config.json to force a line low on
+    // a station whose reader genuinely needs that.
+    const bopSerialSettings = () => ({
+        baudRate: localConfig.bopVisaBaudRate || 115200,
+        dtr: localConfig.bopVisaDtr !== false,
+        rts: localConfig.bopVisaRts !== false,
+        // Opt-in driver-managed RTS/CTS flow control, for stations whose
+        // serial link drops bytes mid-stream (see SerialTransport.open).
+        rtscts: localConfig.bopVisaRtscts === true
+    });
+
+    /**
+     * Keep a copy of the pairing on disk next to the other terminal files.
+     * The backend copy is the one actually used; this is a diagnostic aid for
+     * support, so failing to write it must never fail the link.
+     */
+    const archiveBopKeysLocally = (target, publicKey, privateKey, visaPublicRsaKey) => {
+        try {
+            fs.mkdirSync(BOP_KEY_DIR, { recursive: true });
+            fs.writeFileSync(path.join(BOP_KEY_DIR, 'private.key'), privateKey);
+            fs.writeFileSync(path.join(BOP_KEY_DIR, 'public.key'), publicKey);
+            fs.writeFileSync(path.join(BOP_KEY_DIR, 'visa-public.key'), visaPublicRsaKey);
+            fs.writeFileSync(path.join(BOP_KEY_DIR, 'visa-link.json'), JSON.stringify({
+                target,
+                linkedAt: new Date().toISOString()
+            }, null, 4));
+        } catch (ex) {
+            logger.warn(`[bopVisa] could not archive keys to ${BOP_KEY_DIR}: ${ex && ex.message}`);
+        }
+    };
+
+    /** COM ports available on this machine, for the link screen's picker. */
+    expressApp.get('/bopVisaPorts', async (req, res) => {
+        try {
+            res.send({ ports: await bopVisa.listSerialPorts() });
+        } catch (ex) {
+            logger.error(`[bopVisa] could not list serial ports: ${ex && ex.message}`);
+            res.status(500).send({ error: ex.message });
+        }
+    });
+
+    /** Is the device on the other end actually answering? */
+    expressApp.post('/bopVisaStatus', async (req, res) => {
+        const target = String(req.body.target || req.body.bopVisaIp || '').trim();
+        if (!target) {
+            res.status(400).send({ error: 'A COM port or IP address is required' });
+            return;
+        }
+
+        const busy = bopVisa.getActiveOperation();
+        if (busy) {
+            res.send({ target, reachable: null, busy: busy.label });
+            return;
+        }
+
+        try {
+            const result = await bopVisa.ping({ target, serial: bopSerialSettings() });
+            res.send({ target, reachable: result.reachable, serial: bopVisa.isSerialTarget(target) });
+        } catch (ex) {
+            res.send({ target, reachable: false, error: ex.message, serial: bopVisa.isSerialTarget(target) });
+        }
+    });
+
     expressApp.post('/linkTerminalWithBopVisa', async (req, res) => {
         const terminalKey = req.body.terminalKey;
-        const bopVisaIp = req.body.bopVisaIp;
+        const target = String(req.body.bopVisaIp || req.body.target || '').trim();
 
-        // generate private and public keys for terminal & store them in the local pos files path
-        const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-            modulusLength: 4096,
-            publicKeyEncoding: {
-                type: 'spki',
-                format: 'pem'
-            },
-            privateKeyEncoding: {
-                type: 'pkcs8',
-                format: 'pem'
-            }
-        });
-        // create the private.key file
-        const privateKeyStream = fs.createWriteStream("C:\\pos\\private.key");
-        privateKeyStream.write(privateKey);
-        privateKeyStream.end();
-        // create the public.key file
-        const publicKeyStream = fs.createWriteStream("C:\\pos\\public.key");
-        publicKeyStream.write(publicKey);
-        publicKeyStream.end();
-
-        // open a client socket with the VISA machine and issue
-        const client = new net.Socket();
-        let received = '';
-
-        logger.info(bopVisaIp);
-
-        client.connect(7800, bopVisaIp);
-        client.setEncoding('utf8');
-        client.setTimeout(80 * 1000); // timeout must be greater than terminal timeout
-
-        /* begin call back events for visa socket */
-        client.on('data', function (response) {
-            logger.info('Data Event on Socket => ');
-            logger.info(response);
-            received += response;
-        });
-
-        client.on('error', function (response) {
-            logger.info('Error Event on Socket => ');
-            logger.info(response);
-            res.status(500).send(response);
-        });
-
-        client.on('close', function (response) {
-            let initResponse = undefined;
-            try {
-                // try and parse receievd JSON
-                logger.info("Recieved JSON ->");
-                logger.info(received);
-                initResponse = JSON.parse(received);
-            } catch (parseError) {
-                logger.info('could not parse the received json');
-                return;
-            }
-
-            logger.info('initResponse', initResponse);
-            if (initResponse && initResponse.rsaPubKey) {
-                const visaPubKey = initResponse.rsaPubKey;
-                // link the private and public key pairs with the terminal object in the backend, alongside the visa machine details
-                axios({
-                    method: 'post',
-                    url: '/trx/linkTerminalWithBopVisa',
-                    data: {
-                        terminalKey: terminalKey,
-                        terminalPrivateRsaKey: privateKey,
-                        terminalPublicRsaKey: publicKey,
-                        visaIp: bopVisaIp,
-                        visaPublicRsaKey: visaPubKey
-                    }
-                }).then((response) => {
-                    if (response && response.data) {
-                        res.send(response.data);
-                    }
-                }).catch((error) => {
-                    res.status(500).send({ error: error.message })
-                });
-            } else {
-                res.status(500).send({ error: 'Invalid Response from VISA '.concat(JSON.stringify(initResponse)) })
-            }
-        });
-        /* end call back events for visa socket */
-
-        // send the request to the visa machine
-        const initRequestObject = JSON.stringify({
-            lang: 0,
-            type: 'INIT',
-            rsaPubKey: fixRsaFormat(publicKey)
-        });
-        let length = initRequestObject.length;
-        while ((length + '').length < 4) {
-            length = '0' + length;
+        if (!terminalKey) {
+            res.status(400).send({ error: 'No terminal is logged in on this station' });
+            return;
         }
-        message = '~PCNC~' + length + '~' + initRequestObject;
+        if (!target) {
+            res.status(400).send({ error: 'Select a COM port or enter the terminal IP address first' });
+            return;
+        }
 
-        logger.info('Sending -> ')
-        logger.info(message)
+        const isSerial = bopVisa.isSerialTarget(target);
 
-        client.write(message);
+        try {
+            // The pairing is only usable once the backend has it, so nothing is
+            // written anywhere until INIT has actually succeeded — overwriting a
+            // good private key with one the terminal never acknowledged would
+            // leave the station unable to read any reply, and the device will
+            // not re-pair on demand.
+            const pairing = await bopVisa.init({
+                target,
+                // BOP's own serial tool sends this; the networked path never did
+                // and is left alone so existing installs behave identically.
+                print: isSerial ? (localConfig.bopVisaPrintMode === undefined ? 3 : localConfig.bopVisaPrintMode) : undefined,
+                serial: bopSerialSettings()
+            });
 
-    })
+            const response = await axios({
+                method: 'post',
+                url: '/trx/linkTerminalWithBopVisa',
+                data: {
+                    terminalKey,
+                    terminalPrivateRsaKey: pairing.privateKey,
+                    terminalPublicRsaKey: pairing.publicKey,
+                    visaIp: target,
+                    visaPublicRsaKey: pairing.visaPublicRsaKey
+                }
+            });
+
+            archiveBopKeysLocally(target, pairing.publicKey, pairing.privateKey, pairing.visaPublicRsaKey);
+            logger.info(`[bopVisa] terminal ${terminalKey} linked to ${target}`);
+            res.send(response.data);
+        } catch (ex) {
+            const detail = (ex.response && ex.response.data) ? ex.response.data : ex.message;
+            logger.error(`[bopVisa] link to ${target} failed: ${detail}`);
+            res.status(500).send({
+                error: typeof detail === 'string' ? detail : (detail.error || ex.message),
+                target,
+                serial: isSerial
+            });
+        }
+    });
+
+    expressApp.post('/unlinkTerminalFromBopVisa', async (req, res) => {
+        const terminalKey = req.body.terminalKey;
+        if (!terminalKey) {
+            res.status(400).send({ error: 'No terminal is logged in on this station' });
+            return;
+        }
+
+        try {
+            // Clearing the stored pairing is the whole of an unlink; the device
+            // keeps its own key until it is re-initialised from its menus, and
+            // a fresh link overwrites both sides anyway.
+            const response = await axios({
+                method: 'post',
+                url: '/trx/linkTerminalWithBopVisa',
+                data: {
+                    terminalKey,
+                    terminalPrivateRsaKey: null,
+                    terminalPublicRsaKey: null,
+                    visaIp: null,
+                    visaPublicRsaKey: null
+                }
+            });
+
+            try {
+                ['private.key', 'public.key', 'visa-public.key', 'visa-link.json'].forEach((name) => {
+                    const file = path.join(BOP_KEY_DIR, name);
+                    if (fs.existsSync(file)) {
+                        fs.unlinkSync(file);
+                    }
+                });
+            } catch (ex) {
+                logger.warn(`[bopVisa] could not clear archived keys: ${ex && ex.message}`);
+            }
+
+            logger.info(`[bopVisa] terminal ${terminalKey} unlinked`);
+            res.send(response.data);
+        } catch (ex) {
+            const detail = (ex.response && ex.response.data) ? ex.response.data : ex.message;
+            logger.error(`[bopVisa] unlink failed: ${detail}`);
+            res.status(500).send({ error: typeof detail === 'string' ? detail : ex.message });
+        }
+    });
 
     expressApp.post('/bopVisaSale', async (req, res) => {
+        const terminal = req.body.terminal;
+
+        if (!terminal || !terminal.bopVisaIp || !terminal.bopVisaPublicRsa || !terminal.localPrivateRsa) {
+            res.status(400).send({ error: 'This station is not linked to a BOP Visa terminal' });
+            return;
+        }
+
+        const busy = bopVisa.getActiveOperation();
+        if (busy) {
+            // Two sales at once would interleave on one port and could double
+            // charge, so the second is refused outright rather than queued.
+            res.status(409).send({
+                error: `The payment terminal is busy with a ${busy.label} started ${Math.round(busy.elapsedMs / 1000)}s ago`
+            });
+            return;
+        }
+
         try {
-            const terminal = req.body.terminal;
-            if (!terminal || !terminal.bopVisaIp || !terminal.bopVisaPublicRsa) {
-                // invalid terminal structure
-                res.status(500).send('Terminal not linked with BOP visa');
-                return;
-            }
-            const trxId = req.body.trxId;
-            const amt = req.body.amt;
-            const cur = req.body.cur;
-
-            // open a client socket with the VISA machine and issue
-            const client = new net.Socket();
-            let received = '';
-
-            client.connect(7800, terminal.bopVisaIp);
-            client.setEncoding('utf8');
-            client.setTimeout(180 * 1000); // timeout must be greater than terminal timeout
-            const ReqRespPrefixLen = 11;
-            let sent = false;
-
-            /* begin call back events for visa socket */
-            client.on('data', function (response) {
-                // logger.info('\n[data event] => ', response);
-                received += response;
+            const response = await bopVisa.sale({
+                target: terminal.bopVisaIp,
+                visaPublicRsaKey: terminal.bopVisaPublicRsa,
+                privateKey: terminal.localPrivateRsa,
+                amt: req.body.amt,
+                cur: req.body.cur,
+                rcpt: req.body.trxId,
+                serial: bopSerialSettings()
             });
-
-            client.on('error', function (response) {
-                logger.info('[error event] => ', response);
-                if (!sent) {
-                    res.status(500).send(response);
-                    sent = true;
-                }
+            // Declines come back here too, with a non-zero resp_code — the
+            // caller decides what to do with them.
+            res.send(response);
+        } catch (ex) {
+            logger.error(`[bopVisa] sale failed: ${ex.message}`);
+            res.status(ex.outcomeUnknown ? 504 : 500).send({
+                error: ex.message,
+                // The card may have been charged even though we never saw the
+                // answer, so the UI must tell the operator to check the device
+                // instead of quietly offering a retry.
+                outcomeUnknown: !!ex.outcomeUnknown,
+                // Set when the reader approved a different figure than we asked
+                // for: the money definitely moved, so this can never be retried.
+                amountMismatch: !!ex.amountMismatch,
+                terminalMessage: ex.terminalMessage || null,
+                authCode: ex.authCode || null,
+                rcpt: ex.rcpt
             });
-
-            client.on('close', function (response) {
-                try {
-                    const saleResponse = JSON.parse(decryptObject(received.substring(ReqRespPrefixLen), terminal.localPrivateRsa));
-                    logger.info(saleResponse);
-                    res.send(saleResponse);
-                } catch (ex) {
-                    logger.info('[close event error] => ', response);
-                    if (!sent) {
-                        res.status(500).send({ error: response })
-                        sent = true;
-                    }
-                }
-
-            });
-            /* end call back events for visa socket */
-
-            // send the request to the visa machine
-            const encryptedSaleObject = encryptObject({
-                lang: 0,
-                type: 'SALE',
-                amt,
-                cur,
-                rcpt: trxId
-            }, terminal.bopVisaPublicRsa);
-
-            let message = '~PCNC~';
-            const objectAsString = JSON.stringify(encryptedSaleObject);
-            let length = objectAsString.length;
-
-            while ((length + '').length < 4)
-                length = '0' + length;
-
-            message += length + '~' + objectAsString;
-            // logger.info('Sending -> ', message);
-            client.write(message);
-
-        } catch (e) {
-            logger.info(e);
-            res.status(500).send(e);
         }
     })
 
@@ -1126,6 +1265,40 @@ if (!gotTheLock) {
     expressApp.get('/restart', (req, res) => {
         restartApp();
         res.send('App is restarting...');
+    });
+
+    // ---- posconfig.json editor (login-screen gear button) -------------------
+    // GET returns the CURRENT on-disk content (fresh read, not the boot-time
+    // snapshot). POST overwrites the whole file with the posted object; the
+    // renderer then calls /restart so every consumer (main + renderer) reloads
+    // the new config from scratch.
+    expressApp.get('/localConfig', (req, res) => {
+        try {
+            const exists = fs.existsSync(LOCAL_CONFIG_PATH);
+            let cfg = {};
+            if (exists) {
+                cfg = JSON.parse(fs.readFileSync(LOCAL_CONFIG_PATH));
+            }
+            res.json({ exists, path: LOCAL_CONFIG_PATH, config: cfg });
+        } catch (ex) {
+            res.status(500).send('Could not read config: ' + (ex && ex.message));
+        }
+    });
+
+    expressApp.post('/localConfig', (req, res) => {
+        try {
+            const cfg = req.body;
+            if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) {
+                return res.status(400).send('Config must be a JSON object');
+            }
+            fs.mkdirSync('C:/pos', { recursive: true });
+            fs.writeFileSync(LOCAL_CONFIG_PATH, JSON.stringify(cfg, null, 4));
+            localConfig = cfg; // refresh the in-memory copy immediately
+            logger.info(`posconfig.json updated via login-screen editor (${Object.keys(cfg).length} keys)`);
+            res.json({ ok: true, path: LOCAL_CONFIG_PATH });
+        } catch (ex) {
+            res.status(500).send('Could not save config: ' + (ex && ex.message));
+        }
     });
 
     // autoUpdater.checkForUpdates()

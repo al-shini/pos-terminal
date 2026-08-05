@@ -14,7 +14,7 @@ import {
     setTills, setSelectedTill, updateBalance, submitTillCounts, closeTill,
     forceCloseTill,
 } from '../../store/backofficeSlice';
-import confirm from '../../components/UI/ConfirmDlg';
+import confirm, { AR_CONFIRM_OPTS } from '../../components/UI/ConfirmDlg';
 import classes from './Admin.module.css';
 import config from '../../config';
 
@@ -550,10 +550,11 @@ const ActiveTills = ({ superAdmin } = {}) => {
                         }
                         onClick={() => {
                             confirm(
-                                'Close Till?',
-                                'The till will be permanently closed for this work day.',
+                                'إغلاق الصندوق؟',
+                                'سيتم إغلاق الصندوق بشكل نهائي لهذا اليوم.',
                                 () => { handleFinalCloseTill(); },
-                                'danger'
+                                'danger',
+                                AR_CONFIRM_OPTS()
                             );
                         }}
                     >

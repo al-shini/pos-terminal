@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { showLoading, hideLoading, notify, showItemScanError } from './uiSlice'
-import { fetchSuspendedForTill, resetCustomer, setCustomer, setManagerMode, setManagerUser, setTrxMode, triggerErrorSound, unlockTill } from './terminalSlice';
+import { fetchSuspendedForTill, resetCustomer, setCustomer, setManagerMode, setManagerUser, setTrxMode, triggerErrorSound, unlockTill, beginPayment } from './terminalSlice';
+import SS_AR from '../components/Terminal/SelfService/i18n';
 import { reset } from './terminalSlice'
 import config from '../config';
 import axios from '../axios';
@@ -97,6 +98,7 @@ export const scanNewTransaction = createAsyncThunk(
                 } else {
 
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.message);
                 }
             }).finally(() => {
                 thunkAPI.dispatch(hideLoading());
@@ -111,7 +113,12 @@ export const scanNewTransaction = createAsyncThunk(
             } else if (thunkAPI.getState().terminal.trxMode === 'Refund') {
                 console.log('scanNewTransaction: Refund mode but no originalTrxReference found');
             }
-            
+
+            // [multiplier fix] See consumeScanMultiplier — the multiplier for
+            // this item is already captured in `payload` and is forwarded to the
+            // follow-up scanBarcode below, so disarm the shared one now.
+            thunkAPI.dispatch(consumeScanMultiplier());
+
             return axios({
                 method: 'post',
                 url: '/trx/scanNew',
@@ -121,6 +128,20 @@ export const scanNewTransaction = createAsyncThunk(
                     // tag the response with the sequence we captured above
                     if (response.data && typeof response.data === 'object') {
                         response.data.__scanSeq = __scanSeq;
+                    }
+
+                    // [auto-suspend-on-conflict] Backend silently put a stale
+                    // OPEN+customer transaction from an earlier session on
+                    // hold instead of hard-blocking this new sale with
+                    // "please click on Restart" — let the operator/customer
+                    // know it happened and where to find it again.
+                    if (response.data.autoSuspendedCount > 0) {
+                        thunkAPI.dispatch(notify({
+                            msg: config.selfService
+                                ? SS_AR.autoSuspendedNotice
+                                : 'A previous unfinished order on this till was automatically put on hold — find it in Suspended Orders.',
+                            sev: 'warning'
+                        }));
                     }
 
                     if (!payload.barcode.includes('C-')) {
@@ -163,6 +184,7 @@ export const scanNewTransaction = createAsyncThunk(
                 } else {
 
                     thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                    return thunkAPI.rejectWithValue(error.message);
                 }
             }).finally(() => {
                 thunkAPI.dispatch(hideLoading());
@@ -210,6 +232,11 @@ export const scanBarcode = createAsyncThunk(
             console.log('scanBarcode: Refund mode but no originalTrxReference found');
         }
 
+        // [multiplier fix] This scan carries its multiplier in `payload`; disarm
+        // the shared one now so the next barcode can't inherit it while we wait
+        // for the response. See consumeScanMultiplier.
+        thunkAPI.dispatch(consumeScanMultiplier());
+
         return axios({
             method: 'post',
             url: '/trx/new-scan',
@@ -243,6 +270,13 @@ export const scanBarcode = createAsyncThunk(
             } else {
 
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                // A network error has no `error.response`. Falling through here
+                // used to return undefined, which RTK treats as SUCCESS: the
+                // thunk fulfilled with an undefined payload, the fulfilled
+                // reducer threw reading it, Immer discarded the whole update —
+                // including the "in flight" flag — and every later payment on
+                // this terminal was silently refused by the re-entrancy guard.
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         }).finally(() => {
@@ -297,6 +331,13 @@ export const rescanTrx = createAsyncThunk(
             } else {
 
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                // A network error has no `error.response`. Falling through here
+                // used to return undefined, which RTK treats as SUCCESS: the
+                // thunk fulfilled with an undefined payload, the fulfilled
+                // reducer threw reading it, Immer discarded the whole update —
+                // including the "in flight" flag — and every later payment on
+                // this terminal was silently refused by the re-entrancy guard.
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         }).finally(() => {
@@ -310,14 +351,26 @@ export const submitPayment = createAsyncThunk(
     async (payload, thunkAPI) => {
         thunkAPI.dispatch(showLoading());
 
+        // [stuck-mode fix] Used to do `data.amount = data.amount * multiplier`
+        // here — `multiplier` is the qty-multiplier armed via the Numpad ×
+        // button / self-service qty picker, meant ONLY for "add N of the
+        // NEXT scanned item" (see scanBarcode/scanNewTransaction). It has
+        // nothing to do with payment amounts, but because it lives in shared
+        // trx state and is only reliably cleared by a SUCCESSFUL scan, any
+        // dead-end (barcode not found, a network blip, or simply arming ×N
+        // and then changing your mind without scanning) left it armed
+        // indefinitely — with no cashier-facing "cancel" affordance — and it
+        // would silently multiply the amount of whatever payment was
+        // submitted next (cash, card, foreign currency, vouchers…), which
+        // either overcharges the customer or makes the trx un-closeable
+        // (customerchange never reaches >= 0) until a full app restart.
+        // Self-service already had to defensively reset the multiplier right
+        // before opening its pay modal specifically because of this; cashier
+        // mode had no equivalent guard. Payment amounts must never be
+        // implicitly multiplied — removed entirely.
         let data = {
             ...payload
         };
-        let multi = thunkAPI.getState().trx.multiplier;
-        if (!multi || multi === 0)
-            multi = 1;
-
-        data.amount = data.amount * multi;
 
         return axios({
             method: 'post',
@@ -358,6 +411,13 @@ export const submitPayment = createAsyncThunk(
             } else {
 
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                // A network error has no `error.response`. Falling through here
+                // used to return undefined, which RTK treats as SUCCESS: the
+                // thunk fulfilled with an undefined payload, the fulfilled
+                // reducer threw reading it, Immer discarded the whole update —
+                // including the "in flight" flag — and every later payment on
+                // this terminal was silently refused by the re-entrancy guard.
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         }).finally(() => {
@@ -447,6 +507,9 @@ export const closeTrxPayment = createAsyncThunk(
             } else {
 
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                // See submitPayment: returning undefined here fulfils the thunk
+                // and corrupts the reducer, so a network blip must reject.
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         });
@@ -544,6 +607,9 @@ export const voidTrx = createAsyncThunk(
             } else {
 
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                // See submitPayment: returning undefined here fulfils the thunk
+                // and corrupts the reducer, so a network blip must reject.
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         });
@@ -596,6 +662,9 @@ export const suspendTrx = createAsyncThunk(
             } else {
 
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                // See submitPayment: returning undefined here fulfils the thunk
+                // and corrupts the reducer, so a network blip must reject.
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         });
@@ -638,6 +707,9 @@ export const fullTrxTaxExempt = createAsyncThunk(
             } else {
 
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                // See submitPayment: returning undefined here fulfils the thunk
+                // and corrupts the reducer, so a network blip must reject.
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         });
@@ -683,6 +755,9 @@ export const voidPayment = createAsyncThunk(
             } else {
 
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                // See submitPayment: returning undefined here fulfils the thunk
+                // and corrupts the reducer, so a network blip must reject.
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         });
@@ -727,6 +802,9 @@ export const voidLine = createAsyncThunk(
             } else {
 
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                // See submitPayment: returning undefined here fulfils the thunk
+                // and corrupts the reducer, so a network blip must reject.
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         });
@@ -769,6 +847,9 @@ export const changePrice = createAsyncThunk(
                 }
             } else {
                 thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                // See submitPayment: returning undefined here fulfils the thunk
+                // and corrupts the reducer, so a network blip must reject.
+                return thunkAPI.rejectWithValue(error.message);
             }
 
         });
@@ -839,12 +920,81 @@ export const checkOperationQrAuth = createAsyncThunk(
                             thunkAPI.dispatch(holdQrAuthCheck());
                             break;
                         }
+                        // [self-service Visa] No card-terminal integration yet — the
+                        // supervisor/head cashier scans this QR (same role check as
+                        // VoidTRX/PriceChange/etc. in auth/validateQR) to authorize
+                        // the manual Visa charge they take on their own terminal.
+                        // Once scanned we submit the payment ourselves and close the
+                        // sale, exactly like the CashDro cash flow does.
+                        case 'SelfServiceVisa': {
+                            const state = thunkAPI.getState();
+                            const trx = state.trx.trx;
+                            const totalDue = trx ? (trx.totalafterdiscount || 0) : 0;
+                            // See handleSelfServiceVisaPayment: the sale's own
+                            // paidamt is authoritative, the trxPaid cache is not.
+                            const totalPaid = trx ? (trx.paidamt || 0) : 0;
+                            const remaining = Math.max(0, totalDue - totalPaid);
+                            const tillKey = state.terminal.till ? state.terminal.till.key : null;
+                            const trxKeyForClose = trx ? trx.key : null;
+
+                            // Self-service is single-tender, so the card always
+                            // settles the whole balance. Read from the live trx
+                            // rather than the amount captured when the QR was
+                            // generated, in case the total moved since (e.g. a
+                            // void ran concurrently).
+                            const chargeAmount = remaining;
+
+                            if (trx && remaining > 0) {
+                                thunkAPI.dispatch(submitPayment({
+                                    tillKey,
+                                    trxKey: trxKeyForClose,
+                                    // Same payment_method.key the cashier-mode Visa
+                                    // button uses (config.visa, a GUID synced from
+                                    // head office) — NOT the literal string "Visa" —
+                                    // so reports/receipts resolve a real description.
+                                    paymentMethodKey: config.visa,
+                                    currency: config.systemCurrency,
+                                    amount: chargeAmount,
+                                    sourceKey: 'MANUAL-VISA-' + (response.data.updatedBy || payload.qrAuthKey),
+                                    visaPayment: null
+                                })).then((result) => {
+                                    const paidTrx = result && result.payload && result.payload.trx;
+                                    const fullyPaid = result && result.meta && result.meta.requestStatus === 'fulfilled'
+                                        && paidTrx && paidTrx.customerchange != null && paidTrx.customerchange >= 0;
+
+                                    if (fullyPaid && trxKeyForClose) {
+                                        thunkAPI.dispatch(closeTrxPayment({ key: trxKeyForClose }));
+                                    } else {
+                                        // The supervisor already charged the card
+                                        // for the full balance on their terminal, so
+                                        // neither a rejected submit nor a sale that
+                                        // is still short may send the customer back
+                                        // to the cart to pay a second time.
+                                        const stillDue = paidTrx
+                                            ? Math.max(0, (paidTrx.totalafterdiscount || 0) - (paidTrx.paidamt || 0))
+                                            : null;
+                                        thunkAPI.dispatch(notify({
+                                            msg: SS_AR.visaChargedNotSettled
+                                                + (stillDue != null ? ' — ' + SS_AR.remainingToPay + ': ' + stillDue.toFixed(2) : ''),
+                                            sev: 'error'
+                                        }));
+                                    }
+                                });
+                            }
+                            thunkAPI.dispatch(holdQrAuthCheck());
+                            break;
+                        }
                     }
                 } else {
+                    // [QR robustness] Poll faster (was 1500ms) so an
+                    // employee's scan registers on-screen sooner — a scan
+                    // that actually succeeded server-side but is still
+                    // sitting in this gap can look like "nothing happened",
+                    // prompting an unnecessary second scan.
                     if (thunkAPI.getState().trx.qrAuthState === 'pending') {
                         window.setTimeout(() => {
                             thunkAPI.dispatch(checkOperationQrAuth(payload));
-                        }, 1500);
+                        }, 700);
                     }
                 }
                 return thunkAPI.fulfillWithValue(response.data);
@@ -852,18 +1002,34 @@ export const checkOperationQrAuth = createAsyncThunk(
                 return thunkAPI.rejectWithValue('Incorrect server response');
             }
         }).catch((error) => {
+            const isAuthError = error.response && error.response.status === 401;
+
+            // [QR robustness] A single transient network/5xx blip here used
+            // to permanently kill the poll loop (no reschedule at all on
+            // error) while the QR screen kept showing "waiting for scan" —
+            // so a scan that succeeded moments later would never be
+            // noticed, and the only way out was to cancel and re-scan a
+            // freshly generated QR. Keep polling as long as we're still
+            // meant to be (qrAuthState === 'pending'), same as the
+            // non-'Scanned' branch above — but not on a real auth failure,
+            // since retrying that forever would just spam 401s.
+            if (!isAuthError && thunkAPI.getState().trx.qrAuthState === 'pending') {
+                window.setTimeout(() => {
+                    thunkAPI.dispatch(checkOperationQrAuth(payload));
+                }, 700);
+            }
+
             if (error.response) {
-                if (error.response.status === 401) {
+                if (isAuthError) {
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
                 }
                 else {
-                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
+                    console.warn('checkQRState poll error (will retry):', error.response.data);
                     return thunkAPI.rejectWithValue(error.response.data);
                 }
             } else {
-
-                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                console.warn('checkQRState poll error (will retry):', error.message);
                 return thunkAPI.rejectWithValue(error.message);
             }
 
@@ -1048,6 +1214,17 @@ export const trxSlice = createSlice({
         },
         setTrx: (state, action) => {
             state.trx = action.payload;
+            // trxPaid/trxChange are a cache of the trx's own paidamt and
+            // customerchange. Callers only ever pass an authoritative trx
+            // straight from the server, so re-sync them here: leaving a stale
+            // paid figure behind after the server voided the payments makes the
+            // UI believe part of the sale is already covered.
+            if (action.payload) {
+                state.trxPaid = action.payload.paidamt || 0;
+                state.trxChange = action.payload.customerchange != null
+                    ? action.payload.customerchange
+                    : 0;
+            }
         },
         selectLine: (state, action) => {
             if (action.payload && action.payload.key) {
@@ -1190,10 +1367,37 @@ export const trxSlice = createSlice({
         // start of every scanBarcode / scanNewTransaction dispatch.
         bumpScanSeq: (state) => {
             state.scanSeq = (state.scanSeq || 0) + 1;
+        },
+        // [multiplier fix] Disarm the ×N multiplier the moment a scan request
+        // leaves the terminal, instead of waiting for its response.
+        //
+        // The multiplier is meant for "add N of the NEXT scanned item", but it
+        // was only reset in scanBarcode/scanNewTransaction .fulfilled — i.e.
+        // after the round-trip. A scan takes hundreds of milliseconds, so a
+        // cashier scanning two items in quick succession had the second (and
+        // third…) barcode leave with the multiplier still armed, and every one
+        // of them landed at qty N. Clearing at dispatch closes that window:
+        // the value the first scan carries is already in its own payload.
+        consumeScanMultiplier: (state) => {
+            state.multiplier = '1';
         }
     },
     extraReducers: (builder) => {
 
+        // [stuck-mode fix] The instant payment mode is entered — from ANY
+        // call site (cashier Numpad payment-method buttons, CashDro,
+        // self-service Cash/Visa/Employee, etc.) — force-cancel price-change
+        // mode too. Entering a tender screen while priceChangeMode is still
+        // true left the Numpad OK button permanently routed to changePrice()
+        // (see Numpad.js's `else if (trxSlice.priceChangeMode)` branch,
+        // which is only reachable when NOT in paymentMode — but the state
+        // itself lingering was still confusing/wrong) and is simply never a
+        // valid combination: you cannot be both changing a line's price and
+        // taking a payment at the same time. Belt-and-suspenders alongside
+        // the Change-Price button's own always-clickable Cancel fix.
+        builder.addCase(beginPayment, (state) => {
+            state.priceChangeMode = false;
+        })
 
         /* checkOperationQrAuth thunk */
         builder.addCase(checkOperationQrAuth.fulfilled, (state, action) => {
@@ -1207,6 +1411,7 @@ export const trxSlice = createSlice({
 
         /* scanNewTransaction thunk */
         builder.addCase(scanNewTransaction.fulfilled, (state, action) => {
+            if (!action.payload) { return; }
             // [PS fix] Drop stale (out-of-order) responses. If a slower
             // response arrives after a newer scan has already been applied,
             // ignore it — otherwise the visible total would silently roll
@@ -1219,6 +1424,23 @@ export const trxSlice = createSlice({
             if (seq != null) state.lastAppliedScanSeq = seq;
 
             console.log(action);
+            // [stale-paid fix] A new sale must start from a clean payment
+            // slate. trxPaid/trxChange/payments are a cache of the PREVIOUS
+            // transaction until something resets them, and the resets all live
+            // on the normal close paths — so a sale that ended badly (a card
+            // attempt parked for staff, an aborted CashDro run) carried its
+            // paid amount into the next customer's basket. Anything that then
+            // charged "the remaining balance" (totalafterdiscount - trxPaid)
+            // undercharged by exactly the leftover, and the sale could never
+            // settle. Reset on key change, never on a refresh of the same sale.
+            const incomingKey = action.payload.trx ? action.payload.trx.key : null;
+            const currentKey = state.trx ? state.trx.key : null;
+            if (incomingKey && incomingKey !== currentKey) {
+                state.trxPaid = 0;
+                state.trxChange = 0;
+                state.payments = [];
+                state.selectedPayment = {};
+            }
             state.trx = action.payload.trx;
             state.scannedItems = action.payload.trxLines;
             state.numberInputValue = '';
@@ -1226,12 +1448,20 @@ export const trxSlice = createSlice({
         })
 
         builder.addCase(scanNewTransaction.rejected, (state, action) => {
-
+            // [stuck-mode fix] A failed scan (barcode not found, network
+            // blip, backend validation error…) used to leave an armed ×N
+            // multiplier sitting there with no on-screen way to clear it
+            // besides the obscure "type nothing, hit backspace" trick — and
+            // it would then silently apply to whatever gets scanned/paid
+            // next. Always drop back to ×1 on failure; the cashier can
+            // re-arm it in one tap if they still want it.
+            state.multiplier = '1';
         })
 
 
         /* scan thunk */
         builder.addCase(scanBarcode.fulfilled, (state, action) => {
+            if (!action.payload) { return; }
             // [PS fix] same out-of-order guard as scanNewTransaction.
             const seq = action.payload && action.payload.__scanSeq;
             if (seq != null && seq < (state.lastAppliedScanSeq || 0)) {
@@ -1240,21 +1470,36 @@ export const trxSlice = createSlice({
             }
             if (seq != null) state.lastAppliedScanSeq = seq;
 
-            if (action.payload.line) {
+            // [PS fix / loyalty-card] Was gated on `action.payload.line`, which
+            // is only set when a promo re-apply pass touched a line. Scanning
+            // an LC- loyalty card onto a basket where no promo needed
+            // re-applying (or a 00970/00972 mobile-number lookup) still
+            // recomputes cashback/totals server-side via updateTrx() and sets
+            // `trx`/`trxLines` on the response — but with the old `line`-only
+            // gate the screen kept showing the pre-attach total until the next
+            // item scan. A bare `C-` account-customer attach deliberately does
+            // NOT set `trx` (see PosSellTrxService#onScanBarcode), so gating on
+            // `trx` presence (not `line`) fixes the stale-total bug without
+            // touching that path — `setCustomer` below is unaffected either way.
+            if (action.payload.trx) {
                 state.trx = action.payload.trx;
-                state.scannedItems = action.payload.trxLines;
+                if (action.payload.trxLines) {
+                    state.scannedItems = action.payload.trxLines;
+                }
                 state.numberInputValue = '';
                 state.multiplier = '1'
             }
         })
 
         builder.addCase(scanBarcode.rejected, (state, action) => {
-
+            // See scanNewTransaction.rejected above for why.
+            state.multiplier = '1';
         })
 
 
         /* rescanTrx thunk */
         builder.addCase(rescanTrx.fulfilled, (state, action) => {
+            if (!action.payload) { return; }
             if (action.payload.line) {
                 state.trx = action.payload.trx;
                 state.scannedItems = action.payload.trxLines;
@@ -1281,6 +1526,13 @@ export const trxSlice = createSlice({
             state.paymentSubmitting = true;
         })
         builder.addCase(submitPayment.fulfilled, (state, action) => {
+            // Cleared before anything else can throw. If this reducer bails
+            // part-way, Immer discards the whole draft and the flag would stay
+            // set, permanently blocking payments through the re-entrancy guard.
+            state.paymentSubmitting = false;
+            if (!action.payload) {
+                return;
+            }
             if (action.payload.payments) {
                 state.payments = action.payload.payments;
                 state.trxPaid = action.payload.totalPaid;
@@ -1296,7 +1548,6 @@ export const trxSlice = createSlice({
                     state.trx = action.payload.trx;
                 }
             }
-            state.paymentSubmitting = false;
         })
 
         builder.addCase(submitPayment.rejected, (state, action) => {
@@ -1308,6 +1559,13 @@ export const trxSlice = createSlice({
             state.closingTrx = true;
         })
         builder.addCase(closeTrxPayment.fulfilled, (state, action) => {
+            state.closingTrx = false;
+            // Only a real server response means the sale actually closed.
+            // Wiping the basket on an empty payload would show the customer a
+            // receipt screen for a sale still sitting OPEN on the backend.
+            if (!action.payload) {
+                return;
+            }
             // reset trx state (prepare to start new one)
             state.lastTrxPayment = {
                 paid: state.trxPaid,
@@ -1334,7 +1592,7 @@ export const trxSlice = createSlice({
 
         /* voidPayment thunk */
         builder.addCase(voidPayment.fulfilled, (state, action) => {
-            if (action.payload.payments) {
+            if (action.payload && action.payload.payments) {
                 state.payments = action.payload.payments;
                 state.trxPaid = action.payload.totalPaid;
                 state.trxChange = action.payload.change;
@@ -1349,6 +1607,7 @@ export const trxSlice = createSlice({
 
         /* voidLine thunk */
         builder.addCase(voidLine.fulfilled, (state, action) => {
+            if (!action.payload) { return; }
             if (action.payload.line) {
                 state.trx = action.payload.trx;
                 state.scannedItems = action.payload.trxLines;
@@ -1406,6 +1665,7 @@ export const trxSlice = createSlice({
 
         /* changePrice thunk */
         builder.addCase(changePrice.fulfilled, (state, action) => {
+            if (!action.payload) { return; }
             if (action.payload.line) {
                 state.trx = action.payload.trx;
                 state.scannedItems = action.payload.trxLines;
@@ -1423,6 +1683,7 @@ export const trxSlice = createSlice({
 
         /* validateRefundReference thunk */
         builder.addCase(validateRefundReference.fulfilled, (state, action) => {
+            if (!action.payload) { return; }
             // Store the validated original transaction reference
             state.originalTrxReference = action.payload.originalTransaction;
         })
@@ -1473,6 +1734,6 @@ export const { resumeTrx, selectLine, clearNumberInput, handleNumberInputChange,
     prepareScanMultiplier, handleNumberInputEntry, reverseNumberInputEntry, selectPaymentMethod, selectCurrency, holdQrAuthCheck, startQrAuthCheck, clearLastPaymentHistory,
     setPriceChangeReason, clearPriceChangeReason, scrollDown, scrollUp, resetScrollAction, prepareScanMultiplierPreDefined, scrollBottom,
     setOriginalTrxReference, clearOriginalTrxReference,
-    bumpScanSeq
+    bumpScanSeq, consumeScanMultiplier
 } = trxSlice.actions
 export default trxSlice.reducer

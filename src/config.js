@@ -124,10 +124,15 @@ const tenantProfiles = {
             adminBroadcast: true,
             adminForceCloseTill: true,
             customerDisplayConfig: true,
-            // EmployeeExtra (employee-balance tender) is NOT launched in Jordan
-            // yet. The button stays hidden until the ShiniMe-backed balance flow
-            // is rolled out. Flip to true when launching.
-            employeeExtra: false,
+            // [employee-extra 2026-07-23] ENABLED for Jordan too. The direct-DB
+            // flow is tenant-agnostic, but the Jordan pos-backend branch does
+            // NOT have the backend changes yet — they must be ported first
+            // (see pos-backend/docs/SHINI_ME_INTEGRATION_CHANGELOG.md §7) and
+            // shinime-datasource.properties pointed at the Jordan Shini Me DB.
+            // Until then the button stays harmless: customer.employee is never
+            // true (no enrichment) so the tender never shows, and the backend
+            // would reject it anyway.
+            employeeExtra: true,
             // "Others" section in the scale-items drawer — anything weighable
             // that isn't F&V (cheese, dates, olives, etc.) sourced from the
             // pos_other_scale_items table at the local store backend. Only
@@ -184,13 +189,13 @@ const tenantProfiles = {
             // head office. Manage the content from the back-office "Customer
             // Display Settings" panel.
             customerDisplayConfig: true,
-            // [cashback-disabled 2026-06-23] (C2) EmployeeExtra (employee-balance
-            // tender) is DISABLED at the POS alongside Cashback. The PS backend
-            // used to deduct users.employee_balance from the Shini Me datasource
-            // in the same one-shot consumeShiniMeBalances() transaction; that
-            // direct-DB consume is removed and the tender is now rejected.
-            // Re-enable via the Shini Me backend API. See docs/POS_CASHBACK_DISABLED.md.
-            employeeExtra: false,
+            // [employee-extra 2026-07-23] RE-ENABLED via direct Shini Me DB
+            // access (one-shot deduction at close, FOR UPDATE row lock — no
+            // Shini Me backend release needed). Points/cashback remains
+            // disabled pending the API-first flow. The button also requires
+            // customer.employee=true, which the backend now enriches straight
+            // from the Shini Me DB users table.
+            employeeExtra: true,
             // See Jordan profile — Palestine backend doesn't have this
             // endpoint yet.
             otherScaleItems: false,
