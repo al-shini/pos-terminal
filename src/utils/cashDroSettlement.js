@@ -11,6 +11,8 @@
  * against a simulated machine and server.
  */
 
+import { CASH_STEP } from './cashRounding';
+
 /**
  * A latch that opens for exactly one caller.
  *
@@ -88,9 +90,11 @@ export const recordPayment = async ({ submitPayment, payload, sleep }) => {
  *
  * `requireFullSettlement` separates the two callers. Self-checkout is
  * single-tender, so a sale still owing money after the machine was asked for
- * the whole balance is an inconsistency to escalate. A cashier can legitimately
- * take part of the balance in cash and the rest another way, and closes the
- * sale themselves, so for them a partial is just a partial.
+ * the whole balance is an inconsistency to escalate — unless what it owes is
+ * smaller than the smallest coin the machine handles, which is cash rounding
+ * rather than an unpaid sale. A cashier can legitimately take part of the
+ * balance in cash and the rest another way, and closes the sale themselves, so
+ * for them a partial is just a partial.
  */
 export const settleCollection = async ({
     reconciliation,
@@ -134,11 +138,17 @@ export const settleCollection = async ({
     const customerChange = result.trx ? result.trx.customerchange : null;
     const fullyPaid = !!result.closeTrx || (customerChange != null && customerChange >= 0);
 
-    if (!fullyPaid && requireFullSettlement) {
-        // The machine was asked for the entire balance, so a sale that is still
-        // short means the server and the machine disagree about this sale.
-        const stillDue = Math.max(0,
-            (result.trx.totalafterdiscount || 0) - (result.trx.paidamt || 0));
+    const stillDue = fullyPaid ? 0 : Math.max(0,
+        (result.trx.totalafterdiscount || 0) - (result.trx.paidamt || 0));
+
+    // A balance smaller than the smallest coin the machine handles is the cash
+    // rounding, not an unpaid sale — the customer tendered the exact amount they
+    // were asked for and there is nothing more for them to give. Closing is the
+    // right move and the server writes the residual off; parking the lane here
+    // instead is what left customers staring at a staff-only screen holding a
+    // receipt-less, fully-paid basket. Anything a whole step or more short is a
+    // real disagreement about this sale and still escalates.
+    if (!fullyPaid && requireFullSettlement && stillDue >= CASH_STEP) {
         return {
             outcome: 'shortfall',
             amount: net,

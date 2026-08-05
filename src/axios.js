@@ -16,6 +16,17 @@ instance.interceptors.request.use(request => {
         request.headers.Authorization = `Bearer `;
     }
 
+    // Tells the backend this lane is an unattended self-checkout, which is what
+    // makes it round the payable total to something a CashDro can settle
+    // exactly. The kiosk had no way to say so before, so its sales kept their
+    // odd agorot while the cash machine could only collect in 0.50 steps — and
+    // a customer who inserted the exact amount asked of them left a paid sale
+    // that could not be closed. Sent on every call because several endpoints
+    // rebuild the totals.
+    if (config.selfService) {
+        request.headers.selfCheckout = 'true';
+    }
+
     return request;
 }, error => {
     console.error('Request Error:', error);

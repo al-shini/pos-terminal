@@ -257,6 +257,24 @@ const printComplete = async (object) => {
 
     let yAxisPointer = 25;
 
+    // Cash rounding (تعديل التقريب). A self-checkout sale is charged in whole
+    // 0.50 steps because that is all its cash machine can take, so the final
+    // total can sit a few agorot away from the items above it. Printed only
+    // when there is a difference, which is never on a cashier receipt.
+    const roundingAmount = Number(object.rounding || 0);
+    if (roundingAmount) {
+        // The direction goes in the label rather than as a minus sign: every
+        // number on this receipt is printed with its digits reversed for RTL,
+        // and a stray sign glyph in that string reads as gibberish.
+        const roundingLabel = roundingAmount < 0 ? 'تقريب (خصم)' : 'تقريب (إضافة)';
+        const roundingText = `${roundingLabel}: ${reverseNumber(fmtAmt(Math.abs(roundingAmount)))} ${posCurrencyPrintSymbol}`;
+        page.drawText(roundingText, {
+            x: detailsXEnd - arialFont.widthOfTextAtSize(roundingText, fontSize),
+            y: summaryYStart - 37.5,
+        });
+        yAxisPointer += 12.5;
+    }
+
     yAxisPointer += 20;
 
     object.payments.map((payment) => {

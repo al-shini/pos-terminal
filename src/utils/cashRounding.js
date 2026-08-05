@@ -1,18 +1,24 @@
 /**
  * CashDro (and any coin/note-based cash machine) only accepts/dispenses in
- * 0.50 steps — it has no 0.05/0.10/0.25 coins loaded. Whatever amount we ask
- * the customer to insert must therefore be rounded to the nearest half unit
- * before we display it, matching the same rounding the backend applies when
- * it tells the CashDro hardware how much to expect
- * (see PosSellTrx#startCashDroOperation on pos-backend):
+ * 0.50 steps — it has no 0.05/0.10/0.25 coins loaded:
  *
  *   fractional 0.00–0.24  -> rounds down to .00
  *   fractional 0.25–0.74  -> rounds to .50
  *   fractional 0.75–0.99  -> rounds up to the next whole unit (1.00)
  *
+ * On a self-checkout the backend now rounds the sale total by this same rule
+ * (CashRounding.toCashStep on pos-backend, mirrored here), so the balance the
+ * machine is asked for is already a whole step and this is a no-op. It stays as
+ * the lane's safety net: if the total ever arrives unrounded, expecting the
+ * rounded figure is what keeps the terminal and the machine talking about the
+ * same amount instead of flagging good cash as a mismatch.
+ *
  * Implemented with integer-cent math (not floating point) to avoid
  * rounding-boundary drift, e.g. 12.25 must round up to 12.50, not down.
  */
+/** The smallest amount a CashDro can accept or hand back. */
+export const CASH_STEP = 0.5;
+
 export const roundToCashDro = (amount) => {
     const cents = Math.round((Number(amount) || 0) * 100);
     const halfSteps = Math.round(cents / 50); // 50 cents = a 0.50 step

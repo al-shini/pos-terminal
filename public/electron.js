@@ -401,9 +401,17 @@ if (!gotTheLock) {
             doc.font('C:\\pos\\VT323.ttf');
             doc.text('Total: ' + object.total + '', 15, 50 + g);
             doc.text('Discount: ' + object.discount + '', 15, 65 + g);
-            doc.text('Paid: ' + object.paid + '', 15, 80 + g);
-            doc.text('Change: ' + object.change + '', 15, 95 + g);
-            doc.text('Type: ' + object.type, 15, 110 + g);
+            // Self-checkout sales are rounded to what the cash machine can
+            // settle, so the total can differ from the lines by a few agorot.
+            // Only printed when there is something to explain.
+            let row = 80;
+            if (object.rounding) {
+                doc.text('Rounding: ' + object.rounding + '', 15, row + g);
+                row += 15;
+            }
+            doc.text('Paid: ' + object.paid + '', 15, row + g);
+            doc.text('Change: ' + object.change + '', 15, row + 15 + g);
+            doc.text('Type: ' + object.type, 15, row + 30 + g);
 
             doc.fontSize(13)
             doc.text('Store: ' + object.store, 15, 140 + g);
@@ -485,6 +493,7 @@ if (!gotTheLock) {
                 qr: qrUrl,
                 total: trx.totalafterdiscount,
                 discount: trx.totaldiscount,
+                rounding: trx.cashRounding,
                 paid: trx.paidamt,
                 change: trx.customerchange,
                 date,
@@ -497,6 +506,7 @@ if (!gotTheLock) {
                 qr: qrUrl,
                 total: trx.totalafterdiscount,
                 discount: trx.totaldiscount,
+                rounding: trx.cashRounding,
                 paid: trx.paidamt,
                 change: trx.customerchange,
                 date,
