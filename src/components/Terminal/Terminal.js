@@ -12,18 +12,19 @@ import Numpad from './Numpad';
 import Invoice from './Invoice';
 import Payments from './Payments';
 import BalanceSetup from './BalanceSetup';
+import SpendCampaignWidget from './SpendCampaignWidget';
 import terminalSlice, {
     beginPayment, uploadCurrencies, abort, endPaymentMode, exitNumpadEntry, reset,
     uploadCashButtons, setPaymentType, uploadForeignButtons, uploadPaymentMethods, uploadFastItems, setTrxMode, lockTill, unlockTill, uploadExchangeRates, setCustomer, setManagerMode, setTerminal, fetchSuspendedForTill, setManagerUser, verifyManagerMode,
     logout
 } from '../../store/terminalSlice';
 import {
-    selectCurrency, submitPayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
+    selectCurrency, submitPayment, submitKhairgatePayment, clearNumberInput, scanBarcode, scanNewTransaction, setTrx,
     selectPaymentMethod, suspendTrx, enablePriceChange, disablePriceChange,
     checkOperationQrAuth, startQrAuthCheck, holdQrAuthCheck, voidTrx, voidPayment, voidLine, rescanTrx, closeTrxPayment, clearLastPaymentHistory, setPriceChangeReason, prepareScanMultiplierPreDefined,
     fullTrxTaxExempt,
     printTrx, clearOriginalTrxReference, setOriginalTrxReference, setCustomCustomerName,
-    printTrxNoDrawer, selectLine
+    printTrxNoDrawer, selectLine, redeemSpendCampaign, cancelSpendCampaignRedeem
 } from '../../store/trxSlice';
 import { hideLoading, notify, showHardNotification, showLoading } from '../../store/uiSlice';
 import FlexboxGridItem from 'rsuite/esm/FlexboxGrid/FlexboxGridItem';
@@ -117,6 +118,8 @@ const Terminal = (props) => {
     const [actionsMode, setActionsMode] = useState('payment');
     const [notesImages, setNotesImages] = useState([]);
     const [authQR, setAuthQR] = useState({});
+    const [campaignVouchers, setCampaignVouchers] = useState([]);
+    const [campaignVouchersLoading, setCampaignVouchersLoading] = useState(false);
     const [bopVisaIp, setBopVisaIp] = useState('');
     // Self-checkout card-reader sale in flight: { status, message, chargeAmount }
     // where status is 'prompting' | 'declined' | 'unknown'. Null when idle.
@@ -160,6 +163,11 @@ const Terminal = (props) => {
     const [referenceNumberDialogOpen, setReferenceNumberDialogOpen] = useState(false);
     const [cashDroModalOpen, setCashDroModalOpen] = useState(false);
     const [cashDroStatus, setCashDroStatus] = useState({ message: '', state: null, totalIn: 0, changeNotAvailable: 0 });
+    // Khairgate Wallet: after the amount is entered on the numpad, this holds
+    // { amount } and opens the "scan the customer's QR" modal. The QR string
+    // arrives through the keyboard-wedge scanner into the modal's input.
+    const [khairgateScan, setKhairgateScan] = useState(null);
+    const [khairgateQrInput, setKhairgateQrInput] = useState('');
     // Timers live in refs, not state: the poll loop and the walk-away timeout
     // both need to see the CURRENT session, and a state variable captured when
     // the session started is stale by the time they run.
@@ -918,6 +926,86 @@ const Terminal = (props) => {
         dispatch(selectPaymentMethod(config[type]));
     }
 
+    /** Refund tender via Talabat — manager QR required (unless already in manager mode). */
+    const handleTalabatRefundPay = () => {
+        if (!trxSlice.trx || !trxSlice.trx.key) {
+            dispatch(notify({ msg: 'No open refund transaction', sev: 'warning' }));
+            return;
+        }
+        if (!(trxSlice.originalTrxReference && trxSlice.originalTrxReference.hasTalabatPayment)) {
+            dispatch(notify({ msg: 'Original sale has no Talabat payment', sev: 'warning' }));
+            return;
+        }
+        if ((trxSlice.payments || []).some((p) => p && !p.voided && p.paymentMethodKey === 'Cash')) {
+            dispatch(notify({ msg: 'Cannot mix Cash and Talabat on a refund', sev: 'error' }));
+            return;
+        }
+        const amount = trxSlice.trx.totalafterdiscount || 0;
+        const submitTalabat = () => {
+            dispatch(beginPayment());
+            dispatch(setPaymentType({ type: 'talabat', inputType: 'fixed' }));
+            dispatch(selectPaymentMethod(config.talabat));
+            dispatch(submitPayment({
+                tillKey: terminal.till ? terminal.till.key : null,
+                trxKey: trxSlice.trx.key,
+                paymentMethodKey: 'Talabat',
+                currency: config.systemCurrency,
+                amount,
+                sourceKey: '',
+                visaPayment: null
+            }));
+        };
+        if (terminal.managerMode) {
+            submitTalabat();
+            return;
+        }
+        axios({
+            method: 'post',
+            url: '/utilities/generateQR',
+            data: {
+                hardwareId: config.deviceId,
+                source: 'TalabatRefund',
+                sourceKey: trxSlice.trx.key,
+                creator: terminal.loggedInUser ? terminal.loggedInUser.key : null
+            }
+        }).then((response) => {
+            if (response && response.data) {
+                setAuthQR({
+                    ...response.data,
+                    source: 'TalabatRefund',
+                    pendingAmount: amount
+                });
+            } else {
+                dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }));
+            }
+        }).catch((error) => {
+            dispatch(notify({
+                msg: (error.response && error.response.data) || error.message,
+                sev: 'error'
+            }));
+        });
+    };
+
+    const loadCampaignVouchers = () => {
+        const customerKey = terminal.customer && terminal.customer.key;
+        if (!customerKey || !String(customerKey).startsWith('LC-')) {
+            setCampaignVouchers([]);
+            return;
+        }
+        setCampaignVouchersLoading(true);
+        axios({
+            method: 'get',
+            url: '/trx/campaign/vouchers',
+            headers: { customerKey }
+        }).then((response) => {
+            setCampaignVouchers(Array.isArray(response.data) ? response.data : []);
+        }).catch(() => {
+            setCampaignVouchers([]);
+        }).finally(() => {
+            setCampaignVouchersLoading(false);
+        });
+    };
+
 
     /**
      * The customer-facing line for a CashDro collection that did not settle.
@@ -1224,6 +1312,42 @@ const Terminal = (props) => {
         } // end IF
     }
 
+    /* Khairgate Wallet Payment Flow */
+
+    /**
+     * Submits the Khairgate charge once the QR is in. One synchronous backend
+     * call: resolve QR → verify balance → reserve the tender (deferred
+     * capture: the wallet is only debited when the invoice is CLOSED). On
+     * success the modal closes and the payments list is already refreshed by
+     * the thunk's reducer; on failure the modal stays open so the cashier can
+     * re-scan — the notify banner carries the provider's reason.
+     */
+    const submitKhairgateScan = () => {
+        if (!khairgateScan) {
+            return;
+        }
+        const qr = (khairgateQrInput || '').trim();
+        if (!qr) {
+            dispatch(notify({ msg: 'Please scan the customer QR code', sev: 'warning' }));
+            return;
+        }
+        dispatch(submitKhairgatePayment({
+            tillKey: terminal.till ? terminal.till.key : null,
+            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+            amount: khairgateScan.amount,
+            qrCodeString: qr
+        })).unwrap().then(() => {
+            setKhairgateScan(null);
+            setKhairgateQrInput('');
+            dispatch(notify({ msg: 'Khairgate payment approved — the wallet is debited when the invoice is closed | تمت الموافقة على دفعة خيرجيت — يتم الخصم عند إغلاق الفاتورة', sev: 'info' }));
+        }).catch(() => {
+            // Keep the modal (and the entered amount) for a retry; clear the
+            // QR so a fresh scan is required and a stale string is never
+            // resubmitted by accident.
+            setKhairgateQrInput('');
+        });
+    };
+
     /* CashDro Payment Flow */
 
     // A poll loop that outlives the component keeps hitting the server and can
@@ -1383,7 +1507,7 @@ const Terminal = (props) => {
                         // go through the normal cancel: it tells CashDro to give
                         // the cash back and clears the operation, which is also
                         // what lets this sale be retried later.
-                        handleCancelCashDro().finally(() => {
+                        handleCancelCashDro({ outcomeAlreadyClaimed: true }).finally(() => {
                             if (config.selfService) {
                                 dispatch(abort());
                                 dispatch(endPaymentMode());
@@ -1502,8 +1626,16 @@ const Terminal = (props) => {
                 if (!cashDroPollRef.current) {
                     return;
                 }
+                // Consult the same latch the polling tick uses: if a tick has
+                // already started settling this collection, the cash is
+                // committed and neither the machine return nor the abort below
+                // may run. A timer that fired just before that tick would
+                // otherwise hand the customer the whole sale total back.
+                if (!claimOutcome()) {
+                    return;
+                }
                 dispatch(notify({ msg: config.selfService ? SS_AR.cashDroTimeout : 'CashDro timeout - payment not completed', sev: 'error' }));
-                handleCancelCashDro().finally(() => {
+                handleCancelCashDro({ outcomeAlreadyClaimed: true }).finally(() => {
                     if (config.selfService) {
                         dispatch(abort());
                         dispatch(endPaymentMode());
@@ -1543,24 +1675,37 @@ const Terminal = (props) => {
      * cancelTrxCashDro endpoint here (not /trx/abortPayment) so this can
      * never void a cashier's other, already-applied split-tender payments.
      *
-     * Returns the axios promise so callers (self-service) can chain the
-     * payment-mode exit only after the machine has actually been told to
-     * give the cash back.
+     * Resolves true when the cancel was actually attempted (including when the
+     * call to the machine failed, which is surfaced loudly), and false when it
+     * was refused because a polling tick already owns this collection's outcome.
+     * Callers must not tear down the sale on false — the settling tick is
+     * driving the screen and the cash is already committed.
+     *
+     * Pass outcomeAlreadyClaimed when the caller has itself taken the session
+     * latch and is cancelling on purpose (the poll-failure and walk-away
+     * timeout paths), otherwise it would refuse its own claim.
      */
-    const handleCancelCashDro = () => {
+    const handleCancelCashDro = ({ outcomeAlreadyClaimed = false } = {}) => {
         // Once the machine has committed the cash there is nothing to cancel,
         // and asking it to return money it has already banked would leave the
         // sale and the drawer disagreeing.
         if (cashDroStatus.state === 'FINALIZING') {
-            return Promise.resolve();
+            return Promise.resolve(false);
         }
         // Claim this session's outcome before asking the machine to give the
         // cash back. clearInterval cannot stop a tick that is already awaiting
         // the machine, and such a tick arriving with "Finished" after the cash
         // has been returned would record a payment for money the customer is
         // holding in their hand.
-        if (cashDroOutcomeRef.current) {
-            cashDroOutcomeRef.current();
+        //
+        // Losing the claim means a tick is already settling this collection: the
+        // cash is committed and the machine must not be told to pay it back out,
+        // because what it returns is the whole sale total and not the change. The
+        // FINALIZING check above is the same guard, but it reads React state that
+        // a timeout closure can have captured before the tick ran, so the latch
+        // is the one that actually decides.
+        if (!outcomeAlreadyClaimed && cashDroOutcomeRef.current && !cashDroOutcomeRef.current()) {
+            return Promise.resolve(false);
         }
         stopCashDroTimers();
         cashDroBusyRef.current = false;
@@ -1570,7 +1715,7 @@ const Terminal = (props) => {
         const trxKey = trxSlice.trx ? trxSlice.trx.key : null;
         if (!trxKey) {
             dispatch(notify({ msg: config.selfService ? SS_AR.cashDroCancelled : 'CashDro payment cancelled', sev: 'warning' }));
-            return Promise.resolve();
+            return Promise.resolve(true);
         }
 
         return axios({
@@ -1582,6 +1727,7 @@ const Terminal = (props) => {
                 dispatch(setTrx(response.data));
             }
             dispatch(notify({ msg: config.selfService ? SS_AR.cashDroCancelled : 'CashDro payment cancelled', sev: 'warning' }));
+            return true;
         }).catch((error) => {
             // The modal is already closed above so the lane isn't blocked,
             // but the cash may genuinely still be sitting in the machine —
@@ -1593,6 +1739,9 @@ const Terminal = (props) => {
                     : 'CashDro cancel failed — could not confirm the machine returned the inserted cash. Check the machine before the customer/cashier walks away.',
                 sev: 'error'
             }));
+            // The attempt was made and the lane is already unblocked, so callers
+            // still finish their teardown; only a refused claim skips it.
+            return true;
         });
     };
 
@@ -1935,7 +2084,14 @@ const Terminal = (props) => {
             dispatch(abort());
             dispatch(endPaymentMode());
         };
-        handleCancelCashDro().finally(exitPaymentFully);
+        // A refused claim means a polling tick is settling the collection and
+        // owns the screen from here (receipt or the staff hold screen), so
+        // dropping the customer back on the cart would fight it.
+        handleCancelCashDro().then((cancelled) => {
+            if (cancelled) {
+                exitPaymentFully();
+            }
+        });
     };
 
     const handleVoidLine = () => {
@@ -1943,10 +2099,27 @@ const Terminal = (props) => {
             if (terminal.paymentMode) {
 
                 if (trxSlice.selectedPayment) {
-                    confirm('إلغاء الدفعة؟', trxSlice.selectedPayment.amount + ' ' + trxSlice.selectedPayment.currency,
+                    // Khairgate Wallet (deferred capture): a PENDING row
+                    // (source_key 'KHAIRGATE-PENDING-…') was never charged —
+                    // it voids like any other tender. A CHARGED row
+                    // ('KHAIRGATE-<txn_number>', only after a close attempt
+                    // that captured but didn't finish) already took the
+                    // customer's money: demand an explicit confirmation that
+                    // it was refunded from the Khairgate merchant app; the
+                    // backend refuses the void without it (409).
+                    const pmt = trxSlice.selectedPayment;
+                    const isKhairgateCharged = pmt.paymentMethodKey === config.khairgateWallet
+                        && pmt.sourceKey && pmt.sourceKey.startsWith('KHAIRGATE-')
+                        && !pmt.sourceKey.startsWith('KHAIRGATE-PENDING-');
+                    const confirmTitle = isKhairgateCharged
+                        ? 'دفعة محفظة خيرجيت — هل تم إرجاع المبلغ للعميل من تطبيق تاجر خيرجيت؟'
+                        : 'إلغاء الدفعة؟';
+                    confirm(confirmTitle, trxSlice.selectedPayment.amount + ' ' + trxSlice.selectedPayment.currency,
                         () => {
                             if (terminal.managerMode) {
-                                dispatch(voidPayment(trxSlice.selectedPayment.key));
+                                dispatch(voidPayment(isKhairgateCharged
+                                    ? { key: trxSlice.selectedPayment.key, walletRefundConfirmed: true }
+                                    : trxSlice.selectedPayment.key));
                             } else {
                                 axios({
                                     method: 'post',
@@ -2167,6 +2340,12 @@ const Terminal = (props) => {
             dispatch(startQrAuthCheck());
         }
     }, [authQR]);
+
+    useEffect(() => {
+        if (terminal.paymentMode && terminal.paymentType === 'campaignVoucher') {
+            loadCampaignVouchers();
+        }
+    }, [terminal.paymentMode, terminal.paymentType, terminal.customer && terminal.customer.key]);
 
     useEffect(() => {
         if (trxSlice.qrAuthState === 'pending') {
@@ -2513,12 +2692,46 @@ const Terminal = (props) => {
                     <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
                 </>
             )}
+            {config.features.khairgate && (
+                <>
+                    {/* Khairgate Wallet — consumer-presented QR: enter the
+                        amount on the numpad, then scan the QR the customer
+                        shows in their Khairgate Wallet app (modal opens on OK).
+                        No refund tender: the provider has no reversal API. */}
+                    <Button key='khairgate' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
+                        style={{ background: '#0e7a4a', color: 'white' }}
+                        onClick={() => { startPayment('khairgateWallet', 'numpad') }}>
+                        <FontAwesomeIcon icon={faQrcode} style={{ marginRight: '5px' }} />
+                        <label>Khairgate</label>
+                    </Button>
+                    <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+                </>
+            )}
             {config.features.talabat && (
                 <>
-                    <Button key='talabat' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx} className={classes.MainActionButton}
-                        onClick={() => { startPayment('talabat', 'numpad') }}>
+                    <Button
+                        key='talabat'
+                        disabled={
+                            !trxSlice.trx
+                            || (terminal.trxMode === 'Refund' && !(
+                                trxSlice.originalTrxReference
+                                && trxSlice.originalTrxReference.hasTalabatPayment
+                            ))
+                            || (terminal.trxMode === 'Refund' && (trxSlice.payments || []).some(
+                                (p) => p && !p.voided && p.paymentMethodKey === 'Cash'
+                            ))
+                        }
+                        className={classes.MainActionButton}
+                        style={terminal.trxMode === 'Refund' ? { background: '#FF5A00', color: 'white' } : undefined}
+                        onClick={() => {
+                            if (terminal.trxMode === 'Refund') {
+                                handleTalabatRefundPay();
+                            } else {
+                                startPayment('talabat', 'numpad');
+                            }
+                        }}>
                         <FontAwesomeIcon icon={faMotorcycle} style={{ marginRight: '5px' }} />
-                        <label>Talabat</label>
+                        <label>{terminal.trxMode === 'Refund' ? 'Refund Talabat' : 'Talabat'}</label>
                     </Button>
                     <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
                 </>
@@ -2553,6 +2766,18 @@ const Terminal = (props) => {
                 <label>Voucher</label>
             </Button>
             <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+            {config.features.campaignVoucher && (
+                <>
+                    <Button key='campaignVoucher' disabled={terminal.trxMode === 'Refund' || !trxSlice.trx}
+                        className={classes.MainActionButton}
+                        style={{ background: '#0f766e', color: 'white' }}
+                        onClick={() => { startPayment('campaignVoucher', 'numpad') }}>
+                        <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: '5px' }} />
+                        <label>Camp. Voucher</label>
+                    </Button>
+                    <div style={{ lineHeight: '0.6705', color: 'transparent' }} > .</div>
+                </>
+            )}
             {terminal.customer && terminal.store && <Button key='onAccount'
                 disabled={(terminal.trxMode === 'Refund') || (terminal.store.sapCustomerCode === terminal.customer.key) || terminal.customer.club || !trxSlice.trx}
                 className={classes.MainActionButton} onClick={() => { startPayment('onAccount', 'numpad') }}>
@@ -2634,19 +2859,27 @@ const Terminal = (props) => {
                 tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={i + 'space'} > .</div>);
             });
         } else if (terminal.trxMode === 'Refund' && trxSlice.trx) {
+            const hasTalabatPay = (trxSlice.payments || []).some(
+                (p) => p && !p.voided && p.paymentMethodKey === 'Talabat'
+            );
             tmp.push(
-                <Button key='fulfilRefundPayment' className={classes.MainActionButton} onClick={() => {
-                    dispatch(submitPayment({
-                        tillKey: terminal.till ? terminal.till.key : null,
-                        trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                        paymentMethodKey: 'Cash',
-                        currency: config.systemCurrency,
-                        amount: trxSlice.trx ? trxSlice.trx.totalafterdiscount : 0,
-                        sourceKey: '',
-                        visaPayment: null
-                    }))
-                }}>
-                    <label style={{ marginRight: '5px' }}>Refund</label>
+                <Button
+                    key='fulfilRefundPayment'
+                    className={classes.MainActionButton}
+                    disabled={hasTalabatPay}
+                    title={hasTalabatPay ? 'Cannot mix Cash with Talabat on this refund' : undefined}
+                    onClick={() => {
+                        dispatch(submitPayment({
+                            tillKey: terminal.till ? terminal.till.key : null,
+                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+                            paymentMethodKey: 'Cash',
+                            currency: config.systemCurrency,
+                            amount: trxSlice.trx ? trxSlice.trx.totalafterdiscount : 0,
+                            sourceKey: '',
+                            visaPayment: null
+                        }))
+                    }}>
+                    <label style={{ marginRight: '5px' }}>Refund Cash</label>
                     <label style={{ fontSize: '20px' }}>
                         <span style={{ fontFamily: '"DSDIGI", monospace' }}>{trxSlice.trx.totalafterdiscount}</span> {config.currencySymbol}
                     </label>
@@ -3059,6 +3292,73 @@ const Terminal = (props) => {
         return tmp;
     }
 
+    const buildCampaignVoucherButtons = () => {
+        const currency = config.currencySymbol;
+        const list = Array.isArray(campaignVouchers) ? campaignVouchers : [];
+        if (campaignVouchersLoading) {
+            return [
+                <div key="cv-loading" className={classes.ActionButton} style={{ opacity: 0.7, textAlign: 'center' }}>
+                    Loading vouchers…
+                </div>
+            ];
+        }
+        if (!list.length) {
+            return [
+                <div key="cv-empty" style={{
+                    margin: '8px 6px',
+                    padding: '12px',
+                    borderRadius: 12,
+                    background: '#FFF7ED',
+                    border: '1px solid #FDBA74',
+                    color: '#9A3412',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    textAlign: 'center',
+                }}>
+                    لا توجد قسائم حملة متاحة لهذا الزبون
+                    <div style={{ fontWeight: 500, fontSize: 11, marginTop: 4 }}>
+                        No unused campaign vouchers
+                    </div>
+                </div>
+            ];
+        }
+        return list.map((v, i) => {
+            const ref = v.couponKey || v.coupon_key || '';
+            const amt = Number(v.couponType != null ? v.couponType : v.coupon_type) || 0;
+            return (
+                <React.Fragment key={v.key || ref || i}>
+                    <Button
+                        className={classes.MainActionButton}
+                        style={{ background: '#0f766e', color: '#fff', minHeight: 64 }}
+                        onClick={() => {
+                            if (!trxSlice.trx || !trxSlice.trx.key) return;
+                            dispatch(submitPayment({
+                                tillKey: terminal.till ? terminal.till.key : null,
+                                trxKey: trxSlice.trx.key,
+                                paymentMethodKey: 'CampaignVoucher',
+                                currency: config.systemCurrency,
+                                amount: Number(ref),
+                                sourceKey: '',
+                                visaPayment: null
+                            })).then(() => {
+                                // Refresh list after apply
+                                loadCampaignVouchers();
+                            });
+                        }}
+                    >
+                        <div style={{ textAlign: 'center', lineHeight: 1.25 }}>
+                            <div style={{ fontSize: 18, fontFamily: '"DSDIGI", monospace', fontWeight: 800 }}>
+                                {currency} {amt}
+                            </div>
+                            <div style={{ fontSize: 12, opacity: 0.95 }}>Ref #{ref}</div>
+                        </div>
+                    </Button>
+                    <div style={{ lineHeight: '0.6705', color: 'transparent' }}>.</div>
+                </React.Fragment>
+            );
+        });
+    }
+
 
 
     const buildFastItemGroupButtons = () => {
@@ -3316,6 +3616,7 @@ const Terminal = (props) => {
                             VoidTrx: 'Void Transaction',
                             PriceChange: 'Price Change',
                             Refund: 'Refund Mode',
+                            TalabatRefund: 'Talabat Refund',
                             TaxExempt: 'Tax Exempt',
                             Suspend: 'Suspend Transaction',
                             'QTY-Multiplier': 'Quantity Multiplier',
@@ -3712,42 +4013,64 @@ const Terminal = (props) => {
 
                 <div id='rightPosPanel' style={{
                     background: '#FFFFFF',
-                    padding: '10px 12px',
+                    padding: '6px 10px',
                     borderBottom: '1px solid #E5E7EB',
                     flexShrink: 0
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                         <span style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '8px',
+                            gap: '6px',
                             background: '#F8FAFC',
                             border: '1px solid #E5E7EB',
-                            padding: '6px 12px',
+                            padding: '4px 10px',
                             borderRadius: '999px',
                             color: '#111827',
-                            fontSize: '15px',
+                            fontSize: '13px',
                             fontFamily: 'Janna, "Inter", sans-serif',
                             fontWeight: 600
                         }}>
-                            <FontAwesomeIcon icon={faIdCard} style={{ color: '#6B7280', fontSize: '14px' }} />
+                            <FontAwesomeIcon icon={faIdCard} style={{ color: '#6B7280', fontSize: '12px' }} />
                             {terminal.customer ? terminal.customer.customerName : 'No Customer'}
                         </span>
 
                         {terminal.customer && terminal.customer.club && (
-                            <span style={{
+                            <span
+                                role="button"
+                                title="Refresh customer / campaign progress"
+                                onClick={() => {
+                                    const key = terminal.customer && terminal.customer.key;
+                                    if (!key || !trxSlice.trx || !trxSlice.trx.key) {
+                                        dispatch(notify({ msg: 'No open transaction to refresh', sev: 'warning' }));
+                                        return;
+                                    }
+                                    dispatch(notify({ msg: 'Refreshing customer…', sev: 'info' }));
+                                    dispatch(scanBarcode({
+                                        customerKey: key,
+                                        barcode: key,
+                                        trxKey: trxSlice.trx.key,
+                                        trxMode: terminal.trxMode,
+                                        tillKey: terminal.till ? terminal.till.key : null,
+                                        multiplier: '1',
+                                        manualEntry: true
+                                    }));
+                                }}
+                                style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '6px',
+                                gap: '5px',
                                 background: 'rgba(250, 137, 0, 0.10)',
                                 border: '1px solid rgba(250, 137, 0, 0.28)',
-                                padding: '5px 12px',
+                                padding: '3px 10px',
                                 borderRadius: '999px',
                                 color: '#B45309',
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 fontWeight: 700,
                                 letterSpacing: '0.3px',
-                                textTransform: 'uppercase'
+                                textTransform: 'uppercase',
+                                cursor: 'pointer',
+                                userSelect: 'none',
                             }}>
                                 <FontAwesomeIcon icon={faStar} />
                                 Club
@@ -3769,13 +4092,13 @@ const Terminal = (props) => {
                             <span style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '6px',
+                                gap: '5px',
                                 background: 'rgba(225, 30, 38, 0.10)',
                                 border: '1px solid rgba(225, 30, 38, 0.28)',
-                                padding: '5px 12px',
+                                padding: '3px 10px',
                                 borderRadius: '999px',
                                 color: '#B3141B',
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 fontWeight: 700,
                                 letterSpacing: '0.3px',
                                 textTransform: 'uppercase'
@@ -3786,6 +4109,34 @@ const Terminal = (props) => {
                         )}
 
                     </div>
+
+                    {config.features.spendCampaign && terminal.customer && terminal.customer.club
+                        && trxSlice.trx && trxSlice.trx.campaignSnapshot && (
+                        <SpendCampaignWidget
+                            trx={trxSlice.trx}
+                            currency={config.currencySymbol}
+                            onRedeem={() => {
+                                const snap = trxSlice.trx.campaignSnapshot;
+                                const disc = Number(snap.eligibleDiscount || 0);
+                                confirm(
+                                    'إصدار قسيمة المكافأة؟',
+                                    `قسيمة ${disc} ${config.currencySymbol} تُضاف لمحفظة الزبون (صالحة حتى 30/09/2026) ويُصفَّر التقدم.`,
+                                    () => dispatch(redeemSpendCampaign(trxSlice.trx.key)),
+                                    'success',
+                                    AR_CONFIRM_OPTS('سيظهر رقم المرجع بعد الإصدار')
+                                );
+                            }}
+                            onCancelRedeem={() => {
+                                confirm(
+                                    'إلغاء القسيمة؟',
+                                    'تُلغى القسيمة غير المستخدمة ويُعاد التقدم كما كان.',
+                                    () => dispatch(cancelSpendCampaignRedeem(trxSlice.trx.key)),
+                                    'warning',
+                                    AR_CONFIRM_OPTS()
+                                );
+                            }}
+                        />
+                    )}
                     
                     {terminal.paymentMode && trxSlice.trx && trxSlice.trx.affectedByPlusTax && trxSlice.trx.totalPlusTaxAmt > 0 && (
                         <div style={{
@@ -3939,7 +4290,11 @@ const Terminal = (props) => {
                     marginTop: 'auto',
                     flexShrink: 0
                 }}>
-                    <Numpad setAuthQR={setAuthQR} incrementTrxCount={incrementTrxCount} />
+                    <Numpad setAuthQR={setAuthQR} incrementTrxCount={incrementTrxCount}
+                        onKhairgateAmount={(amount) => {
+                            setKhairgateQrInput('');
+                            setKhairgateScan({ amount });
+                        }} />
                 </div>
 
                 {/* Transaction Summary — sits UNDER the numpad inside the middle
@@ -4109,6 +4464,17 @@ const Terminal = (props) => {
                             }
 
                             {
+                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'khairgateWallet' &&
+                                <Button className={classes.ActionButton}
+                                    appearance={config.systemCurrency === trxSlice.selectedCurrency ? 'primary' : 'default'}
+                                    onClick={() => dispatch(selectCurrency(config.systemCurrency))} >
+                                    <div style={{ textAlign: 'center' }}>
+                                        Khairgate {config.systemCurrency}
+                                    </div>
+                                </Button>
+                            }
+
+                            {
                                 actionsMode === 'payment' && terminal.trxMode !== 'Refund' &&
                                 config.systemCurrency === 'NIS' &&
                                 terminal.paymentType === 'jawwalPay' &&
@@ -4132,6 +4498,10 @@ const Terminal = (props) => {
                                 </Button>
                             }
 
+                            {
+                                actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'campaignVoucher' &&
+                                buildCampaignVoucherButtons()
+                            }
 
                             {
                                 actionsMode === 'payment' && terminal.trxMode !== 'Refund' && terminal.paymentType === 'onAccount' &&
@@ -4575,13 +4945,86 @@ const Terminal = (props) => {
                 </Modal.Body>
                 <Modal.Footer>
                     <Button 
-                        onClick={handleCancelCashDro} 
+                        onClick={() => handleCancelCashDro()} 
                         appearance="primary" 
                         color="red"
                         style={{ width: '100%' }}
                     >
                         <FontAwesomeIcon icon={faBan} style={{ marginRight: '5px' }} />
                         Cancel Payment
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+
+            {/* Khairgate Wallet — scan the CUSTOMER's wallet QR for the amount
+                already entered on the numpad. The scanner (keyboard wedge)
+                types the QR string into the auto-focused input and sends
+                Enter. Deferred capture: this only VERIFIES the customer and
+                reserves the tender — the wallet is debited at invoice close,
+                so an abandoned sale never takes the customer's money. */}
+            <Modal open={!!khairgateScan} backdrop="static" keyboard={false} size="sm"
+                onClose={() => { setKhairgateScan(null); setKhairgateQrInput(''); }}>
+                <Modal.Header closeButton={false}>
+                    <Modal.Title>
+                        <FontAwesomeIcon icon={faQrcode} style={{ marginRight: '8px', color: '#0e7a4a' }} />
+                        Khairgate Wallet
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body style={{ textAlign: 'center', padding: '20px' }}>
+                    <div style={{ fontSize: '26px', fontWeight: 'bold', color: '#0e7a4a', marginBottom: '8px' }}>
+                        {khairgateScan ? Number(khairgateScan.amount).toFixed(config.decimals) : ''} {config.systemCurrency}
+                    </div>
+                    <div style={{ marginBottom: '14px', fontSize: '15px' }}>
+                        {/* Keep the Latin "QR" out of the Arabic sentence — a
+                            mid-sentence LTR token breaks the RTL layout. Use
+                            the icon + the Arabic transliteration instead. */}
+                        <div dir='rtl'>
+                            امسح رمز <FontAwesomeIcon icon={faQrcode} style={{ margin: '0 3px', color: '#0e7a4a' }} /> (كيو آر)
+                            من تطبيق محفظة خيرجيت لدى العميل
+                        </div>
+                        Scan the customer's Khairgate Wallet QR code
+                    </div>
+                    <Input
+                        autoFocus
+                        value={khairgateQrInput}
+                        onChange={(value) => setKhairgateQrInput(value)}
+                        onPressEnter={() => submitKhairgateScan()}
+                        disabled={trxSlice.paymentSubmitting}
+                        placeholder='QR code'
+                        style={{ direction: 'ltr', textAlign: 'center' }}
+                    />
+                    {/* UAT scan simulation — only rendered when the terminal
+                        was launched with ?khairgateTestQr=… (see config.js).
+                        Fills the input exactly as the wedge scanner would. */}
+                    {config.khairgateTestQr && (
+                        <Button appearance='ghost' size='sm' style={{ marginTop: '10px' }}
+                            disabled={trxSlice.paymentSubmitting}
+                            onClick={() => setKhairgateQrInput(config.khairgateTestQr)}>
+                            <FontAwesomeIcon icon={faQrcode} style={{ marginRight: '5px' }} />
+                            Insert test QR (simulate scan)
+                        </Button>
+                    )}
+                    {trxSlice.paymentSubmitting && (
+                        <div style={{ marginTop: '12px', color: '#666' }}>
+                            جاري التحقق من المحفظة… | Verifying the wallet…
+                        </div>
+                    )}
+                    <div style={{ marginTop: '10px', fontSize: '12px', color: '#888' }}>
+                        <div dir='rtl'>يتم الخصم من المحفظة عند إغلاق الفاتورة</div>
+                        The wallet is debited when the invoice is closed
+                    </div>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button onClick={() => submitKhairgateScan()} appearance='primary'
+                        disabled={trxSlice.paymentSubmitting || !khairgateQrInput}
+                        style={{ background: '#0e7a4a' }}>
+                        <FontAwesomeIcon icon={faCheck} style={{ marginRight: '5px' }} />
+                        Approve
+                    </Button>
+                    <Button onClick={() => { setKhairgateScan(null); setKhairgateQrInput(''); }}
+                        disabled={trxSlice.paymentSubmitting} appearance='subtle'>
+                        <FontAwesomeIcon icon={faBan} style={{ marginRight: '5px' }} />
+                        Cancel
                     </Button>
                 </Modal.Footer>
             </Modal>

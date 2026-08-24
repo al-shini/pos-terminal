@@ -82,6 +82,12 @@ const EXACT_MAP = {
     "cannot suspend transaction because it has 'active payments'": 'لا يمكن تعليق الفاتورة لوجود دفعات فعّالة عليها',
     'trx not linked with cashdro operation': 'الفاتورة غير مرتبطة بعملية ماكينة النقد',
     'no valid transaction': 'لا توجد فاتورة صالحة',
+    '[/scannew] there is open transaction on till, please click on `restart`':
+        'هناك فاتورة مفتوحة على هذه الصندوق — اضغط إعادة تشغيل (Restart)',
+    'there is open transaction on till, please click on `restart`':
+        'هناك فاتورة مفتوحة على هذه الصندوق — اضغط إعادة تشغيل (Restart)',
+    'could not open transaction for loyalty card':
+        'تعذّر فتح فاتورة لبطاقة الولاء — جرّب Restart ثم أعد المسح',
     'no open transactions': 'لا توجد فواتير مفتوحة',
     'no transaction line selected': 'لم يتم اختيار سطر من الفاتورة',
     'no payment line selected': 'لم يتم اختيار دفعة',
@@ -108,7 +114,9 @@ const EXACT_MAP = {
     'could not reach head office to redeem the voucher. please try again.': 'تعذّر الاتصال بالمكتب الرئيسي لصرف القسيمة — حاول مرة أخرى',
 
     // --- frontend-authored notify() literals ---
-    'cannot scan item when in payment mode': 'لا يمكن مسح المنتج أثناء وضع الدفع',
+    'only loyalty coupon barcodes can be scanned during payment':
+        'أثناء الدفع يُسمح فقط بمسح باركود قسائم الولاء (VCH-)',
+    'cannot scan item when in payment mode': 'لا يمكن مسح المنتج أثناء وضع الدفع — اضغط Abort/رجوع أولاً',
     'transaction paid, print invoice ☺': 'تم الدفع، جارٍ طباعة الفاتورة ☺',
     'trx tax exempted': 'تم إعفاء الفاتورة من الضريبة',
     'line price changed': 'تم تغيير سعر السطر',

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { showLoading, hideLoading, notify, showItemScanError } from './uiSlice'
+import { showLoading, hideLoading, notify, showItemScanError, showHardNotification } from './uiSlice'
 import { fetchSuspendedForTill, resetCustomer, setCustomer, setManagerMode, setManagerUser, setTrxMode, triggerErrorSound, unlockTill, beginPayment } from './terminalSlice';
 import SS_AR from '../components/Terminal/SelfService/i18n';
 import { reset } from './terminalSlice'
@@ -144,7 +144,24 @@ export const scanNewTransaction = createAsyncThunk(
                         }));
                     }
 
-                    if (!payload.barcode.includes('C-')) {
+                    // C-* account customers attach without a sale. LC-* is handled
+                    // fully by scanNew (creates trx + attaches customer) — do NOT
+                    // treat "LC-…" as C- via includes('C-').
+                    if (payload.barcode.startsWith('C-') && !payload.barcode.startsWith('LC-')) {
+                        thunkAPI.dispatch(setCustomer(response.data.customer))
+                    } else if (payload.barcode.startsWith('LC-')) {
+                        // Backend already opened the trx and attached the customer.
+                        if (response.data.customer) {
+                            thunkAPI.dispatch(setCustomer(response.data.customer));
+                        }
+                    } else {
+                        if (!response.data.trx || !response.data.trx.key) {
+                            thunkAPI.dispatch(notify({
+                                msg: 'Could not open transaction for loyalty card',
+                                sev: 'error'
+                            }));
+                            return thunkAPI.rejectWithValue('No trx after scanNew');
+                        }
                         const scanPayload = {
                             customerKey: thunkAPI.getState().terminal.customer ? thunkAPI.getState().terminal.customer.key : null,
                             barcode: payload.barcode,
@@ -154,16 +171,12 @@ export const scanNewTransaction = createAsyncThunk(
                             multiplier: payload.multiplier ? payload.multiplier : '1'
                         };
                         
-                        // Add sellTrxKeyRef to scan payload for refunds
                         const currentTrxState = thunkAPI.getState().trx;
                         if (thunkAPI.getState().terminal.trxMode === 'Refund' && currentTrxState.originalTrxReference) {
                             scanPayload.sellTrxKeyRef = currentTrxState.originalTrxReference.key;
-                            console.log('scanNewTransaction: Adding sellTrxKeyRef to scanPayload:', scanPayload.sellTrxKeyRef);
                         }
                         
                         thunkAPI.dispatch(scanBarcode(scanPayload));
-                    } else {
-                        thunkAPI.dispatch(setCustomer(response.data.customer))
                     }
                     return thunkAPI.fulfillWithValue(response.data);
                 } else {
@@ -174,18 +187,19 @@ export const scanNewTransaction = createAsyncThunk(
                 thunkAPI.dispatch(triggerErrorSound());
                 if (error.response) {
                     if (error.response.status === 401) {
-
                         thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                         return thunkAPI.rejectWithValue('Un-authorized');
-                    } else {
-                        thunkAPI.dispatch(notify({ msg: 'error: ' + error.response.data, sev: 'error' }));
-                        return thunkAPI.rejectWithValue(error.response.data);
                     }
-                } else {
-
-                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
-                    return thunkAPI.rejectWithValue(error.message);
+                    const raw = error.response.data;
+                    const msg = typeof raw === 'string'
+                        ? raw
+                        : (raw && raw.message) ? raw.message : (typeof raw === 'object' ? JSON.stringify(raw) : String(raw));
+                    thunkAPI.dispatch(notify({ msg, sev: 'error' }));
+                    thunkAPI.dispatch(showItemScanError(msg));
+                    return thunkAPI.rejectWithValue(raw);
                 }
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                return thunkAPI.rejectWithValue(error.message);
             }).finally(() => {
                 thunkAPI.dispatch(hideLoading());
             });;
@@ -262,23 +276,17 @@ export const scanBarcode = createAsyncThunk(
                 if (error.response.status === 401) {
                     thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
                     return thunkAPI.rejectWithValue('Un-authorized');
-                } else {
-                    thunkAPI.dispatch(notify({ msg: 'Error: ' + error.response.data?.message ?? JSON.stringify(error.response), sev: 'error' }));
-                    thunkAPI.dispatch(showItemScanError(error.response.data?.message ?? JSON.stringify(error.response)));
-                    return thunkAPI.rejectWithValue(error.response.data);
                 }
-            } else {
-
-                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
-                // A network error has no `error.response`. Falling through here
-                // used to return undefined, which RTK treats as SUCCESS: the
-                // thunk fulfilled with an undefined payload, the fulfilled
-                // reducer threw reading it, Immer discarded the whole update —
-                // including the "in flight" flag — and every later payment on
-                // this terminal was silently refused by the re-entrancy guard.
-                return thunkAPI.rejectWithValue(error.message);
+                const raw = error.response.data;
+                const msg = typeof raw === 'string'
+                    ? raw
+                    : (raw && raw.message) ? raw.message : (typeof raw === 'object' ? JSON.stringify(raw) : String(raw));
+                thunkAPI.dispatch(notify({ msg, sev: 'error' }));
+                thunkAPI.dispatch(showItemScanError(msg));
+                return thunkAPI.rejectWithValue(raw);
             }
-
+            thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+            return thunkAPI.rejectWithValue(error.message);
         }).finally(() => {
             thunkAPI.dispatch(hideLoading());
         });
@@ -375,11 +383,17 @@ export const submitPayment = createAsyncThunk(
         return axios({
             method: 'post',
             url: '/trx/submitPayment',
-            data
+            data,
+            // Without a timeout, a hung request leaves paymentSubmitting=true
+            // forever and the OK button stays disabled until an app reload.
+            timeout: 30000
         }).then((response) => {
             if (response && response.data) {
                 console.log('response.data', response.data)
                 thunkAPI.dispatch(clearNumberInput());
+                if (response.data.customer) {
+                    thunkAPI.dispatch(setCustomer(response.data.customer));
+                }
                 // if (response.data.closeTrx) {
                 //thunkAPI.dispatch(closeTrxPayment({
                 //    key: response.data.trx.key
@@ -410,7 +424,17 @@ export const submitPayment = createAsyncThunk(
                 }
             } else {
 
-                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                if (error.code === 'ECONNABORTED') {
+                    // Timed out: the server may or may not have saved the
+                    // payment. Tell the cashier to check the payments list
+                    // before retrying instead of blindly resubmitting.
+                    thunkAPI.dispatch(notify({
+                        msg: 'Server is slow — payment may not be saved. Check the payments list before trying again.',
+                        sev: 'warning'
+                    }));
+                } else {
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                }
                 // A network error has no `error.response`. Falling through here
                 // used to return undefined, which RTK treats as SUCCESS: the
                 // thunk fulfilled with an undefined payload, the fulfilled
@@ -446,7 +470,12 @@ export const closeTrxPayment = createAsyncThunk(
             url: '/trx/closeTrxPayment',
             headers: {
                 trxKey: payload.key
-            }
+            },
+            // Without a timeout, a hung close leaves closingTrx=true forever
+            // and OK stays disabled until an app reload. The backend close is
+            // an atomic OPEN->CLOSED claim, so retrying after a timeout is
+            // safe: an already-closed trx is returned idempotently.
+            timeout: 45000
         }).then((response) => {
             if (response && response.data) {
 
@@ -506,7 +535,17 @@ export const closeTrxPayment = createAsyncThunk(
                 }
             } else {
 
-                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                if (error.code === 'ECONNABORTED') {
+                    // Timed out. The close is atomic and idempotent on the
+                    // backend, so pressing OK again either finishes the close
+                    // or returns the already-closed sale.
+                    thunkAPI.dispatch(notify({
+                        msg: 'Server is slow — press OK again to finish the sale.',
+                        sev: 'warning'
+                    }));
+                } else {
+                    thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+                }
                 // See submitPayment: returning undefined here fulfils the thunk
                 // and corrupts the reducer, so a network blip must reject.
                 return thunkAPI.rejectWithValue(error.message);
@@ -527,6 +566,67 @@ export const closeTrxPayment = createAsyncThunk(
         }
     }
 )
+
+export const redeemSpendCampaign = createAsyncThunk(
+    'redeemSpendCampaign',
+    async (trxKey, thunkAPI) => {
+        thunkAPI.dispatch(showLoading());
+        return axios({
+            method: 'post',
+            url: '/trx/campaign/redeem',
+            headers: { trxKey }
+        }).then((response) => {
+            thunkAPI.dispatch(hideLoading());
+            if (response && response.data) {
+                if (response.data.customer) {
+                    thunkAPI.dispatch(setCustomer(response.data.customer));
+                }
+                const snap = response.data.trx && response.data.trx.campaignSnapshot;
+                const ref = snap && snap.voucherRef;
+                const amt = snap && snap.reservedDiscount;
+                if (ref) {
+                    const msg = `تم إصدار قسيمة ${amt != null ? amt : ''} JD\nرقم المرجع: #${ref}\nادفع عبر Camp. Voucher`;
+                    thunkAPI.dispatch(notify({ msg: `Campaign voucher #${ref} issued`, sev: 'success' }));
+                    thunkAPI.dispatch(showHardNotification(msg));
+                } else {
+                    thunkAPI.dispatch(notify({ msg: 'Campaign voucher issued', sev: 'success' }));
+                }
+                // No auto-close — voucher is tendered later via Campaign Voucher.
+                return thunkAPI.fulfillWithValue(response.data);
+            }
+            return thunkAPI.rejectWithValue('Incorrect server response');
+        }).catch((error) => {
+            thunkAPI.dispatch(hideLoading());
+            const msg = error.response?.data || error.message || 'Redeem failed';
+            thunkAPI.dispatch(notify({ msg: String(msg), sev: 'error' }));
+            return thunkAPI.rejectWithValue(msg);
+        });
+    }
+);
+
+export const cancelSpendCampaignRedeem = createAsyncThunk(
+    'cancelSpendCampaignRedeem',
+    async (trxKey, thunkAPI) => {
+        thunkAPI.dispatch(showLoading());
+        return axios({
+            method: 'post',
+            url: '/trx/campaign/cancel-redeem',
+            headers: { trxKey }
+        }).then((response) => {
+            thunkAPI.dispatch(hideLoading());
+            if (response && response.data) {
+                thunkAPI.dispatch(notify({ msg: 'Campaign reward cancelled', sev: 'info' }));
+                return thunkAPI.fulfillWithValue(response.data);
+            }
+            return thunkAPI.rejectWithValue('Incorrect server response');
+        }).catch((error) => {
+            thunkAPI.dispatch(hideLoading());
+            const msg = error.response?.data || error.message || 'Cancel failed';
+            thunkAPI.dispatch(notify({ msg: String(msg), sev: 'error' }));
+            return thunkAPI.rejectWithValue(msg);
+        });
+    }
+);
 
 export const printTrx = createAsyncThunk(
     'printTrx',
@@ -717,17 +817,88 @@ export const fullTrxTaxExempt = createAsyncThunk(
 )
 
 
+/**
+ * Khairgate Wallet tender (deferred capture): amount was entered on the
+ * numpad, then the cashier scanned the CUSTOMER's wallet QR. The backend
+ * resolves the QR, checks the balance and RESERVES the tender — no money
+ * moves here. The actual wallet debit runs inside closeTrxPayment, as the
+ * last step before the invoice is closed, so an abandoned or aborted sale
+ * never takes the customer's money. Shares the submitPayment reducers, so
+ * the payments list and paid/change figures refresh like any other tender.
+ */
+export const submitKhairgatePayment = createAsyncThunk(
+    'submitKhairgatePayment',
+    async (payload, thunkAPI) => {
+        thunkAPI.dispatch(showLoading());
+        return axios({
+            method: 'post',
+            url: '/trx/khairgatePay',
+            data: payload,
+            // The backend round-trip includes the provider QR/balance calls;
+            // give it more room than a local submit, but never hang the till.
+            timeout: 45000
+        }).then((response) => {
+            if (response && response.data) {
+                thunkAPI.dispatch(clearNumberInput());
+                return thunkAPI.fulfillWithValue(response.data);
+            }
+            return thunkAPI.rejectWithValue('Incorrect server response');
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    thunkAPI.dispatch(notify({ msg: 'Wrong credentials', sev: 'error' }));
+                    return thunkAPI.rejectWithValue('Un-authorized');
+                }
+                // 503 = provider unreachable or khairgate not configured on
+                // this store — warnings, not errors (nothing was charged).
+                const sev = error.response.status === 503 ? 'warning' : 'error';
+                thunkAPI.dispatch(notify({ msg: error.response.data, sev }));
+                return thunkAPI.rejectWithValue(error.response.data);
+            }
+            if (error.code === 'ECONNABORTED') {
+                thunkAPI.dispatch(notify({
+                    msg: 'Khairgate is slow — nothing was charged (the wallet is only debited at invoice close). Scan again.',
+                    sev: 'warning'
+                }));
+            } else {
+                thunkAPI.dispatch(notify({ msg: 'error: ' + error.message, sev: 'error' }));
+            }
+            return thunkAPI.rejectWithValue(error.message);
+        }).finally(() => {
+            thunkAPI.dispatch(hideLoading());
+        });
+    },
+    {
+        condition: (payload, { getState }) => {
+            const state = getState();
+            if (state && state.trx && state.trx.paymentSubmitting) {
+                return false;
+            }
+            return true;
+        }
+    }
+)
+
 export const voidPayment = createAsyncThunk(
     'voidPayment',
     async (payload, thunkAPI) => {
 
+        // payload is the payment key (string), or — for Khairgate Wallet rows,
+        // whose charge already settled at the provider — an object
+        // { key, walletRefundConfirmed: true } sent after the cashier confirms
+        // the amount was refunded from the Khairgate merchant app. The backend
+        // refuses the void without that header (409).
+        const isObject = payload && typeof payload === 'object';
         const data = {
             trxKey: thunkAPI.getState().trx.trx.key,
-            lineKey: payload
+            lineKey: isObject ? payload.key : payload
         };
         return axios({
             method: 'post',
             url: '/trx/voidPayment',
+            headers: (isObject && payload.walletRefundConfirmed)
+                ? { 'X-Wallet-Refund-Confirmed': 'true' }
+                : undefined,
             data
         }).then((response) => {
             if (response && response.data) {
@@ -880,7 +1051,24 @@ export const checkOperationQrAuth = createAsyncThunk(
                             break;
                         }
                         case 'VoidPayment': {
-                            thunkAPI.dispatch(voidPayment(response.data.sourceKey));
+                            // CHARGED Khairgate rows ('KHAIRGATE-<txn>' — money
+                            // really moved) need the refund-confirmed header;
+                            // the cashier already answered the external-refund
+                            // dialog before this QR was generated. PENDING rows
+                            // ('KHAIRGATE-PENDING-…') were never charged and
+                            // void like any other tender.
+                            const paymentsList = thunkAPI.getState().trx.payments || [];
+                            const target = paymentsList.find((p) => p && p.key === response.data.sourceKey);
+                            if (target && target.paymentMethodKey === config.khairgateWallet
+                                && target.sourceKey && target.sourceKey.startsWith('KHAIRGATE-')
+                                && !target.sourceKey.startsWith('KHAIRGATE-PENDING-')) {
+                                thunkAPI.dispatch(voidPayment({
+                                    key: response.data.sourceKey,
+                                    walletRefundConfirmed: true
+                                }));
+                            } else {
+                                thunkAPI.dispatch(voidPayment(response.data.sourceKey));
+                            }
                             thunkAPI.dispatch(holdQrAuthCheck());
                             break;
                         }
@@ -905,13 +1093,44 @@ export const checkOperationQrAuth = createAsyncThunk(
                             thunkAPI.dispatch(holdQrAuthCheck());
                             break;
                         }
+                        case 'TalabatRefund': {
+                            // Manager authorized Talabat as the refund tender.
+                            const st = thunkAPI.getState();
+                            const trx = st.trx.trx;
+                            if (!trx || !trx.key) {
+                                thunkAPI.dispatch(holdQrAuthCheck());
+                                break;
+                            }
+                            const amount = payload.pendingAmount != null
+                                ? payload.pendingAmount
+                                : (trx.totalafterdiscount || 0);
+                            thunkAPI.dispatch(submitPayment({
+                                tillKey: st.terminal.till ? st.terminal.till.key : null,
+                                trxKey: trx.key,
+                                paymentMethodKey: 'Talabat',
+                                currency: config.systemCurrency,
+                                amount,
+                                sourceKey: '',
+                                visaPayment: null
+                            }));
+                            thunkAPI.dispatch(holdQrAuthCheck());
+                            break;
+                        }
                         case 'UnlockTill': {
                             thunkAPI.dispatch(unlockTill());
                             thunkAPI.dispatch(holdQrAuthCheck());
                             break;
                         }
                         case 'QTY-Multiplier': {
-                            thunkAPI.dispatch(prepareScanMultiplier());
+                            // Value was typed before the QR was shown — prefer
+                            // the stashed pendingMultiplier so a cleared numpad
+                            // during the wait cannot arm a bogus qty.
+                            const pending = payload.pendingMultiplier;
+                            if (pending != null && String(pending).trim() !== '') {
+                                thunkAPI.dispatch(prepareScanMultiplierPreDefined(String(pending)));
+                            } else {
+                                thunkAPI.dispatch(prepareScanMultiplier());
+                            }
                             thunkAPI.dispatch(holdQrAuthCheck());
                             break;
                         }
@@ -1213,7 +1432,13 @@ export const trxSlice = createSlice({
             }
         },
         setTrx: (state, action) => {
+            // Preserve campaignSnapshot when a backend response omits it
+            // (e.g. abortPayment) so the progress widget stays visible.
+            const prevSnap = state.trx && state.trx.campaignSnapshot;
             state.trx = action.payload;
+            if (action.payload && prevSnap && !action.payload.campaignSnapshot) {
+                state.trx.campaignSnapshot = prevSnap;
+            }
             // trxPaid/trxChange are a cache of the trx's own paidamt and
             // customerchange. Callers only ever pass an authoritative trx
             // straight from the server, so re-sync them here: leaving a stale
@@ -1241,20 +1466,25 @@ export const trxSlice = createSlice({
             state.priceChangeReason = ''
         },
         prepareScanMultiplier: (state) => {
+            // Piece-item qty override must be >= 1. Fractional values (0.1×)
+            // were used to abuse per-unit discounts on milk gallons etc.
+            // Scale/weight barcodes still send their own qty and do not use this.
             const numValue = parseFloat(state.numberInputValue);
-            state.multiplier = state.numberInputValue;
-
-            // if (!state.numberInputValue || isNaN(numValue) || numValue < 1) {
-            //     state.multiplier = '1';
-            // } else {
-            //     state.multiplier = state.numberInputValue;
-            // }
-
+            if (!state.numberInputValue || isNaN(numValue) || numValue < 1) {
+                state.multiplier = '1';
+            } else {
+                state.multiplier = state.numberInputValue;
+            }
             state.numberInputValue = '';
         },
         prepareScanMultiplierPreDefined: (state, action) => {
             if (action.payload) {
-                state.multiplier = action.payload;
+                const numValue = parseFloat(action.payload);
+                if (isNaN(numValue) || numValue < 1) {
+                    state.multiplier = '1';
+                } else {
+                    state.multiplier = String(action.payload);
+                }
                 state.numberInputValue = '';
             }
         },
@@ -1496,6 +1726,26 @@ export const trxSlice = createSlice({
             state.multiplier = '1';
         })
 
+        builder.addCase(redeemSpendCampaign.fulfilled, (state, action) => {
+            if (!action.payload) { return; }
+            if (action.payload.trx) {
+                state.trx = action.payload.trx;
+                if (action.payload.trxLines) {
+                    state.scannedItems = action.payload.trxLines;
+                }
+            }
+        })
+
+        builder.addCase(cancelSpendCampaignRedeem.fulfilled, (state, action) => {
+            if (!action.payload) { return; }
+            if (action.payload.trx) {
+                state.trx = action.payload.trx;
+                if (action.payload.trxLines) {
+                    state.scannedItems = action.payload.trxLines;
+                }
+            }
+        })
+
 
         /* rescanTrx thunk */
         builder.addCase(rescanTrx.fulfilled, (state, action) => {
@@ -1551,6 +1801,28 @@ export const trxSlice = createSlice({
         })
 
         builder.addCase(submitPayment.rejected, (state, action) => {
+            state.paymentSubmitting = false;
+        })
+
+        /* submitKhairgatePayment thunk — same contract as submitPayment:
+           the backend returns the full TrxPaymentResponse after recording
+           the wallet tender. */
+        builder.addCase(submitKhairgatePayment.pending, (state, action) => {
+            state.paymentSubmitting = true;
+        })
+        builder.addCase(submitKhairgatePayment.fulfilled, (state, action) => {
+            state.paymentSubmitting = false;
+            if (!action.payload) {
+                return;
+            }
+            if (action.payload.payments) {
+                state.payments = action.payload.payments;
+                state.trxPaid = action.payload.totalPaid;
+                state.trxChange = action.payload.change;
+                state.trx = action.payload.trx;
+            }
+        })
+        builder.addCase(submitKhairgatePayment.rejected, (state, action) => {
             state.paymentSubmitting = false;
         })
 
@@ -1684,8 +1956,11 @@ export const trxSlice = createSlice({
         /* validateRefundReference thunk */
         builder.addCase(validateRefundReference.fulfilled, (state, action) => {
             if (!action.payload) { return; }
-            // Store the validated original transaction reference
-            state.originalTrxReference = action.payload.originalTransaction;
+            // Store original sale + whether it had a Talabat tender (enables Talabat refund).
+            const orig = action.payload.originalTransaction || null;
+            state.originalTrxReference = orig
+                ? { ...orig, hasTalabatPayment: !!action.payload.hasTalabatPayment }
+                : null;
         })
 
         builder.addCase(validateRefundReference.rejected, (state, action) => {

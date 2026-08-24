@@ -372,6 +372,22 @@ const SelfServiceView = ({
                                     <b className={classes.CustomerChipEmployee}>{AR.employeeTag}</b>
                                 )}
                             </span>
+                            {config.features.spendCampaign
+                                && trxSlice.trx
+                                && trxSlice.trx.campaignSnapshot
+                                && trxSlice.trx.campaignSnapshot.active && (
+                                <span className={classes.CustomerChipBadge} style={{
+                                    background: Number(trxSlice.trx.campaignSnapshot.eligibleDiscount) > 0
+                                        ? 'rgba(22,163,74,0.15)' : 'rgba(245,158,11,0.15)',
+                                    color: '#92400e',
+                                    marginRight: 4,
+                                }}>
+                                    {Number(trxSlice.trx.campaignSnapshot.cumulativeAmt || 0).toFixed(0)} {config.currencySymbol}
+                                    {Number(trxSlice.trx.campaignSnapshot.eligibleDiscount) > 0
+                                        ? ` · ${Number(trxSlice.trx.campaignSnapshot.eligibleDiscount)} خصم`
+                                        : ''}
+                                </span>
+                            )}
                             <button
                                 type="button"
                                 className={classes.CustomerChipRemove}

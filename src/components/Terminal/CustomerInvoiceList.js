@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBan, faTag, faReceipt } from '@fortawesome/free-solid-svg-icons';
@@ -85,6 +85,10 @@ const LineRow = React.memo(function LineRow({ item }) {
 /**
  * The latest-scanned item gets a large, animated "hero" card pinned above
  * the scrollable list. We deliberately don't repeat it inside the list.
+ *
+ * The name owns the whole top row: product descriptions here are long enough
+ * that sharing a line with the quantity chip and the price cropped most of
+ * them, and the name is the one thing the customer is checking.
  */
 const LatestScanCard = ({ item }) => {
     const { isVoided, hasDiscount, hasExtra, hasAdjustment, displayPrice, delta } = deriveItemState(item);
@@ -104,17 +108,13 @@ const LatestScanCard = ({ item }) => {
             className={`${classes.LatestScanCard} ${cardExtraClass}`}
             key={item.key}
         >
-            <div className={classes.LatestScanLabel}>
-                <span className={classes.LatestScanLabelDot} />
-                Latest Scan
-            </div>
+            <div className={classes.LatestScanName}>{item.description}</div>
 
             <div className={classes.LatestScanBody}>
                 <span className={classes.LatestScanQty}>
                     <span className={classes.LatestScanQtyMult}>×</span>
                     {item.qty}
                 </span>
-                <span className={classes.LatestScanName}>{item.description}</span>
                 <span className={classes.LatestScanPriceWrap}>
                     {hasAdjustment && !isVoided && (
                         <span className={classes.LatestScanPriceOld}>
@@ -161,22 +161,31 @@ const LatestScanCard = ({ item }) => {
 
 /**
  * Customer-facing invoice — renders the highlighted latest scan card plus
- * the remaining items in NEWEST-FIRST order. Intentionally does NOT reuse
- * the cashier's Invoice component (no barcode reader, no selection, no
- * click handlers, no virtualization overhead).
+ * the remaining items in receipt order, oldest at the top, so each new scan
+ * lands at the bottom of the list the way the self-service cart behaves.
+ * Intentionally does NOT reuse the cashier's Invoice component (no barcode
+ * reader, no selection, no click handlers, no virtualization overhead).
  */
 const CustomerInvoiceList = () => {
     const scannedItems = useSelector((state) => state.trx.scannedItems);
+    const listRef = useRef(null);
 
     const { latestItem, olderItems } = useMemo(() => {
         if (!scannedItems || scannedItems.length === 0) {
             return { latestItem: null, olderItems: [] };
         }
         const last = scannedItems[scannedItems.length - 1];
-        // Everything except the latest, newest-first.
-        const rest = scannedItems.slice(0, -1).slice().reverse();
+        // Everything except the latest, in receipt order.
+        const rest = scannedItems.slice(0, -1);
         return { latestItem: last, olderItems: rest };
     }, [scannedItems]);
+
+    // The newest line sits at the bottom, so stay pinned there as it grows.
+    useEffect(() => {
+        if (listRef.current) {
+            listRef.current.scrollTop = listRef.current.scrollHeight;
+        }
+    }, [olderItems.length]);
 
     if (!latestItem) {
         return (
@@ -195,7 +204,7 @@ const CustomerInvoiceList = () => {
     return (
         <>
             <LatestScanCard item={latestItem} />
-            <div className={classes.ListWrap}>
+            <div className={classes.ListWrap} ref={listRef}>
                 {olderItems.map((item) => (
                     <LineRow key={item.key} item={item} />
                 ))}

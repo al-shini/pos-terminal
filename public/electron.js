@@ -214,6 +214,13 @@ function createWindow() {
     if (localConfig.tenant) {
         params += `&tenant=${localConfig.tenant}`;
     }
+    // Khairgate Wallet UAT scan simulation: "khairgateTestQr": true in
+    // posconfig.json puts an "Insert test QR" button in the Khairgate scan
+    // modal (test customer from the integration details sheet). A string
+    // value simulates that specific QR instead. Never set in production.
+    if (localConfig.khairgateTestQr) {
+        params += `&khairgateTestQr=${encodeURIComponent(localConfig.khairgateTestQr)}`;
+    }
 
 
     logger.info(params);

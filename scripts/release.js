@@ -63,6 +63,8 @@ Options:
   --version <x.y.z>                 Set an exact version (alias for --bump x.y.z)
   --no-build                        Skip 'npm run make' (upload existing dist artifact)
   --targets <a,b>                   Only publish to these head offices (by name)
+                                    e.g. --targets jordan   or  --targets palestine
+                                    npm run release:jordan / release:palestine helpers
   --config <path>                   Path to release.config.json
   --dry-run                         Print actions without building/uploading/writing
   -h, --help                        Show this help`);

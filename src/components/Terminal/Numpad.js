@@ -68,8 +68,13 @@ const Numpad = (props) => {
             if (terminal.paymentMode) {
                 if (trxSlice.trx) {
                     console.log("INSIDE TRX")
+                    const due = Number(trxSlice.trx.totalafterdiscount || 0);
+                    const paid = Number(trxSlice.trx.paidamt || 0);
                     const change = trxSlice.trx.customerchange;
-                    if (change >= 0) {
+                    // Fully covered (or over-discounted to <= 0) — close with no
+                    // further tender. customerchange can be stale before a
+                    // payment re-eval, so also trust due <= 0 or paid >= due.
+                    if (due <= 0 || (change != null && change >= 0) || paid >= due) {
                         dispatch(closeTrxPayment({
                             key: trxSlice.trx.key
                         }));
@@ -101,6 +106,24 @@ const Numpad = (props) => {
                         }))
                         return;
 
+                    }
+
+                    // Khairgate Wallet: the amount is only half the tender —
+                    // the customer's wallet QR still has to be scanned. Hand
+                    // the amount to Terminal, which opens the scan modal and
+                    // submits via /trx/khairgatePay (NOT /trx/submitPayment:
+                    // the QR resolution + reference reservation happen there;
+                    // the wallet itself is debited at invoice close).
+                    if (trxSlice.selectedPaymentMethod === config.khairgateWallet) {
+                        const khairgateAmount = parseFloat(trxSlice.numberInputValue);
+                        if (isNaN(khairgateAmount) || khairgateAmount <= 0) {
+                            dispatch(notify({ msg: 'Please specify valid amount', sev: 'error' }));
+                            return;
+                        }
+                        if (props.onKhairgateAmount) {
+                            props.onKhairgateAmount(khairgateAmount);
+                        }
+                        return;
                     }
 
                     // Shini Me loyalty coupon codes (VCH-/DSC-/BDL-/CPN-…) are
@@ -164,33 +187,50 @@ const Numpad = (props) => {
     }
 
     const handlePrepareMultiplier = () => {
-        axios({
-            method: 'post',
-            url: '/utilities/generateQR',
-            data: {
-                hardwareId: config.deviceId,
-                source: 'QTY-Multiplier',
-                sourceKey: terminal.terminal.tillKey,
-                creator: terminal.loggedInUser.key
-            }
-        }).then((response) => {
-            if (response && response.data) {
-                props.setAuthQR({
-                    ...response.data,
-                    source: 'QTY-Multiplier'
-                });
-            } else {
-                dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
-            }
-        }).catch((error) => {
-            if (error.response) {
-                if (error.response.status === 401) {
-                    dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+        const raw = trxSlice.numberInputValue;
+        const numValue = parseFloat(raw);
+        if (!raw || isNaN(numValue) || numValue < 1) {
+            dispatch(notify({ msg: 'Quantity must be 1 or more', sev: 'error' }));
+            return;
+        }
+
+        // Jordan: manager QR before arming ×N (same pattern as PriceChange).
+        // Manager mode bypasses the QR gate.
+        if (config.features.qtyMultiplierQrAuth && !terminal.managerMode) {
+            axios({
+                method: 'post',
+                url: '/utilities/generateQR',
+                data: {
+                    hardwareId: config.deviceId,
+                    source: 'QTY-Multiplier',
+                    sourceKey: terminal.till ? terminal.till.key : null,
+                    creator: terminal.loggedInUser ? terminal.loggedInUser.key : null
                 }
-            } else {
-                dispatch(notify({ msg: error.message, sev: 'error' }));
-            }
-        });
+            }).then((response) => {
+                if (response && response.data) {
+                    props.setAuthQR({
+                        ...response.data,
+                        source: 'QTY-Multiplier',
+                        pendingMultiplier: raw
+                    });
+                } else {
+                    dispatch(notify({ msg: 'Incorrect generate QR response', sev: 'error' }))
+                }
+            }).catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
+                    } else {
+                        dispatch(notify({ msg: error.response.data || error.message, sev: 'error' }));
+                    }
+                } else {
+                    dispatch(notify({ msg: error.message, sev: 'error' }));
+                }
+            });
+            return;
+        }
+
+        dispatch(prepareScanMultiplier());
     }
 
 
@@ -271,6 +311,7 @@ const Numpad = (props) => {
                             disabled={terminal.paymentMode && terminal.paymentInput === 'fixed'}
                             placeholder={terminal.paymentMode && terminal.paymentInput === 'numpad'
                                 ? trxSlice.selectedPaymentMethod === 'Voucher' ? 'Insert Voucher/Coupon Key' :
+                                    trxSlice.selectedPaymentMethod === 'CampaignVoucher' ? 'Campaign Voucher Ref #' :
                                     'Rate (' + trxSlice.selectedCurrency + ' x ' + (trxSlice.selectedCurrency === config.systemCurrency ? '1' : terminal.exchangeRates[trxSlice.selectedCurrency]) + ')' :
                                 terminal.paymentMode && terminal.paymentInput === 'fixed' ? '-' : trxSlice.priceChangeMode ? 'Insert New Price (Per Item)' : 'Search'}
                             style={{
@@ -419,7 +460,7 @@ const Numpad = (props) => {
                             appearance='primary' color='orange' />
                     </FlexboxGrid.Item>
                     <FlexboxGrid.Item colspan={24}>
-                        <IconButton onClick={() => {dispatch(prepareScanMultiplier())}} className={btnClass}
+                        <IconButton onClick={handlePrepareMultiplier} className={btnClass}
                             disabled={trxSlice.priceChangeMode}
                             icon={<FontAwesomeIcon icon={faTimes} />}
                             appearance='primary' color='blue' />

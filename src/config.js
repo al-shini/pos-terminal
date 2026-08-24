@@ -67,6 +67,21 @@ if (query.get("selfService")) {
     selfService = query.get("selfService");
 }
 
+// Khairgate Wallet scan simulation (UAT only). Adding ?khairgateTestQr=true
+// to the terminal URL puts an "Insert test QR" button inside the Khairgate
+// scan modal so the flow can be exercised without a physical scanner.
+// 'true'/'1' injects the UAT test customer ("Ahmed Yusuf") from
+// Khairgate_Wallet_Integration_Details.xlsx; any other value is used as the
+// QR string itself. Leave the param off in production builds.
+const KHAIRGATE_UAT_TEST_QR = 'hQVDUFYwMWEwUCBjYzNlODU1NDVhOTU0ODg1ODNlMTVmZmMxOTgyM2I2Nl8gC0FobWVkIFl1c3Vm';
+let khairgateTestQr = null;
+const khairgateTestQrParam = query.get("khairgateTestQr");
+if (khairgateTestQrParam) {
+    khairgateTestQr = (khairgateTestQrParam === 'true' || khairgateTestQrParam === '1')
+        ? KHAIRGATE_UAT_TEST_QR
+        : khairgateTestQrParam;
+}
+
 // -----------------------------------------------------------------------------
 // Tenant resolution
 // -----------------------------------------------------------------------------
@@ -140,9 +155,25 @@ const tenantProfiles = {
             // doesn't expose /barcode/otherScaleItems yet, so the flag stays
             // off there to avoid a permanent failing fetch on till init.
             otherScaleItems: true,
+            // Cumulative-spend campaign (Aug 18 – Sep 9 2026). Jordan only —
+            // progress widget + redeem button on the cashier screen.
+            spendCampaign: true,
+            // Campaign reward vouchers tendered via dedicated payment method
+            // (GL-linked separately from legacy Voucher).
+            campaignVoucher: true,
+            // Quantity × override requires manager QR (same roles as Refund /
+            // PriceChange). Stops cashiers arming fractional qty (e.g. 0.1×)
+            // to exploit per-unit promotions on piece items.
+            qtyMultiplierQrAuth: true,
             // Self-checkout card tender. Kept off until card terminals are
             // wired for unattended use; Cash (CashDro) is the only tender.
             selfServiceCardEnabled: false,
+            // Khairgate Wallet (TaqatKhair Gate) consumer-presented QR tender.
+            // OFF for Jordan: the Jordan pos-backend branch does not have the
+            // /trx/khairgatePay endpoint yet — port it first (see
+            // docs/KHAIRGATE_WALLET_INTEGRATION.md at the workspace root) and
+            // set the khairgate.* properties, then flip this on.
+            khairgate: false,
         }
     },
     palestine: {
@@ -201,14 +232,26 @@ const tenantProfiles = {
             otherScaleItems: false,
             // See Jordan — card tender stays disabled for self-checkout.
             selfServiceCardEnabled: false,
+            // Cumulative-spend campaign is Jordan-only.
+            spendCampaign: false,
+            campaignVoucher: false,
+            // Palestine keeps × without QR; qty < 1 is still blocked in the
+            // terminal reducer + store backend.
+            qtyMultiplierQrAuth: false,
+            // Khairgate Wallet (TaqatKhair Gate): customer shows the QR from
+            // their wallet app, cashier scans it, backend charges the wallet
+            // synchronously (/trx/khairgatePay). The button only works on
+            // stores whose backend has khairgate.enabled=true; elsewhere the
+            // backend answers 503 with a clear message.
+            khairgate: true,
         }
     }
 };
 
 const profile = tenantProfiles[tenant] || tenantProfiles.jordan;
 
-// const _visa = 'Visa';
-const _visa = '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639';
+const _visa = 'Visa';
+// const _visa = '3d757906-76ce-43eb-acbc-ef41e88b32261655196183639';
 
 
 const config = {
@@ -229,6 +272,9 @@ const config = {
     visaArabi: 'VISA_AB',
     jawwalPay: 'JawwalPay',
     voucher: 'Voucher',
+    campaignVoucher: 'CampaignVoucher',
+    khairgateWallet: 'KhairgateWallet',
+    khairgateTestQr,
     onAccount: 'OnAccount',
     cashBack: 'Cashback',
     employeeExtra: 'EmployeeExtra',

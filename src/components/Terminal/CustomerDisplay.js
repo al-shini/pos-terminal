@@ -81,6 +81,7 @@ const CustomerDisplay = () => {
     const trxTotalAfterDiscount = useSelector((state) => (state.trx.trx ? state.trx.trx.totalafterdiscount : 0));
     const trxTotalDiscount = useSelector((state) => (state.trx.trx ? Number(state.trx.trx.totaldiscount) || 0 : 0));
     const trxTotalCashbackAmt = useSelector((state) => (state.trx.trx ? state.trx.trx.totalcashbackamt : 0));
+    const campaignSnapshot = useSelector((state) => (state.trx.trx ? state.trx.trx.campaignSnapshot : null));
     const trxPaidRaw = useSelector((state) => state.trx.trxPaid || 0);
     const trxChangeRaw = useSelector((state) => state.trx.trxChange || 0);
     const itemCount = useSelector((state) => (state.trx.scannedItems ? state.trx.scannedItems.length : 0));
@@ -323,6 +324,25 @@ const CustomerDisplay = () => {
                                 <FontAwesomeIcon icon={faStar} style={{ fontSize: 10 }} />
                                 Cashback
                                 <b>{cashback}</b>
+                            </span>
+                        )}
+                        {config.features.spendCampaign && campaignSnapshot && campaignSnapshot.active && (
+                            <span className={classes.TotalsPill} style={{
+                                background: Number(campaignSnapshot.eligibleDiscount) > 0
+                                    ? 'rgba(22, 163, 74, 0.12)'
+                                    : 'rgba(245, 158, 11, 0.12)',
+                                border: '1px solid rgba(245, 158, 11, 0.3)',
+                                color: '#92400e',
+                            }}>
+                                <FontAwesomeIcon icon={faStar} style={{ fontSize: 10 }} />
+                                Campaign
+                                <b>{Number(campaignSnapshot.cumulativeAmt || 0).toFixed(0)}</b>
+                                <small>{CURRENCY}</small>
+                                {Number(campaignSnapshot.eligibleDiscount) > 0 && (
+                                    <b style={{ color: '#166534', marginLeft: 4 }}>
+                                        → {Number(campaignSnapshot.eligibleDiscount)} {CURRENCY} off
+                                    </b>
+                                )}
                             </span>
                         )}
                     </div>

@@ -1,0 +1,26 @@
+{
+    "gcs": {
+        "bucket": "shini-assets",
+        "prefix": "pos-artifacts",
+        "keyFile": "C:/path/to/service-account.json",
+        "makePublic": true
+    },
+    "headOffices": [
+        {
+            "name": "palestine",
+            "host": "192.168.10.162",
+            "port": 5432,
+            "database": "head_office",
+            "user": "spos",
+            "password": "REPLACE_ME"
+        },
+        {
+            "name": "jordan",
+            "host": "192.168.10.163",
+            "port": 5432,
+            "database": "head_office",
+            "user": "spos",
+            "password": "REPLACE_ME"
+        }
+    ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "pos",
-  "version": "5.1.9",
+  "version": "5.2.4",
   "main": "public/electron.js",
   "author": {
     "name": "Mohammad Nairat",
@@ -86,7 +86,11 @@
     "make": "react-scripts build && electron-builder",
     "publish": "react-scripts build && electron-builder -p always",
     "release": "node scripts/release.js",
-    "release:upload": "node scripts/release.js --no-build"
+    "release:upload": "node scripts/release.js --no-build",
+    "release:jordan": "node scripts/release.js --targets jordan",
+    "release:jordan:upload": "node scripts/release.js --no-build --targets jordan",
+    "release:palestine": "node scripts/release.js --targets palestine",
+    "release:palestine:upload": "node scripts/release.js --no-build --targets palestine"
   },
   "build": {
     "appId": "shini.pos",
