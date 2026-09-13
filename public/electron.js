@@ -468,8 +468,18 @@ if (!gotTheLock) {
 
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+    // Fawtara is a JORDAN-only feature. On the Palestine tenant the backend
+    // has no fawtaraQrString field at all, so polling for it just adds a
+    // fixed ~4s delay to every OPOS receipt. Gate the polling by tenant.
+    const isPalestineTenant = () => {
+        const t = (localConfig.tenant || '').toString().toLowerCase();
+        if (t === 'palestine' || t === 'ps') return true;
+        // legacy installers only set systemCurrency=NIS
+        return !t && localConfig.systemCurrency === 'NIS';
+    };
+
     // Fawtara QR is generated asynchronously on the backend after the sale
-    // closes; the OPOS template prints it, so poll briefly until it lands.
+    // closes (Jordan only); poll briefly until it lands.
     const fetchTrxWithFawtara = async (trxKey) => {
         const maxAttempts = 8;
         const delayMs = 500;
@@ -485,6 +495,18 @@ if (!gotTheLock) {
             await sleep(delayMs);
         }
         return trx;
+    };
+
+    // Opens the cash drawer via the OPOS service and RESOLVES WHEN DONE.
+    // The print job must not be sent before this settles: the NCR drawer is
+    // kicked through the printer, so a drawer pulse issued while the printer
+    // is busy with receipt bitmaps comes back Busy/Offline and the drawer
+    // never opens (this is exactly what broke when the Fawtara delay — which
+    // accidentally guaranteed drawer-before-print ordering — was removed).
+    // The timeout keeps a dead drawer from ever blocking the receipt.
+    const openDrawerAndWait = () => {
+        return oposServiceAxios({ method: 'get', url: '/open-drawer', timeout: 5000 })
+            .catch((_error) => log('open-drawer failed: ' + (_error && _error.message)));
     };
 
     // Dispatch the receipt according to posconfig.json:
@@ -548,13 +570,15 @@ if (!gotTheLock) {
             let trx = null;
 
             if (localConfig.printTemplate === 'opos') {
-                // Pop the cash drawer FIRST — it needs no trx data, so it must not
-                // wait behind the transaction fetch. Fire-and-forget against the
-                // OPOS service, which keeps the drawer hot on localhost:6666.
-                oposServiceAxios({ method: 'get', url: '/open-drawer' })
-                    .catch((_error) => log('open-drawer failed: ' + (_error && _error.message)));
+                // Kick the drawer and fetch the trx IN PARALLEL (the drawer
+                // needs no trx data), but wait for BOTH before printing so
+                // the drawer pulse always hits an idle printer — see
+                // openDrawerAndWait for why ordering is mandatory.
+                const drawerDone = openDrawerAndWait();
 
-                trx = await fetchTrxWithFawtara(trxKey);
+                // Palestine: fetch once — no Fawtara polling (see isPalestineTenant).
+                trx = isPalestineTenant() ? await fetchTrx(trxKey) : await fetchTrxWithFawtara(trxKey);
+                await drawerDone;
             } else {
                 trx = await fetchTrx(trxKey);
             }
@@ -598,6 +622,10 @@ if (!gotTheLock) {
 
 
                 res.send(trx);
+            } else {
+                // Never leave the renderer's HTTP call hanging when the
+                // backend returned no transaction.
+                res.status(404).send('Transaction not found');
             }
         } catch (error) {
             if (error.response) {
@@ -615,7 +643,8 @@ if (!gotTheLock) {
             let trx = null;
 
             if (localConfig.printTemplate === 'opos') {
-                trx = await fetchTrxWithFawtara(trxKey);
+                // Palestine: fetch once — no Fawtara polling (see isPalestineTenant).
+                trx = isPalestineTenant() ? await fetchTrx(trxKey) : await fetchTrxWithFawtara(trxKey);
             } else {
                 trx = await fetchTrx(trxKey);
             }
@@ -659,6 +688,8 @@ if (!gotTheLock) {
 
 
                 res.send(trx);
+            } else {
+                res.status(404).send('Transaction not found');
             }
         } catch (error) {
             if (error.response) {
