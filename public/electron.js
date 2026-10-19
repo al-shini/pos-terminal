@@ -16,6 +16,7 @@ const printComplete = require('./printComplete');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const logger = require('./logger');
 const bopVisa = require('./bopVisa');
+const arabBankVisa = require('./arabBankVisa');
 const { ipcMain } = require('electron');
 const https = require('https');
 const os = require('os');
@@ -895,6 +896,291 @@ if (!gotTheLock) {
         }
     })
 
+    // -----------------------------------------------------------------------
+    // Arab Bank Visa payment terminal (Jordan)
+    //
+    // The terminal is driven by a separate Windows service (bundled Node 18 +
+    // edge-js + the bank's CashierAgentDesktopDLL) on 127.0.0.1:9700 — see
+    // arabi-visa-pos-windows-service/README.md. These routes are the ONLY way
+    // the renderer reaches it: Electron owns the busy lock, the long sale
+    // timeout, the logging, and the install / auto-detect flows. The COM port
+    // comes from posconfig.json (`arabiVisaCom`), which both this app and the
+    // service read.
+    // -----------------------------------------------------------------------
+
+    const abSettings = () => arabBankVisa.resolveSettings(localConfig);
+
+    const abAxios = (timeoutMs) => axiosImport.create({
+        baseURL: abSettings().serviceUrl,
+        timeout: timeoutMs,
+        // Keep 4xx/5xx as rejections (default) — classifySaleError maps them.
+        proxy: false
+    });
+
+    let abActiveSale = null; // { transIndexCode, trxKey, startedAt }
+
+    const abServiceHealth = async (timeoutMs) => {
+        try {
+            const r = await abAxios(timeoutMs || 1500).get('/health');
+            return r.data;
+        } catch (ex) {
+            return null;
+        }
+    };
+
+    /** Everything the admin panel needs to show the station's card-terminal state. */
+    expressApp.get('/arabiVisa/status', async (req, res) => {
+        const settings = abSettings();
+        const pkg = arabBankVisa.packageStatus(settings.serviceDir);
+        const [service, health, ports] = await Promise.all([
+            arabBankVisa.queryServiceState(arabBankVisa.SERVICE_ID),
+            abServiceHealth(1500),
+            bopVisa.listSerialPorts().catch(() => [])
+        ]);
+        const portNames = ports.map((p) => arabBankVisa.normaliseComPort(p.path));
+        const terminal = null; // the renderer passes conflicts for the BOP link itself
+        res.send({
+            settings,
+            package: pkg,
+            service,
+            health,
+            serviceReachable: !!health,
+            ports,
+            comPortPresent: settings.comPort ? portNames.indexOf(settings.comPort) >= 0 : false,
+            comPortConflicts: arabBankVisa.comPortConflicts(localConfig, terminal),
+            activeSale: abActiveSale ? Object.assign({}, abActiveSale, { elapsedSec: Math.round((Date.now() - abActiveSale.startedAt) / 1000) }) : null,
+            install: arabBankVisa.getActiveInstall(),
+            lastInstall: arabBankVisa.readInstallResult(settings.serviceDir),
+            ready: !!(health && health.ok && settings.comPort && portNames.indexOf(settings.comPort) >= 0
+                && arabBankVisa.comPortConflicts(localConfig, terminal).length === 0)
+        });
+    });
+
+    /** Serial ports on this PC (shared by the posconfig editor's COM dropdowns). */
+    expressApp.get('/serialPorts', async (req, res) => {
+        try {
+            res.send({ ports: await bopVisa.listSerialPorts() });
+        } catch (ex) {
+            logger.error(`[arabBank] could not list serial ports: ${ex && ex.message}`);
+            res.status(500).send({ error: ex.message, ports: [] });
+        }
+    });
+
+    /** Probe one COM port (defaults to the configured one) with the protocol handshake. */
+    expressApp.post('/arabiVisa/handshake', async (req, res) => {
+        if (abActiveSale) {
+            res.status(409).send({ ok: false, code: 'busy', error: 'A card sale is in progress on this station' });
+            return;
+        }
+        const body = req.body || {};
+        try {
+            const r = await abAxios(30000).post('/handshake', {
+                comPort: body.comPort || undefined,
+                baudRate: body.baudRate || undefined,
+                timeoutMs: body.timeoutMs || undefined
+            });
+            res.send(r.data);
+        } catch (ex) {
+            const mapped = arabBankVisa.classifySaleError(ex, abSettings());
+            if (mapped.body.code === 'outcomeUnknown') {
+                // A handshake has no financial outcome; report it as a plain failure.
+                mapped.body = { ok: false, code: 'noResponse', error: 'The service did not answer the handshake request in time' };
+                mapped.status = 502;
+            }
+            res.status(mapped.status).send(mapped.body);
+        }
+    });
+
+    /**
+     * Try every plausible COM port until one answers the handshake. Reserved
+     * ports (scale, BOP reader) are skipped. Returns the winner or a structured
+     * reason so the UI can say exactly why nothing was found.
+     */
+    expressApp.post('/arabiVisa/autoDetect', async (req, res) => {
+        if (abActiveSale) {
+            res.status(409).send({ ok: false, code: 'busy', error: 'A card sale is in progress on this station' });
+            return;
+        }
+        const settings = abSettings();
+        const health = await abServiceHealth(1500);
+        if (!health) {
+            res.status(503).send({
+                ok: false, code: 'SERVICE_DOWN',
+                error: 'The Arab Bank Visa service is not running - install/start it first'
+            });
+            return;
+        }
+        let ports = [];
+        try { ports = await bopVisa.listSerialPorts(); } catch (ex) { /* fall through with empty list */ }
+        const terminal = (req.body && req.body.terminal) || null;
+        const candidates = arabBankVisa.pickCandidatePorts(ports, localConfig, terminal);
+        const reserved = arabBankVisa.reservedPorts(localConfig, terminal);
+        if (!candidates.length) {
+            res.status(404).send({
+                ok: false, code: 'noPorts',
+                error: ports.length
+                    ? 'Every COM port on this PC is reserved (' + Object.keys(reserved).map((k) => k + ' = ' + reserved[k]).join(', ') + ')'
+                    : 'No serial ports found on this PC. Plug in the terminal cable and install the PL2303 driver.',
+                ports, reserved
+            });
+            return;
+        }
+
+        const timeoutMs = 2000;
+        const attempts = [];
+        const winners = [];
+        for (const c of candidates) {
+            try {
+                const r = await abAxios(30000).post('/handshake', { comPort: c.path, timeoutMs });
+                attempts.push({ comPort: c.path, ok: true, baudRate: r.data.baudRate, elapsedMs: r.data.elapsedMs, friendlyName: c.friendlyName });
+                winners.push({ comPort: c.path, baudRate: r.data.baudRate, friendlyName: c.friendlyName, manufacturer: c.manufacturer });
+                // The configured / highest-scored port answering is conclusive.
+                if (winners.length === 1 && (c.path === settings.comPort || c.score >= 50)) break;
+            } catch (ex) {
+                const data = ex.response && ex.response.data;
+                attempts.push({
+                    comPort: c.path, ok: false, friendlyName: c.friendlyName,
+                    code: (data && data.code) || ex.code || 'error',
+                    error: (data && data.error) || ex.message
+                });
+                if (data && data.code === 'busy') break; // service lock held, stop hammering
+            }
+        }
+        logger.info(`[arabBank] autoDetect: ${JSON.stringify(attempts)}`);
+
+        if (winners.length === 1) {
+            res.send({ ok: true, comPort: winners[0].comPort, baudRate: winners[0].baudRate, friendlyName: winners[0].friendlyName, attempts, reserved });
+        } else if (winners.length > 1) {
+            res.status(409).send({
+                ok: false, code: 'multiple',
+                error: 'More than one port answered the Arab Bank handshake (' + winners.map((w) => w.comPort).join(', ') + '). Unplug all but the terminal and retry, or pick one manually.',
+                winners, attempts, reserved
+            });
+        } else {
+            res.status(404).send({
+                ok: false, code: 'notFound',
+                error: 'No port answered the Arab Bank handshake. Tried: ' + attempts.map((a) => a.comPort).join(', ') + '. Check the terminal is powered on and the cable is in.',
+                attempts, reserved
+            });
+        }
+    });
+
+    /**
+     * Charge the card. Body: { amountMinor, currencyCode, transIndexCode, trxKey }.
+     * Mirrors the service contract 1:1 (see arabi-visa-pos-windows-service/README.md).
+     */
+    expressApp.post('/arabiVisa/sale', async (req, res) => {
+        const settings = abSettings();
+        const body = req.body || {};
+        const amountMinor = body.amountMinor;
+        if (typeof amountMinor !== 'number' || !Number.isInteger(amountMinor) || amountMinor <= 0) {
+            res.status(400).send({ ok: false, code: 'badRequest', error: 'amountMinor must be a positive integer' });
+            return;
+        }
+        if (!body.trxKey) {
+            res.status(400).send({ ok: false, code: 'badRequest', error: 'trxKey is required' });
+            return;
+        }
+        if (!body.transIndexCode || !/^\d{1,12}$/.test(String(body.transIndexCode))) {
+            res.status(400).send({ ok: false, code: 'badRequest', error: 'transIndexCode must be 1-12 digits' });
+            return;
+        }
+        if (!settings.comPort) {
+            res.status(412).send({ ok: false, code: 'noComPort', error: 'arabiVisaCom is not set. Open Admin > Arab Bank Visa > Setup automatically.' });
+            return;
+        }
+        const conflicts = arabBankVisa.comPortConflicts(localConfig, body.terminal || null);
+        if (conflicts.length) {
+            res.status(412).send({ ok: false, code: 'portConflict', error: conflicts.join('; ') });
+            return;
+        }
+        if (abActiveSale) {
+            res.status(409).send({
+                ok: false, code: 'busy',
+                error: `A card sale (ref ${abActiveSale.transIndexCode}) is already in progress, started ${Math.round((Date.now() - abActiveSale.startedAt) / 1000)}s ago`
+            });
+            return;
+        }
+
+        abActiveSale = { transIndexCode: String(body.transIndexCode), trxKey: String(body.trxKey), startedAt: Date.now() };
+        const timeoutMs = settings.timeoutSec * 1000 + 25000;
+        logger.info(`[arabBank] SALE start ref=${abActiveSale.transIndexCode} trx=${abActiveSale.trxKey} amountMinor=${amountMinor} cur=${body.currencyCode || 400} port=${settings.comPort}`);
+        try {
+            const r = await abAxios(timeoutMs).post('/sale', {
+                amountMinor,
+                currencyCode: body.currencyCode || 400,
+                transIndexCode: String(body.transIndexCode),
+                trxKey: String(body.trxKey),
+                deviceId: localConfig.deviceId || ''
+            });
+            const d = r.data || {};
+            logger.info(`[arabBank] SALE end ref=${abActiveSale.transIndexCode} approved=${d.approved} cancelled=${d.cancelled} resp=${d.respCode} "${d.respDesc}" amountMinor=${d.amountMinor} rrn=${d.rrn} auth=${d.authCode} card=${d.cardNum}`);
+            res.send(d);
+        } catch (ex) {
+            const mapped = arabBankVisa.classifySaleError(ex, settings);
+            logger.error(`[arabBank] SALE failed ref=${abActiveSale.transIndexCode} status=${mapped.status} code=${mapped.body.code} ${mapped.body.error || ''}`);
+            mapped.body.transIndexCode = mapped.body.transIndexCode || abActiveSale.transIndexCode;
+            res.status(mapped.status).send(mapped.body);
+        } finally {
+            abActiveSale = null;
+        }
+    });
+
+    /** Kick off install.ps1 (UAC prompt on the station). Poll /arabiVisa/install/status. */
+    expressApp.post('/arabiVisa/install', async (req, res) => {
+        const settings = abSettings();
+        const pkg = arabBankVisa.packageStatus(settings.serviceDir);
+        if (!pkg.present) {
+            res.status(404).send({
+                ok: false, code: 'PACKAGE_MISSING',
+                error: `The service package is not on this PC. Copy arabi-visa-pos-windows-service to ${settings.serviceDir} first.`,
+                package: pkg
+            });
+            return;
+        }
+        if (!pkg.bundledNode || !pkg.dll || !pkg.nodeModules) {
+            res.status(412).send({
+                ok: false, code: 'PACKAGE_INCOMPLETE',
+                error: 'The service package is incomplete: '
+                    + [!pkg.bundledNode && 'node\\node.exe', !pkg.dll && 'CashierAgentDesktopDLL.dll', !pkg.nodeModules && 'node_modules'].filter(Boolean).join(', ')
+                    + ' missing in ' + settings.serviceDir,
+                package: pkg
+            });
+            return;
+        }
+        if (abActiveSale) {
+            res.status(409).send({ ok: false, code: 'busy', error: 'Finish the card sale in progress before re-installing the service' });
+            return;
+        }
+        const running = arabBankVisa.getActiveInstall();
+        if (running && running.running) {
+            res.status(409).send({ ok: false, code: 'INSTALL_RUNNING', error: 'An installation is already running', install: running });
+            return;
+        }
+        try {
+            const p = arabBankVisa.runInstaller(settings.serviceDir, { port: settings.servicePort, configPath: LOCAL_CONFIG_PATH.replace(/\//g, '\\') });
+            p.then((r) => logger.info(`[arabBank] installer finished exit=${r.exitCode} ${r.error || ''}`))
+                .catch((ex) => logger.error(`[arabBank] installer error: ${ex && ex.message}`));
+            res.send({ ok: true, started: true, install: arabBankVisa.getActiveInstall() });
+        } catch (ex) {
+            res.status(500).send({ ok: false, code: ex.code || 'error', error: ex.message });
+        }
+    });
+
+    expressApp.get('/arabiVisa/install/status', async (req, res) => {
+        const settings = abSettings();
+        const install = arabBankVisa.getActiveInstall();
+        const result = arabBankVisa.readInstallResult(settings.serviceDir);
+        res.send({
+            install,
+            running: !!(install && install.running),
+            exitCode: install && !install.running ? install.exitCode : null,
+            exitMessage: install && !install.running ? arabBankVisa.describeInstallExit(install.exitCode) : null,
+            result,
+            logTail: arabBankVisa.tailInstallLog(settings.serviceDir, 60)
+        });
+    });
+
     // Enhanced scale handling with stability management
     let scaleHandler = null;
 
@@ -1315,6 +1601,41 @@ if (!gotTheLock) {
             res.json({ ok: true, path: LOCAL_CONFIG_PATH });
         } catch (ex) {
             res.status(500).send('Could not save config: ' + (ex && ex.message));
+        }
+    });
+
+    // Shallow-merge a few keys into posconfig.json without touching the rest
+    // (POST /localConfig above REPLACES the whole file). Used by the Arab Bank
+    // Visa setup to store the detected COM port / baud. A `null` value deletes
+    // the key. Reads the file fresh so an edit made elsewhere is not clobbered.
+    expressApp.post('/localConfig/merge', (req, res) => {
+        try {
+            const patch = req.body;
+            if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+                return res.status(400).send('Patch must be a JSON object');
+            }
+            let current = {};
+            if (fs.existsSync(LOCAL_CONFIG_PATH)) {
+                try { current = JSON.parse(fs.readFileSync(LOCAL_CONFIG_PATH, 'utf8').replace(/^\uFEFF/, '')) || {}; } catch (_) { current = Object.assign({}, localConfig); }
+            }
+            const changed = [];
+            Object.keys(patch).forEach((k) => {
+                const key = String(k).trim();
+                if (!key) return;
+                if (patch[k] === null) {
+                    if (key in current) { delete current[key]; changed.push(key); }
+                } else if (JSON.stringify(current[key]) !== JSON.stringify(patch[k])) {
+                    current[key] = patch[k];
+                    changed.push(key);
+                }
+            });
+            fs.mkdirSync('C:/pos', { recursive: true });
+            fs.writeFileSync(LOCAL_CONFIG_PATH, JSON.stringify(current, null, 4));
+            localConfig = current;
+            logger.info(`posconfig.json merged: ${changed.join(', ') || 'no changes'}`);
+            res.json({ ok: true, path: LOCAL_CONFIG_PATH, changed, config: current });
+        } catch (ex) {
+            res.status(500).send('Could not merge config: ' + (ex && ex.message));
         }
     });
 
