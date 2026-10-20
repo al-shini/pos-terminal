@@ -122,9 +122,18 @@ const tenantProfiles = {
             refundReference: true,
             mobiCash: true,
             talabat: true,
-            // Arab Bank Visa terminal integration is a Palestine-only payment
-            // method (key `VISA_AB`). Jordan stores never see this button.
+            // Separate "AUTO - ARABI" tender (payment_method.key `VISA_AB`) is
+            // Palestine-only. In Jordan the Arab Bank terminal IS the regular
+            // `Visa` tender's AUTO VISA button (see autoVisaProvider below).
             arabVisa: false,
+            // Which card terminal the AUTO VISA button on the `Visa` tender
+            // drives: 'arabBank' = local Windows service + Arab Bank
+            // CashierAgent DLL over COM (replaces the retired Network
+            // International integration); 'bop' = Bank of Palestine IP reader.
+            autoVisaProvider: 'arabBank',
+            // Admin > "ARAB BANK VISA" panel: service status, one-click
+            // install, COM auto-detect, test connection.
+            arabBankVisaAdmin: true,
             // "Print Last TRX" button in the Operations menu — lists the last
             // 10 transactions and lets the cashier re-print any of them.
             // Disabled for Palestine per business requirement.
@@ -198,6 +207,12 @@ const tenantProfiles = {
             talabat: false,
             // Palestine-only: Arab Bank Visa (payment_method.key = VISA_AB).
             arabVisa: true,
+            // The `Visa` tender's AUTO VISA button drives the BOP IP reader
+            // here; the Arab Bank COM terminal is the separate VISA_AB tender.
+            autoVisaProvider: 'bop',
+            // Palestine stations with an Arab Bank terminal still need the
+            // service/COM setup panel for the VISA_AB tender.
+            arabBankVisaAdmin: true,
             printLastTrx: false,
             adminInvoicesLookup: false,
             adminCustomersLookup: false,

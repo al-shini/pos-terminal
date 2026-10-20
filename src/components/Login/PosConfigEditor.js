@@ -40,7 +40,24 @@ const KNOWN_FIELDS = [
     { key: 'printTemplate', def: 'qr' },
     { key: 'systemCurrency', def: 'NIS' },
     { key: 'expressPort', def: 3001 },
+    // Arab Bank Visa card terminal (COM) + its local Windows service. Read by
+    // BOTH this app (public/arabBankVisa.js) and the service (lib/config.js).
+    { key: 'arabiVisaCom', def: 'COM9' },
+    { key: 'arabiVisaBaudRate', def: 115200 },
+    { key: 'arabiVisaServicePort', def: 9700 },
+    { key: 'arabiVisaTimeoutSec', def: 90 },
+    { key: 'arabiVisaEnableReceipt', def: true },
 ];
+
+// Keys that hold a serial port name get a dropdown of the ports currently
+// present on this PC (with free-text fallback for a port that is unplugged).
+const isComKey = (key) => /com$/i.test(key || '');
+
+const normaliseCom = (v) => {
+    const s = String(v === undefined || v === null ? '' : v).trim().toUpperCase();
+    const m = s.match(/COM\s*(\d+)/);
+    return m ? `COM${m[1]}` : s;
+};
 
 // Rows keep values as their real JSON type so booleans render as switches
 // and numbers as numeric fields. Strings that LOOK like other types are
@@ -72,10 +89,17 @@ const PosConfigEditor = ({ open, onClose }) => {
     const [rows, setRows] = useState([]);
     const [newKey, setNewKey] = useState('');
     const [saving, setSaving] = useState(false);
+    const [serialPorts, setSerialPorts] = useState([]);
+    // COM rows where the user chose "Other…" and is typing a port by hand.
+    const [manualCom, setManualCom] = useState({});
 
     useEffect(() => {
         if (!open) return;
         setState({ loading: true, error: null, exists: true, path: '' });
+        setManualCom({});
+        localAxios.get('/serialPorts', { timeout: 10000 }).then((res) => {
+            setSerialPorts((res.data && res.data.ports) || []);
+        }).catch(() => setSerialPorts([]));
         localAxios.get('/localConfig').then((res) => {
             const data = res.data || {};
             setRows(toRows(data.config || {}));
@@ -111,11 +135,23 @@ const PosConfigEditor = ({ open, onClose }) => {
 
     const missingKnown = KNOWN_FIELDS.filter((f) => !rows.some((r) => r.key === f.key));
 
+    // COM-port sanity: the same port assigned twice (scale vs card terminal)
+    // means one of them can never open it. Save is blocked until fixed.
+    const comRows = rows.filter((r) => isComKey(r.key) && normaliseCom(r.value));
+    const comDuplicates = comRows.filter((r, i) => comRows.some((o, j) => j !== i && normaliseCom(o.value) === normaliseCom(r.value)));
+    const comConflictText = comDuplicates.length
+        ? `${comDuplicates.map((r) => r.key).join(' and ')} point at the same port (${normaliseCom(comDuplicates[0].value)}). The scale and the card terminal cannot share a COM port.`
+        : null;
+    const presentPortNames = serialPorts.map((p) => normaliseCom(p.path));
+    const absentComRows = comRows.filter((r) => presentPortNames.length && presentPortNames.indexOf(normaliseCom(r.value)) < 0);
+
     const handleSave = async () => {
+        if (comConflictText) return; // button is disabled too; belt and braces
         const cfg = {};
         for (const r of rows) {
             if (!r.key || !r.key.trim()) continue;
-            cfg[r.key.trim()] = parseValue(r.value);
+            const key = r.key.trim();
+            cfg[key] = isComKey(key) ? normaliseCom(r.value) : parseValue(r.value);
         }
         setSaving(true);
         try {
@@ -134,6 +170,54 @@ const PosConfigEditor = ({ open, onClose }) => {
     };
 
     const renderValueEditor = (row, idx) => {
+        if (isComKey(row.key) && typeof row.value !== 'boolean') {
+            const current = normaliseCom(row.value);
+            const inList = presentPortNames.indexOf(current) >= 0;
+            const manual = !!manualCom[row.key] || (!!current && !inList) || serialPorts.length === 0;
+            const OTHER = '__other__';
+            return (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <TextField
+                        select
+                        size="small"
+                        value={manual ? OTHER : (current || '')}
+                        onChange={(e) => {
+                            if (e.target.value === OTHER) {
+                                setManualCom((prev) => ({ ...prev, [row.key]: true }));
+                            } else {
+                                setManualCom((prev) => ({ ...prev, [row.key]: false }));
+                                setRowValue(idx, e.target.value);
+                            }
+                        }}
+                        SelectProps={{ native: true }}
+                        sx={{ width: manual ? 170 : 320 }}
+                        inputProps={{ style: { fontFamily: brand.typography.monoFamily, fontSize: 13.5 } }}
+                    >
+                        <option value="">— select port —</option>
+                        {serialPorts.map((p) => (
+                            <option key={p.path} value={normaliseCom(p.path)}>
+                                {normaliseCom(p.path)}{p.friendlyName ? ` · ${p.friendlyName.replace(/\s*\(COM\d+\)\s*$/, '')}` : (p.manufacturer ? ` · ${p.manufacturer}` : '')}
+                            </option>
+                        ))}
+                        <option value={OTHER}>Other / not plugged in…</option>
+                    </TextField>
+                    {manual && (
+                        <TextField
+                            size="small"
+                            placeholder="COM9"
+                            value={String(row.value === undefined || row.value === null ? '' : row.value)}
+                            onChange={(e) => setRowValue(idx, e.target.value)}
+                            onBlur={(e) => setRowValue(idx, normaliseCom(e.target.value))}
+                            sx={{ width: 140 }}
+                            inputProps={{ style: { fontFamily: brand.typography.monoFamily, fontSize: 13.5 } }}
+                        />
+                    )}
+                    {current && !inList && presentPortNames.length > 0 && (
+                        <Chip size="small" color="warning" variant="outlined" label="not present now" sx={{ fontSize: 11 }} />
+                    )}
+                </Box>
+            );
+        }
         if (typeof row.value === 'boolean') {
             return (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -190,6 +274,17 @@ const PosConfigEditor = ({ open, onClose }) => {
                     <Alert severity="warning">
                         No configuration file found — it will be created on save. Add the
                         fields you need below (tap a suggested field or type a custom key).
+                    </Alert>
+                )}
+
+                {!state.loading && comConflictText && (
+                    <Alert severity="error">{comConflictText}</Alert>
+                )}
+
+                {!state.loading && !comConflictText && absentComRows.length > 0 && (
+                    <Alert severity="warning">
+                        {absentComRows.map((r) => `${r.key} = ${normaliseCom(r.value)}`).join(', ')} — not detected on this PC right now
+                        (present: {presentPortNames.join(', ') || 'none'}). Plug the device in, or pick a port from the list.
                     </Alert>
                 )}
 
@@ -268,7 +363,7 @@ const PosConfigEditor = ({ open, onClose }) => {
                 <Button
                     variant="contained"
                     onClick={handleSave}
-                    disabled={saving || state.loading || !!(state.error)}
+                    disabled={saving || state.loading || !!(state.error) || !!comConflictText}
                     startIcon={saving ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : null}
                 >
                     {saving ? 'Saving — restarting…' : 'Save & Restart'}

@@ -34,6 +34,10 @@ import SS_AR from './SelfService/i18n';
 import { roundToCashDro, reconcileCashDro } from '../../utils/cashRounding';
 import { settleCollection, createOnceGate } from '../../utils/cashDroSettlement';
 import { arabicize } from '../../utils/arabicMessages';
+import {
+    toMinorUnits, buildTransIndexCode, interpretSale, describeFailure, buildSourceKey, CURRENCY_CODES
+} from '../../utils/arabBankVisa';
+import PosConfigEditor from '../Login/PosConfigEditor';
 import errorBeep from '../../assets/error.wav';
 import QRCode from "react-qr-code";
 import useSound from 'use-sound';
@@ -188,6 +192,15 @@ const Terminal = (props) => {
     const [logoTapTimer, setLogoTapTimer] = useState(null);
 
     const [trxCounter, setTrxCounter] = useState(0);
+    // Arab Bank card sale in flight (ref, not state: the double-tap guard must
+    // see the latest value synchronously, before React re-renders).
+    const abSaleInFlight = useRef(false);
+    // Arab Bank admin panel state: last /arabiVisa/status reply + UI flags.
+    const [abStatus, setAbStatus] = useState(null);
+    const [abBusy, setAbBusy] = useState(null); // 'status' | 'install' | 'detect' | 'test' | null
+    const [abInstallLog, setAbInstallLog] = useState([]);
+    const [abMessage, setAbMessage] = useState(null); // { sev, text }
+    const [abConfigEditorOpen, setAbConfigEditorOpen] = useState(false);
 
     const incrementTrxCount = () => {
         if (trxCounter == 9) {
@@ -1126,191 +1139,237 @@ const Terminal = (props) => {
         } // end IF
     }
 
-    const autoVisaFlowArabi = async () => {
+    /* ---------------------------------------------------------------------
+     * Arab Bank Visa terminal (COM, local Windows service via Electron)
+     *
+     * Replaces the retired Network International flow in Jordan and the old
+     * raw-string Arabi parser in Palestine. One function, two tenders:
+     *   - Jordan  : `Visa` tender, AUTO VISA button      (autoVisaProvider 'arabBank')
+     *   - Palestine: `VISA_AB` tender, AUTO - ARABI button
+     *
+     * Money safety rules, in order:
+     *   1. Never send a sale the POS cannot record (no trx / refund / nothing
+     *      due / another card sale or payment already in flight).
+     *   2. The amount recorded is what the TERMINAL says it took (RespCode 010
+     *      = lesser amount), never what we asked for.
+     *   3. An answer we cannot read (504 outcomeUnknown) is NOT a failure to
+     *      retry — the cashier must read the terminal slip first.
+     *   4. Card approved but POS could not save the payment → blocking dialog
+     *      with the slip references; the retry re-submits the RECORD only.
+     * ------------------------------------------------------------------- */
 
-        if (trxSlice.selectedCurrency === 'EUR') {
-            dispatch(notify({ msg: 'Auto Visa does not support Euro', sev: 'warning' }));
-            return;
+    const abLocalUrl = (path) => `http://127.0.0.1:${config.expressPort ? config.expressPort : '3001'}${path}`;
+
+    // Toasts are rendered through arabicize(); unknown English collapses to a
+    // generic Arabic fallback, so every cashier-facing message here carries
+    // its own Arabic (passed through verbatim) followed by the English detail.
+    const bi = (ar, en) => `${ar} — ${en}`;
+
+    const abNotify = (outcome, extra) => {
+        const text = bi(outcome.ar || '', (outcome.en || '') + (extra ? ' ' + extra : ''));
+        dispatch(notify({ msg: text, sev: outcome.sev || 'error' }));
+    };
+
+    /** Record an approved card sale against the trx; blocking dialog if the POS refuses. */
+    const recordArabBankPayment = async (sale, paymentMethodKey, currency, requestedAmount, attempt = 1) => {
+        const sourceKey = buildSourceKey(sale);
+        const result = await dispatch(submitPayment({
+            tillKey: terminal.till ? terminal.till.key : null,
+            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
+            paymentMethodKey,
+            currency,
+            amount: sale.amount,
+            sourceKey,
+            visaPayment: {
+                amt: sale.amountMinor,
+                curr: sale.currencyCode || CURRENCY_CODES[currency] || 400,
+                pan: sale.cardNum || null,
+                respCode: sale.code,
+                authCode: sale.authCode || null,
+                rcpt: sale.transIndexCode || null,
+                provider: 'arabBank',
+                fullResponseJson: JSON.stringify(sale.raw || sale)
+            }
+        }));
+
+        if (result && result.meta && result.meta.requestStatus === 'fulfilled') {
+            if (sale.lesser) {
+                const remaining = Math.max(0, requestedAmount - sale.amount);
+                dispatch(notify({
+                    msg: bi(`تمت الموافقة على ${sale.amount.toFixed(config.decimals)} ${currency} فقط، المتبقي ${remaining.toFixed(config.decimals)} ${currency}`,
+                        `Card approved for ${sale.amount.toFixed(config.decimals)} ${currency} only, ${remaining.toFixed(config.decimals)} ${currency} still due`),
+                    sev: 'warning'
+                }));
+            } else {
+                dispatch(notify({
+                    msg: bi(`تمت الموافقة على البطاقة ${sale.amount.toFixed(config.decimals)} ${currency}`,
+                        `Card approved ${sale.amount.toFixed(config.decimals)} ${currency}` + (sale.authCode ? ` (auth ${sale.authCode})` : '')),
+                    sev: 'success'
+                }));
+            }
+            return true;
         }
 
-        if (trxSlice.selectedCurrency !== config.systemCurrency && !terminal.exchangeRates[trxSlice.selectedCurrency]) {
+        // The customer's card HAS been charged. Do not lose that fact.
+        const reason = (result && result.payload) ? String(result.payload) : 'unknown error';
+        const alreadyRecorded = /already recorded/i.test(reason);
+        const refs = `Amount ${sale.amount.toFixed(config.decimals)} ${currency}` +
+            (sale.authCode ? `, auth ${sale.authCode}` : '') +
+            (sale.rrn ? `, RRN ${sale.rrn}` : '') +
+            (sale.transIndexCode ? `, ref ${sale.transIndexCode}` : '');
+        if (alreadyRecorded) {
+            dispatch(notify({ msg: bi('عملية البطاقة مسجّلة مسبقًا على الفاتورة', 'This card transaction is already recorded on the invoice'), sev: 'info' }));
+            return true;
+        }
+        play();
+        const choice = await new Promise((resolve) => {
+            confirm(
+                'CARD CHARGED — NOT RECORDED',
+                `The card terminal APPROVED the sale (${refs}) but the POS could not save the payment: ${reason}. ` +
+                `Press RETRY to save it again (the card will NOT be charged twice). If it keeps failing, keep the terminal slip and call support.`,
+                () => resolve('retry'),
+                'danger',
+                { confirmText: 'RETRY SAVING', cancelText: 'LATER', subtitle: `attempt ${attempt} — keep the slip` }
+            );
+            // ConfirmDlg only calls back on confirm; detect the cancel path by
+            // watching for the dialog to leave the DOM.
+            const poll = window.setInterval(() => {
+                if (!document.querySelector('.react-confirm-alert')) {
+                    window.clearInterval(poll);
+                    resolve('later');
+                }
+            }, 300);
+        });
+        if (choice === 'retry') {
+            return recordArabBankPayment(sale, paymentMethodKey, currency, requestedAmount, attempt + 1);
+        }
+        dispatch(notify({ msg: bi('لم يتم تسجيل دفعة البطاقة! احتفظ بالإيصال وأبلغ المسؤول', `Card payment NOT recorded: ${refs}`), sev: 'error' }));
+        return false;
+    };
+
+    const autoVisaFlowArabBank = async (paymentMethodKeyOverride) => {
+        const currency = trxSlice.selectedCurrency;
+        const paymentMethodKey = paymentMethodKeyOverride || trxSlice.selectedPaymentMethod || config.visa;
+
+        // --- guards -------------------------------------------------------
+        if (!trxSlice.trx || !trxSlice.trx.key) {
+            dispatch(notify({ msg: bi('لا توجد فاتورة مفتوحة', 'No open transaction'), sev: 'warning' }));
+            return;
+        }
+        if (terminal.trxMode === 'Refund' || (trxSlice.trx && trxSlice.trx.type === 'Refund')) {
+            dispatch(notify({ msg: 'Visa payment does not support refunds', sev: 'warning' }));
+            return;
+        }
+        if (abSaleInFlight.current) {
+            dispatch(notify({ msg: bi('هناك عملية بطاقة جارية، أكملها أو ألغها على الجهاز', 'A card sale is already in progress'), sev: 'warning' }));
+            return;
+        }
+        if (trxSlice.paymentSubmitting) {
+            dispatch(notify({ msg: bi('جارٍ حفظ دفعة سابقة، انتظر قليلاً', 'A payment is still being saved'), sev: 'warning' }));
+            return;
+        }
+        if (!(trxSlice.trxChange < 0)) {
+            dispatch(notify({ msg: bi('لا يوجد مبلغ مستحق على الفاتورة', 'Nothing is due on this transaction'), sev: 'warning' }));
+            return;
+        }
+        if (!CURRENCY_CODES[currency]) {
+            dispatch(notify({ msg: bi(`الفيزا التلقائية لا تدعم ${currency}`, `Auto Visa does not support ${currency}`), sev: 'warning' }));
+            return;
+        }
+        if (currency !== config.systemCurrency && !(terminal.exchangeRates || {})[currency]) {
             dispatch(notify({ msg: 'Selected currency has no exchange rate defined', sev: 'error' }));
             return;
         }
 
-        dispatch(showLoading('Connecting to Auto Visa [BANK OF PALESTINE]...'));
+        // Amount due, expressed in the selected currency (same maths as the
+        // foreign-cash buttons so the recorded payment matches the invoice).
+        const dueSystem = Math.abs(trxSlice.trxChange);
+        const rate = currency === config.systemCurrency ? 1 : terminal.exchangeRates[currency];
+        const amountMinor = toMinorUnits(dueSystem / rate, currency);
+        if (amountMinor <= 0) {
+            dispatch(notify({ msg: bi('لا يوجد مبلغ مستحق على الفاتورة', 'Nothing is due on this transaction'), sev: 'warning' }));
+            return;
+        }
+        const requestedAmount = amountMinor / (currency === 'JOD' ? 1000 : 100);
+        const transIndexCode = buildTransIndexCode();
 
-        let amt = Math.abs(trxSlice.trxChange);
+        abSaleInFlight.current = true;
+        dispatch(showLoading(`Arab Bank terminal — ${requestedAmount.toFixed(config.decimals)} ${currency}. Follow the instructions on the card terminal…`));
 
-        if (trxSlice.trx && amt > 0) {
-
-            let cur = 376;
-
-            switch (trxSlice.selectedCurrency) {
-                case 'NIS': {
-                    cur = 376;
-                    break;
-                }
-                case 'JOD': {
-                    cur = 400;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 1000) / 100).toFixed(3);
-                    break;
-                }
-                case 'USD': {
-                    cur = 840;
-                    amt = (Math.round(Math.abs(trxSlice.trxChange / terminal.exchangeRates[trxSlice.selectedCurrency]) * 100) / 100).toFixed(config.decimals);
-                    break;
-                }
+        let response = null;
+        let failure = null;
+        try {
+            response = await axios({
+                method: 'post',
+                url: abLocalUrl('/arabiVisa/sale'),
+                data: {
+                    amountMinor,
+                    currencyCode: CURRENCY_CODES[currency],
+                    transIndexCode,
+                    trxKey: trxSlice.trx.key,
+                    terminal: terminal.terminal
+                },
+                // Electron waits timeoutSec*1000+25s for the service, which waits
+                // timeoutSec (default 90) for the DLL. Stay above both.
+                timeout: 200000
+            });
+        } catch (error) {
+            const data = error.response && error.response.data;
+            if (data && typeof data === 'object') {
+                failure = { payload: data, status: error.response.status };
+            } else if (error.code === 'ECONNABORTED') {
+                failure = { payload: { code: 'outcomeUnknown', error: 'renderer timeout' }, status: 504 };
+            } else if (error.code === 'ERR_NETWORK' || /Network Error/i.test(error.message || '')) {
+                failure = { payload: { code: 'outcomeUnknown', error: 'lost contact with the local terminal process' }, status: 504 };
+            } else {
+                failure = { payload: { code: 'unknown', error: error.message }, status: error.response ? error.response.status : 0 };
             }
+        } finally {
+            dispatch(hideLoading());
+        }
 
-            let integerPart = Math.floor(amt);
-            let decimalPart = amt - integerPart;
-            decimalPart = decimalPart.toFixed(config.decimals);
+        if (failure) {
+            abSaleInFlight.current = false;
+            const outcome = describeFailure(failure.payload, failure.status);
+            if (failure.payload.code === 'outcomeUnknown') {
+                // Blocking: both buttons just close; the point is that the
+                // cashier cannot miss it under a 2.5s toast.
+                confirm(
+                    outcome.title,
+                    `${outcome.ar} — ${outcome.en} Reference ${failure.payload.transIndexCode || transIndexCode}, amount ${requestedAmount.toFixed(config.decimals)} ${currency}.`,
+                    () => { },
+                    'danger',
+                    { confirmText: 'I CHECKED THE SLIP', cancelText: 'CLOSE', subtitle: 'Card may already be charged' }
+                );
+                play();
+            } else {
+                abNotify(outcome);
+                if (outcome.sev === 'error') play();
+            }
+            return;
+        }
 
-            amt = integerPart * 100;
-            amt += parseFloat(decimalPart) * 100;
+        const sale = interpretSale(response.data, currency);
+        sale.raw = response.data;
+        try {
+            if (sale.kind === 'cancelled') {
+                dispatch(notify({ msg: bi('تم إلغاء العملية من جهاز الدفع', 'Card sale cancelled on the terminal'), sev: 'info' }));
+                return;
+            }
+            if (sale.kind === 'declined') {
+                dispatch(notify({ msg: bi(`رُفضت البطاقة: ${sale.desc.ar}`, `Card declined: ${sale.desc.en}` + (sale.code ? ` [${sale.code}]` : '')), sev: 'error' }));
+                play();
+                return;
+            }
+            // Approved: record exactly what the terminal took.
+            await recordArabBankPayment(sale, paymentMethodKey, currency, requestedAmount);
+        } finally {
+            abSaleInFlight.current = false;
+        }
+    };
 
-            let trxId = trxSlice.trx.nanoId.replace('-', '');
-            // implement ARABI BANK auto visa flow
-            axios({
-                method: 'post',
-                data: {
-                    id: trxId,
-                    amt,
-                    curr: cur
-                },
-                url: `http://127.0.0.1:9600/arabiVisaSale`
-            }).then((response) => {
-                try {
-                    let makePayment = false;
-
-                    const badFormatData = response.data;
-                    const responseDataAsString = badFormatData.split("{")[1].split("}")[0];
-                    const responseData = JSON.parse("{" + responseDataAsString + "}");
-                    console.log(responseData, responseData.RespCode);
-                    if (responseData.RespCode === '-139') {
-                    } else if (responseData.RespCode === '000') {
-                        makePayment = true;
-                    } else if (responseData.RespCode === '001') {
-                        makePayment = true;
-                    } else if (responseData.RespCode === '003') {
-                        makePayment = true;
-                    } else if (responseData.RespCode === '004') {
-                        makePayment = true;
-                    } else if (responseData.RespCode === '007') {
-                        makePayment = true;
-                    } else if (responseData.RespCode === '010') {
-                        makePayment = true;
-                    }
-
-                    if (makePayment) {
-                        dispatch(notify({ msg: responseData.RespDesc, sev: 'info' }));
-                        const transactionAmountAsString = responseData.TransAmount;
-                        const transactionAmount = parseFloat(transactionAmountAsString) / 100;
-
-                        dispatch(submitPayment({
-                            tillKey: terminal.till ? terminal.till.key : null,
-                            trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                            paymentMethodKey: trxSlice.selectedPaymentMethod,
-                            currency: trxSlice.selectedCurrency,
-                            amount: transactionAmount,
-                            sourceKey: 'AUTO VISA'
-                        }))
-                    }
-
-                } catch (e) {
-                    console.log(e);
-                    dispatch(notify({ msg: 'could not parse response data object!', sev: 'error' }));
-                }
-                dispatch(hideLoading())
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                    } else {
-                        dispatch(notify({ msg: error.response.data, sev: 'error' }));
-                    }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
-                }
-                dispatch(hideLoading())
-            });
-
-        } // end IF
-    }
-
-    const autoVisaFlowNetwork = async () => {
-
-        // this is fixed to JOD only
-
-        dispatch(showLoading('Connecting to Auto Visa [NETWORK]...'));
-
-        let amt = Math.abs(trxSlice.trxChange);
-
-        if (trxSlice.trx && amt > 0) {
-            axios({
-                method: 'post',
-                data: {
-                    id: trxSlice.trx.key,
-                    ref: trxSlice.trx.key,
-                    amt,
-                    user: terminal.loggedInUser.employeeNumber,
-                    username: terminal.loggedInUser.username,
-                    curr: 400
-                },
-                url: `http://127.0.0.1:9600/arabiVisaSale`
-            }).then((response) => {
-                try {
-                    if (response && response.data) {
-                        let makePayment = false;
-
-                        const responseData = response.data;
-                        console.log(responseData, responseData.RespCode);
-                        if (responseData.isApproved) {
-                            makePayment = true;
-                        }
-
-                        if (makePayment) {
-                            dispatch(notify({ msg: responseData.description, sev: 'info' }));
-                            const transactionAmountAsString = responseData.amt;
-                            const transactionAmount = parseFloat(transactionAmountAsString);
-
-                            dispatch(submitPayment({
-                                tillKey: terminal.till ? terminal.till.key : null,
-                                trxKey: trxSlice.trx ? trxSlice.trx.key : null,
-                                paymentMethodKey: trxSlice.selectedPaymentMethod,
-                                currency: trxSlice.selectedCurrency,
-                                amount: transactionAmount,
-                                sourceKey: 'NI-AUTOVISA-' + responseData.rrn
-                            }))
-                        } else {
-                            if (responseData.description) {
-                                dispatch(notify({ msg: responseData.description, sev: 'warning' }));
-                            } else {
-                                dispatch(notify({ msg: 'payment failed, please try again', sev: 'error' }));
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.log(e);
-                    dispatch(notify({ msg: 'could not parse response data object!', sev: 'error' }));
-                }
-                dispatch(hideLoading())
-            }).catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        dispatch(notify({ msg: 'Un-Authorized', sev: 'error' }))
-                    } else {
-                        dispatch(notify({ msg: error.response.data, sev: 'error' }));
-                    }
-                } else {
-                    dispatch(notify({ msg: error.message, sev: 'error' }));
-                }
-                dispatch(hideLoading())
-            });
-
-        } // end IF
-    }
+    /** Palestine `VISA_AB` tender — same terminal, different payment method key. */
+    const autoVisaFlowArabi = () => autoVisaFlowArabBank(config.visaArabi);
 
     /* Khairgate Wallet Payment Flow */
 
@@ -3006,15 +3065,27 @@ const Terminal = (props) => {
             tmp.push(<div style={{ lineHeight: '0.6705', color: 'transparent' }} key={obj.key + 'space'} > .</div>);
         });
 
+        // Which card terminal AUTO VISA drives is a tenant decision
+        // (config.features.autoVisaProvider): Arab Bank COM terminal via the
+        // local service (Jordan) or the BOP IP reader linked to the station
+        // (Palestine). Only the system currency can be charged.
+        const provider = config.features.autoVisaProvider || 'arabBank';
+        const autoVisaDisabled = trxSlice.selectedCurrency !== config.systemCurrency
+            || (provider === 'bop' && !terminal.terminal.bopVisaIp);
         tmp.push(
             <Button key='autovisa' className={classes.ActionButton}
-                style={{ background: '#b32572', color: 'white' }}
+                disabled={autoVisaDisabled}
+                style={{ background: provider === 'arabBank' ? '#015aab' : '#b32572', color: 'white', opacity: autoVisaDisabled ? 0.55 : 1 }}
                 onClick={() => {
-                    autoVisaFlowNetwork();
+                    if (provider === 'bop') {
+                        autoVisaFlow();
+                    } else {
+                        autoVisaFlowArabBank();
+                    }
                 }} >
                 <div style={{ textAlign: 'center' }}>
                     <FontAwesomeIcon icon={faChain} />
-                    <label style={{ marginLeft: '2px' }}>AUTO VISA</label>
+                    <label style={{ marginLeft: '2px' }}>{provider === 'arabBank' ? 'AUTO VISA (ARAB BANK)' : 'AUTO VISA'}</label>
                 </div>
             </Button>
         )
@@ -3044,7 +3115,6 @@ const Terminal = (props) => {
 
         tmp.push(
             <Button key='autovisa_arabi' className={classes.ActionButton}
-                disabled={!terminal.terminal.bopVisaIp}
                 style={{ background: '#015aab', color: 'white' }}
                 onClick={() => {
                     autoVisaFlowArabi();
@@ -3484,6 +3554,144 @@ const Terminal = (props) => {
             dispatch(hideLoading());
         })
     }
+
+    /* ---------------------------------------------------------------------
+     * Admin > ARAB BANK VISA panel handlers. All calls go to the Electron
+     * express app, which owns the service / COM port knowledge.
+     * ------------------------------------------------------------------- */
+
+    const abErrText = (error) => {
+        const data = error && error.response && error.response.data;
+        if (data && typeof data === 'object') return data.error || data.code || JSON.stringify(data);
+        if (typeof data === 'string' && data) return data;
+        return (error && error.message) || 'unknown error';
+    };
+
+    const refreshArabBankStatus = async (quiet) => {
+        if (!quiet) setAbBusy('status');
+        try {
+            const r = await axios({ method: 'get', url: abLocalUrl('/arabiVisa/status'), timeout: 15000 });
+            setAbStatus(r.data);
+            return r.data;
+        } catch (error) {
+            setAbStatus({ error: abErrText(error) });
+            return null;
+        } finally {
+            if (!quiet) setAbBusy(null);
+        }
+    };
+
+    // Load the status when the settings modal opens (Jordan admin panel only).
+    useEffect(() => {
+        if (settingsOpen && config.features.arabBankVisaAdmin) {
+            refreshArabBankStatus(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [settingsOpen]);
+
+    /** Poll /arabiVisa/install/status until the installer exits. Resolves the final status. */
+    const waitForArabBankInstall = async () => {
+        const started = Date.now();
+        while (Date.now() - started < 6 * 60 * 1000) {
+            await new Promise((r) => setTimeout(r, 2000));
+            try {
+                const r = await axios({ method: 'get', url: abLocalUrl('/arabiVisa/install/status'), timeout: 10000 });
+                setAbInstallLog(r.data.logTail || []);
+                if (!r.data.running) return r.data;
+            } catch (error) {
+                // Electron busy spawning; keep polling.
+            }
+        }
+        return { running: true, exitCode: null, exitMessage: 'Installer still running after 6 minutes' };
+    };
+
+    const saveArabBankPort = async (comPort, baudRate) => {
+        const patch = { arabiVisaCom: comPort };
+        if (baudRate) patch.arabiVisaBaudRate = Number(baudRate);
+        await axios({ method: 'post', url: abLocalUrl('/localConfig/merge'), data: patch, timeout: 10000 });
+    };
+
+    /** Find the terminal and persist the port. Returns the detection payload or null. */
+    const detectArabBankPort = async () => {
+        setAbBusy('detect');
+        setAbMessage({ sev: 'info', text: 'Probing serial ports for the Arab Bank terminal…' });
+        try {
+            const r = await axios({
+                method: 'post', url: abLocalUrl('/arabiVisa/autoDetect'),
+                data: { terminal: terminal.terminal }, timeout: 120000
+            });
+            const d = r.data;
+            await saveArabBankPort(d.comPort, d.baudRate);
+            setAbMessage({ sev: 'success', text: `Terminal found on ${d.comPort} @ ${d.baudRate} baud (${d.friendlyName || 'serial'}) — saved to posconfig.json` });
+            await refreshArabBankStatus(true);
+            return d;
+        } catch (error) {
+            const data = error.response && error.response.data;
+            let text = abErrText(error);
+            if (data && data.attempts && data.attempts.length) {
+                text += ' — ' + data.attempts.map((a) => `${a.comPort}: ${a.ok ? 'OK' : (a.code || 'no answer')}`).join(', ');
+            }
+            setAbMessage({ sev: 'error', text });
+            await refreshArabBankStatus(true);
+            return null;
+        } finally {
+            setAbBusy(null);
+        }
+    };
+
+    const testArabBankConnection = async () => {
+        setAbBusy('test');
+        setAbMessage({ sev: 'info', text: 'Sending handshake to the terminal…' });
+        try {
+            const r = await axios({ method: 'post', url: abLocalUrl('/arabiVisa/handshake'), data: {}, timeout: 45000 });
+            setAbMessage({ sev: 'success', text: `Terminal answered on ${r.data.comPort} @ ${r.data.baudRate} baud in ${r.data.elapsedMs} ms` });
+        } catch (error) {
+            setAbMessage({ sev: 'error', text: 'Handshake failed: ' + abErrText(error) });
+        } finally {
+            setAbBusy(null);
+            refreshArabBankStatus(true);
+        }
+    };
+
+    /**
+     * One-click setup: install/repair the Windows service (UAC prompt on the
+     * station), auto-detect the COM port, verify with a handshake, then offer
+     * a restart so the main process reloads posconfig.json.
+     */
+    const setupArabBankAutomatically = async () => {
+        setAbBusy('install');
+        setAbInstallLog([]);
+        setAbMessage({ sev: 'info', text: 'Installing the Arab Bank Visa service — accept the Windows prompt on the station…' });
+        let installOk = false;
+        try {
+            await axios({ method: 'post', url: abLocalUrl('/arabiVisa/install'), data: {}, timeout: 20000 });
+            const done = await waitForArabBankInstall();
+            if (done.exitCode === 0) {
+                installOk = true;
+                setAbMessage({ sev: 'success', text: 'Service installed and running on port ' + ((abStatus && abStatus.settings && abStatus.settings.servicePort) || 9700) });
+            } else {
+                setAbMessage({ sev: 'error', text: `Installer exit ${done.exitCode}: ${done.exitMessage || 'see log below'}` });
+            }
+        } catch (error) {
+            setAbMessage({ sev: 'error', text: 'Install failed: ' + abErrText(error) });
+        } finally {
+            setAbBusy(null);
+        }
+        if (!installOk) { await refreshArabBankStatus(true); return; }
+
+        const detected = await detectArabBankPort();
+        if (!detected) return;
+
+        confirm(
+            'ARAB BANK VISA READY',
+            `Service installed and terminal found on ${detected.comPort}. Restart the POS now so the new COM port is picked up everywhere?`,
+            () => {
+                axios({ method: 'get', url: abLocalUrl('/restart') }).catch(() => { });
+            },
+            'success',
+            { confirmText: 'RESTART NOW', cancelText: 'LATER' }
+        );
+    };
 
 
     // -----------------------------------------------------------------------
@@ -4887,7 +5095,99 @@ const Terminal = (props) => {
                     </div>}
                     <br />
                 </Panel>
+
+                {config.features.arabBankVisaAdmin && (() => {
+                    const st = abStatus || {};
+                    const settings = st.settings || {};
+                    const svc = st.service || {};
+                    const pkg = st.package || {};
+                    const health = st.health;
+                    const row = (label, value, ok) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px dashed #E5E7EB', fontSize: 13 }}>
+                            <span style={{ color: '#6B7280', fontWeight: 600 }}>{label}</span>
+                            <span style={{ fontWeight: 700, color: ok === true ? '#047857' : ok === false ? '#B91C1C' : '#111827', textAlign: 'right', maxWidth: '60%' }}>{value}</span>
+                        </div>
+                    );
+                    const svcState = svc.installed ? (svc.state || 'UNKNOWN') : 'NOT INSTALLED';
+                    const portsTxt = (st.ports || []).map((p) => p.path + (p.friendlyName ? ` (${p.friendlyName.replace(/\s*\(COM\d+\)\s*$/, '')})` : '')).join(', ') || 'none';
+                    const conflicts = st.comPortConflicts || [];
+                    const working = !!abBusy;
+                    const canUseService = st.serviceReachable;
+                    return (
+                        <Panel bordered header='ARAB BANK VISA (card terminal)' style={{ margin: '10px' }}>
+                            {st.error && <div style={{ color: '#B91C1C', fontSize: 13, marginBottom: 6 }}>Status unavailable: {st.error}</div>}
+                            {!abStatus && !st.error && <div style={{ color: '#6B7280', fontSize: 13 }}>Loading status…</div>}
+                            {abStatus && !st.error && (
+                                <div style={{ marginBottom: 8 }}>
+                                    {row('Overall', st.ready ? 'READY' : 'NOT READY', !!st.ready)}
+                                    {row('Windows service', svcState + (pkg.version ? ` · v${pkg.version}` : ''), svc.state === 'RUNNING')}
+                                    {row('Service API :' + (settings.servicePort || 9700), canUseService ? ('reachable' + (health && health.ok ? ' · healthy' : ' · ' + ((health && (health.error || health.code)) || 'degraded'))) : 'not reachable', canUseService && health && health.ok)}
+                                    {row('Package', pkg.present ? (pkg.bundledNode && pkg.dll && pkg.nodeModules ? 'complete' : 'INCOMPLETE') : 'missing at ' + (pkg.dir || settings.serviceDir), pkg.present && pkg.bundledNode && pkg.dll && pkg.nodeModules)}
+                                    {row('Terminal COM port (posconfig)', settings.comPort ? `${settings.comPort} @ ${settings.baudRate}` : 'not set', settings.comPort ? st.comPortPresent : false)}
+                                    {row('Serial ports on this PC', portsTxt, undefined)}
+                                    {conflicts.length > 0 && row('Conflicts', conflicts.join('; '), false)}
+                                    {st.activeSale && row('Sale in progress', `ref ${st.activeSale.transIndexCode} · ${st.activeSale.elapsedSec}s`, false)}
+                                    {st.lastInstall && row('Last install', `${st.lastInstall.exitCode === 0 ? 'OK' : 'FAILED (' + st.lastInstall.exitCode + ')'} · ${(st.lastInstall.timestamp || '').replace('T', ' ').slice(0, 19)} · ${st.lastInstall.message || ''}`, st.lastInstall.exitCode === 0)}
+                                </div>
+                            )}
+
+                            {abMessage && (
+                                <div style={{
+                                    padding: '8px 10px', borderRadius: 8, marginBottom: 8, fontSize: 13, fontWeight: 600,
+                                    background: abMessage.sev === 'error' ? '#FEE2E2' : abMessage.sev === 'success' ? '#DCFCE7' : '#E0F2FE',
+                                    color: abMessage.sev === 'error' ? '#991B1B' : abMessage.sev === 'success' ? '#166534' : '#075985'
+                                }}>
+                                    {abMessage.text}
+                                </div>
+                            )}
+
+                            <ButtonToolbar style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                <Button appearance='primary' style={{ background: '#015aab' }}
+                                    disabled={working || !!st.activeSale}
+                                    loading={abBusy === 'install'}
+                                    onClick={setupArabBankAutomatically}>
+                                    <FontAwesomeIcon icon={faPlug} /> Setup automatically
+                                </Button>
+                                <Button appearance='ghost' disabled={working || !canUseService || !!st.activeSale}
+                                    loading={abBusy === 'detect'}
+                                    onClick={detectArabBankPort}>
+                                    <FontAwesomeIcon icon={faSearch} /> Re-detect port
+                                </Button>
+                                <Button appearance='ghost' disabled={working || !canUseService || !settings.comPort || !!st.activeSale}
+                                    loading={abBusy === 'test'}
+                                    onClick={testArabBankConnection}>
+                                    <FontAwesomeIcon icon={faChain} /> Test connection
+                                </Button>
+                                <Button appearance='subtle' disabled={working}
+                                    onClick={() => setAbConfigEditorOpen(true)}>
+                                    <FontAwesomeIcon icon={faCogs} /> Edit posconfig
+                                </Button>
+                                <Button appearance='subtle' disabled={working}
+                                    loading={abBusy === 'status'}
+                                    onClick={() => refreshArabBankStatus(false)}>
+                                    <FontAwesomeIcon icon={faRepeat} /> Refresh
+                                </Button>
+                            </ButtonToolbar>
+
+                            {abInstallLog.length > 0 && (
+                                <pre style={{
+                                    marginTop: 8, maxHeight: 160, overflow: 'auto', fontSize: 11, lineHeight: 1.35,
+                                    background: '#111827', color: '#E5E7EB', padding: 8, borderRadius: 8, whiteSpace: 'pre-wrap'
+                                }}>
+                                    {abInstallLog.join('\n')}
+                                </pre>
+                            )}
+                            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6 }}>
+                                Technicians can also run install.bat in {settings.serviceDir || 'C:/pos/arabi-visa-pos-windows-service'} as administrator.
+                            </div>
+                        </Panel>
+                    );
+                })()}
             </Modal>
+
+            {config.features.arabBankVisaAdmin && (
+                <PosConfigEditor open={abConfigEditorOpen} onClose={() => { setAbConfigEditorOpen(false); refreshArabBankStatus(true); }} />
+            )}
 
             <Modal open={lastTrxOpen} onClose={() => { setLastTrxOpen(false) }}  >
                 <h4 style={{ padding: '0px', margin: '0px' }}>
