@@ -456,6 +456,15 @@ if (!gotTheLock) {
         })
     }
 
+    const describeHttpError = (error) => {
+        if (error && error.response) {
+            const data = error.response.data;
+            const body = typeof data === 'string' ? data : (data ? JSON.stringify(data) : '');
+            return `HTTP ${error.response.status}${body ? ': ' + body : ''}`;
+        }
+        return (error && error.message) ? error.message : String(error);
+    };
+
     const fetchTrx = async (trxKey) => {
         const response = await axios({
             method: 'post',
@@ -486,7 +495,13 @@ if (!gotTheLock) {
         const delayMs = 500;
         let trx = null;
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            trx = await fetchTrx(trxKey);
+            try {
+                trx = await fetchTrx(trxKey);
+            } catch (error) {
+                // A later poll must not throw away a receipt we already have.
+                if (trx) return trx;
+                throw error;
+            }
             if (!trx) {
                 return null;
             }
@@ -629,11 +644,9 @@ if (!gotTheLock) {
                 res.status(404).send('Transaction not found');
             }
         } catch (error) {
-            if (error.response) {
-                dialog.showErrorBox('Error', 'Un-Authorized')
-            } else {
-                dialog.showErrorBox('Error', error.message)
-            }
+            const detail = describeHttpError(error);
+            logger.error('printTrx failed: ' + detail);
+            dialog.showErrorBox('Receipt was not printed', String(detail).slice(0, 600));
             res.send('error');
         }
     })
@@ -693,11 +706,9 @@ if (!gotTheLock) {
                 res.status(404).send('Transaction not found');
             }
         } catch (error) {
-            if (error.response) {
-                dialog.showErrorBox('Error', 'Un-Authorized')
-            } else {
-                dialog.showErrorBox('Error', error.message)
-            }
+            const detail = describeHttpError(error);
+            logger.error('printTrxNoDrawer failed: ' + detail);
+            dialog.showErrorBox('Receipt was not printed', String(detail).slice(0, 600));
             res.send('error');
         }
     })
