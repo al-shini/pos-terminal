@@ -5,8 +5,8 @@ import { Button, FlexboxGrid, Divider, Input, SelectPicker, Drawer, ButtonGroup,
 import classes from './Terminal.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faSackDollar, faMoneyBillTransfer, faRepeat, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown, faCogs,
-    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faSearch, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck, faArrowRightFromBracket, faQrcode, faMobileScreenButton, faHashtag, faMotorcycle, faBullhorn, faHourglassHalf, faBoxOpen, faAppleWhole, faLeaf, faPlug, faTriangleExclamation, faWeightScale
+    faSackDollar, faMoneyBillTransfer, faUser, faScaleBalanced, faTag, faChevronUp, faChevronDown, faCogs,
+    faCarrot, faShieldHalved, faMoneyBill, faIdCard, faTimes, faEraser, faBan, faPause, faRotateLeft, faDollarSign, faLock, faUnlock, faStar, faChain, faHistory, faPlay, faPlusSquare, faTags, faKey, faExclamationTriangle, faList, faCheck, faArrowRightFromBracket, faQrcode, faMobileScreenButton, faHashtag, faMotorcycle, faBullhorn, faHourglassHalf, faBoxOpen, faAppleWhole, faLeaf, faPlug, faTriangleExclamation, faWeightScale
 } from '@fortawesome/free-solid-svg-icons'
 import Numpad from './Numpad';
 import Invoice from './Invoice';
@@ -37,7 +37,6 @@ import { arabicize } from '../../utils/arabicMessages';
 import {
     toMinorUnits, buildTransIndexCode, interpretSale, describeFailure, buildSourceKey, CURRENCY_CODES
 } from '../../utils/arabBankVisa';
-import PosConfigEditor from '../Login/PosConfigEditor';
 import errorBeep from '../../assets/error.wav';
 import QRCode from "react-qr-code";
 import useSound from 'use-sound';
@@ -195,12 +194,6 @@ const Terminal = (props) => {
     // Arab Bank card sale in flight (ref, not state: the double-tap guard must
     // see the latest value synchronously, before React re-renders).
     const abSaleInFlight = useRef(false);
-    // Arab Bank admin panel state: last /arabiVisa/status reply + UI flags.
-    const [abStatus, setAbStatus] = useState(null);
-    const [abBusy, setAbBusy] = useState(null); // 'status' | 'install' | 'detect' | 'test' | null
-    const [abInstallLog, setAbInstallLog] = useState([]);
-    const [abMessage, setAbMessage] = useState(null); // { sev, text }
-    const [abConfigEditorOpen, setAbConfigEditorOpen] = useState(false);
 
     const incrementTrxCount = () => {
         if (trxCounter == 9) {
@@ -3555,145 +3548,6 @@ const Terminal = (props) => {
         })
     }
 
-    /* ---------------------------------------------------------------------
-     * Admin > ARAB BANK VISA panel handlers. All calls go to the Electron
-     * express app, which owns the service / COM port knowledge.
-     * ------------------------------------------------------------------- */
-
-    const abErrText = (error) => {
-        const data = error && error.response && error.response.data;
-        if (data && typeof data === 'object') return data.error || data.code || JSON.stringify(data);
-        if (typeof data === 'string' && data) return data;
-        return (error && error.message) || 'unknown error';
-    };
-
-    const refreshArabBankStatus = async (quiet) => {
-        if (!quiet) setAbBusy('status');
-        try {
-            const r = await axios({ method: 'get', url: abLocalUrl('/arabiVisa/status'), timeout: 15000 });
-            setAbStatus(r.data);
-            return r.data;
-        } catch (error) {
-            setAbStatus({ error: abErrText(error) });
-            return null;
-        } finally {
-            if (!quiet) setAbBusy(null);
-        }
-    };
-
-    // Load the status when the settings modal opens (Jordan admin panel only).
-    useEffect(() => {
-        if (settingsOpen && config.features.arabBankVisaAdmin) {
-            refreshArabBankStatus(true);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [settingsOpen]);
-
-    /** Poll /arabiVisa/install/status until the installer exits. Resolves the final status. */
-    const waitForArabBankInstall = async () => {
-        const started = Date.now();
-        while (Date.now() - started < 6 * 60 * 1000) {
-            await new Promise((r) => setTimeout(r, 2000));
-            try {
-                const r = await axios({ method: 'get', url: abLocalUrl('/arabiVisa/install/status'), timeout: 10000 });
-                setAbInstallLog(r.data.logTail || []);
-                if (!r.data.running) return r.data;
-            } catch (error) {
-                // Electron busy spawning; keep polling.
-            }
-        }
-        return { running: true, exitCode: null, exitMessage: 'Installer still running after 6 minutes' };
-    };
-
-    const saveArabBankPort = async (comPort, baudRate) => {
-        const patch = { arabiVisaCom: comPort };
-        if (baudRate) patch.arabiVisaBaudRate = Number(baudRate);
-        await axios({ method: 'post', url: abLocalUrl('/localConfig/merge'), data: patch, timeout: 10000 });
-    };
-
-    /** Find the terminal and persist the port. Returns the detection payload or null. */
-    const detectArabBankPort = async () => {
-        setAbBusy('detect');
-        setAbMessage({ sev: 'info', text: 'Probing serial ports for the Arab Bank terminal…' });
-        try {
-            const r = await axios({
-                method: 'post', url: abLocalUrl('/arabiVisa/autoDetect'),
-                data: { terminal: terminal.terminal }, timeout: 120000
-            });
-            const d = r.data;
-            await saveArabBankPort(d.comPort, d.baudRate);
-            setAbMessage({ sev: 'success', text: `Terminal found on ${d.comPort} @ ${d.baudRate} baud (${d.friendlyName || 'serial'}) — saved to posconfig.json` });
-            await refreshArabBankStatus(true);
-            return d;
-        } catch (error) {
-            const data = error.response && error.response.data;
-            let text = abErrText(error);
-            if (data && data.attempts && data.attempts.length) {
-                text += ' — ' + data.attempts.map((a) => `${a.comPort}: ${a.ok ? 'OK' : (a.code || 'no answer')}`).join(', ');
-            }
-            setAbMessage({ sev: 'error', text });
-            await refreshArabBankStatus(true);
-            return null;
-        } finally {
-            setAbBusy(null);
-        }
-    };
-
-    const testArabBankConnection = async () => {
-        setAbBusy('test');
-        setAbMessage({ sev: 'info', text: 'Sending handshake to the terminal…' });
-        try {
-            const r = await axios({ method: 'post', url: abLocalUrl('/arabiVisa/handshake'), data: {}, timeout: 45000 });
-            setAbMessage({ sev: 'success', text: `Terminal answered on ${r.data.comPort} @ ${r.data.baudRate} baud in ${r.data.elapsedMs} ms` });
-        } catch (error) {
-            setAbMessage({ sev: 'error', text: 'Handshake failed: ' + abErrText(error) });
-        } finally {
-            setAbBusy(null);
-            refreshArabBankStatus(true);
-        }
-    };
-
-    /**
-     * One-click setup: install/repair the Windows service (UAC prompt on the
-     * station), auto-detect the COM port, verify with a handshake, then offer
-     * a restart so the main process reloads posconfig.json.
-     */
-    const setupArabBankAutomatically = async () => {
-        setAbBusy('install');
-        setAbInstallLog([]);
-        setAbMessage({ sev: 'info', text: 'Installing the Arab Bank Visa service — accept the Windows prompt on the station…' });
-        let installOk = false;
-        try {
-            await axios({ method: 'post', url: abLocalUrl('/arabiVisa/install'), data: {}, timeout: 20000 });
-            const done = await waitForArabBankInstall();
-            if (done.exitCode === 0) {
-                installOk = true;
-                setAbMessage({ sev: 'success', text: 'Service installed and running on port ' + ((abStatus && abStatus.settings && abStatus.settings.servicePort) || 9700) });
-            } else {
-                setAbMessage({ sev: 'error', text: `Installer exit ${done.exitCode}: ${done.exitMessage || 'see log below'}` });
-            }
-        } catch (error) {
-            setAbMessage({ sev: 'error', text: 'Install failed: ' + abErrText(error) });
-        } finally {
-            setAbBusy(null);
-        }
-        if (!installOk) { await refreshArabBankStatus(true); return; }
-
-        const detected = await detectArabBankPort();
-        if (!detected) return;
-
-        confirm(
-            'ARAB BANK VISA READY',
-            `Service installed and terminal found on ${detected.comPort}. Restart the POS now so the new COM port is picked up everywhere?`,
-            () => {
-                axios({ method: 'get', url: abLocalUrl('/restart') }).catch(() => { });
-            },
-            'success',
-            { confirmText: 'RESTART NOW', cancelText: 'LATER' }
-        );
-    };
-
-
     // -----------------------------------------------------------------------
     // Self-checkout kiosk mode. All handlers / effects above still run
     // (till init, produce fetch, CashDro, etc.). Only the cashier JSX is
@@ -5096,98 +4950,7 @@ const Terminal = (props) => {
                     <br />
                 </Panel>
 
-                {config.features.arabBankVisaAdmin && (() => {
-                    const st = abStatus || {};
-                    const settings = st.settings || {};
-                    const svc = st.service || {};
-                    const pkg = st.package || {};
-                    const health = st.health;
-                    const row = (label, value, ok) => (
-                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px dashed #E5E7EB', fontSize: 13 }}>
-                            <span style={{ color: '#6B7280', fontWeight: 600 }}>{label}</span>
-                            <span style={{ fontWeight: 700, color: ok === true ? '#047857' : ok === false ? '#B91C1C' : '#111827', textAlign: 'right', maxWidth: '60%' }}>{value}</span>
-                        </div>
-                    );
-                    const svcState = svc.installed ? (svc.state || 'UNKNOWN') : 'NOT INSTALLED';
-                    const portsTxt = (st.ports || []).map((p) => p.path + (p.friendlyName ? ` (${p.friendlyName.replace(/\s*\(COM\d+\)\s*$/, '')})` : '')).join(', ') || 'none';
-                    const conflicts = st.comPortConflicts || [];
-                    const working = !!abBusy;
-                    const canUseService = st.serviceReachable;
-                    return (
-                        <Panel bordered header='ARAB BANK VISA (card terminal)' style={{ margin: '10px' }}>
-                            {st.error && <div style={{ color: '#B91C1C', fontSize: 13, marginBottom: 6 }}>Status unavailable: {st.error}</div>}
-                            {!abStatus && !st.error && <div style={{ color: '#6B7280', fontSize: 13 }}>Loading status…</div>}
-                            {abStatus && !st.error && (
-                                <div style={{ marginBottom: 8 }}>
-                                    {row('Overall', st.ready ? 'READY' : 'NOT READY', !!st.ready)}
-                                    {row('Windows service', svcState + (pkg.version ? ` · v${pkg.version}` : ''), svc.state === 'RUNNING')}
-                                    {row('Service API :' + (settings.servicePort || 9700), canUseService ? ('reachable' + (health && health.ok ? ' · healthy' : ' · ' + ((health && (health.error || health.code)) || 'degraded'))) : 'not reachable', canUseService && health && health.ok)}
-                                    {row('Package', pkg.present ? (pkg.bundledNode && pkg.dll && pkg.nodeModules ? 'complete' : 'INCOMPLETE') : 'missing at ' + (pkg.dir || settings.serviceDir), pkg.present && pkg.bundledNode && pkg.dll && pkg.nodeModules)}
-                                    {row('Terminal COM port (posconfig)', settings.comPort ? `${settings.comPort} @ ${settings.baudRate}` : 'not set', settings.comPort ? st.comPortPresent : false)}
-                                    {row('Serial ports on this PC', portsTxt, undefined)}
-                                    {conflicts.length > 0 && row('Conflicts', conflicts.join('; '), false)}
-                                    {st.activeSale && row('Sale in progress', `ref ${st.activeSale.transIndexCode} · ${st.activeSale.elapsedSec}s`, false)}
-                                    {st.lastInstall && row('Last install', `${st.lastInstall.exitCode === 0 ? 'OK' : 'FAILED (' + st.lastInstall.exitCode + ')'} · ${(st.lastInstall.timestamp || '').replace('T', ' ').slice(0, 19)} · ${st.lastInstall.message || ''}`, st.lastInstall.exitCode === 0)}
-                                </div>
-                            )}
-
-                            {abMessage && (
-                                <div style={{
-                                    padding: '8px 10px', borderRadius: 8, marginBottom: 8, fontSize: 13, fontWeight: 600,
-                                    background: abMessage.sev === 'error' ? '#FEE2E2' : abMessage.sev === 'success' ? '#DCFCE7' : '#E0F2FE',
-                                    color: abMessage.sev === 'error' ? '#991B1B' : abMessage.sev === 'success' ? '#166534' : '#075985'
-                                }}>
-                                    {abMessage.text}
-                                </div>
-                            )}
-
-                            <ButtonToolbar style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                <Button appearance='primary' style={{ background: '#015aab' }}
-                                    disabled={working || !!st.activeSale}
-                                    loading={abBusy === 'install'}
-                                    onClick={setupArabBankAutomatically}>
-                                    <FontAwesomeIcon icon={faPlug} /> Setup automatically
-                                </Button>
-                                <Button appearance='ghost' disabled={working || !canUseService || !!st.activeSale}
-                                    loading={abBusy === 'detect'}
-                                    onClick={detectArabBankPort}>
-                                    <FontAwesomeIcon icon={faSearch} /> Re-detect port
-                                </Button>
-                                <Button appearance='ghost' disabled={working || !canUseService || !settings.comPort || !!st.activeSale}
-                                    loading={abBusy === 'test'}
-                                    onClick={testArabBankConnection}>
-                                    <FontAwesomeIcon icon={faChain} /> Test connection
-                                </Button>
-                                <Button appearance='subtle' disabled={working}
-                                    onClick={() => setAbConfigEditorOpen(true)}>
-                                    <FontAwesomeIcon icon={faCogs} /> Edit posconfig
-                                </Button>
-                                <Button appearance='subtle' disabled={working}
-                                    loading={abBusy === 'status'}
-                                    onClick={() => refreshArabBankStatus(false)}>
-                                    <FontAwesomeIcon icon={faRepeat} /> Refresh
-                                </Button>
-                            </ButtonToolbar>
-
-                            {abInstallLog.length > 0 && (
-                                <pre style={{
-                                    marginTop: 8, maxHeight: 160, overflow: 'auto', fontSize: 11, lineHeight: 1.35,
-                                    background: '#111827', color: '#E5E7EB', padding: 8, borderRadius: 8, whiteSpace: 'pre-wrap'
-                                }}>
-                                    {abInstallLog.join('\n')}
-                                </pre>
-                            )}
-                            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6 }}>
-                                Technicians can also run install.bat in {settings.serviceDir || 'C:/pos/arabi-visa-pos-windows-service'} as administrator.
-                            </div>
-                        </Panel>
-                    );
-                })()}
             </Modal>
-
-            {config.features.arabBankVisaAdmin && (
-                <PosConfigEditor open={abConfigEditorOpen} onClose={() => { setAbConfigEditorOpen(false); refreshArabBankStatus(true); }} />
-            )}
 
             <Modal open={lastTrxOpen} onClose={() => { setLastTrxOpen(false) }}  >
                 <h4 style={{ padding: '0px', margin: '0px' }}>

@@ -131,9 +131,6 @@ const tenantProfiles = {
             // CashierAgent DLL over COM (replaces the retired Network
             // International integration); 'bop' = Bank of Palestine IP reader.
             autoVisaProvider: 'arabBank',
-            // Admin > "ARAB BANK VISA" panel: service status, one-click
-            // install, COM auto-detect, test connection.
-            arabBankVisaAdmin: true,
             // "Print Last TRX" button in the Operations menu — lists the last
             // 10 transactions and lets the cashier re-print any of them.
             // Disabled for Palestine per business requirement.
@@ -210,9 +207,6 @@ const tenantProfiles = {
             // The `Visa` tender's AUTO VISA button drives the BOP IP reader
             // here; the Arab Bank COM terminal is the separate VISA_AB tender.
             autoVisaProvider: 'bop',
-            // Palestine stations with an Arab Bank terminal still need the
-            // service/COM setup panel for the VISA_AB tender.
-            arabBankVisaAdmin: true,
             printLastTrx: false,
             adminInvoicesLookup: false,
             adminCustomersLookup: false,
