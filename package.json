@@ -1,6 +1,6 @@
 {
   "name": "pos",
-  "version": "5.2.6",
+  "version": "5.2.8",
   "main": "public/electron.js",
   "author": {
     "name": "Mohammad Nairat",

@@ -55,17 +55,23 @@ const Dashboard = (props) => {
     }, []);
 
     const updateCustomer = (loginResponse) => {
+        const sapCustomerCode = loginResponse && loginResponse.store && loginResponse.store.sapCustomerCode;
+        if (!sapCustomerCode) {
+            return;
+        }
         console.log('updating customer');
         axios({
             method: 'post',
             url: '/posAcc/fetchCustomer',
             headers: {
-                customerKey: loginResponse.store.sapCustomerCode
+                customerKey: sapCustomerCode
             }
         }).then((response) => {
             if (response && response.data) {
                 dispatch(setStoreCustomer(response.data))
-                checkOpenTrx(loginResponse.till, response.data);
+                if (loginResponse.till && loginResponse.till.key) {
+                    checkOpenTrx(loginResponse.till, response.data);
+                }
             }
         }).catch((error) => {
             dispatch(notify({ msg: error ? error.message : error, sev: 'error' }));

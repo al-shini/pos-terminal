@@ -109,20 +109,34 @@ export const login = createAsyncThunk(
             }
         }).then((response) => {
             if (response && response.data) {
-                axios({
-                    method: 'post',
-                    url: '/posAcc/fetchCustomer',
-                    headers: {
-                        customerKey: response.data.store.sapCustomerCode
-                    }
-                }).then((response) => {
-                    if (response && response.data) {
-                        thunkAPI.dispatch(setStoreCustomer(response.data))
-                        if (!thunkAPI.getState().terminal.customer) {
-                            thunkAPI.dispatch(setCustomer(response.data))
+                // Customer lookup is a follow-up. Reading store.sapCustomerCode
+                // unconditionally throws when the 200 body has no store, the
+                // catch then rejects the whole login, and arabicize() hides
+                // the TypeError behind the generic "try again" toast.
+                const store = response.data.store;
+                const sapCustomerCode = store && store.sapCustomerCode;
+                if (sapCustomerCode) {
+                    axios({
+                        method: 'post',
+                        url: '/posAcc/fetchCustomer',
+                        headers: {
+                            customerKey: sapCustomerCode
                         }
-                    }
-                })
+                    }).then((customerResponse) => {
+                        if (customerResponse && customerResponse.data) {
+                            thunkAPI.dispatch(setStoreCustomer(customerResponse.data))
+                            if (!thunkAPI.getState().terminal.customer) {
+                                thunkAPI.dispatch(setCustomer(customerResponse.data))
+                            }
+                        }
+                    }).catch((error) => {
+                        const detail = (error && error.response && error.response.data) || (error && error.message) || error;
+                        thunkAPI.dispatch(notify({
+                            msg: 'تعذّر تحميل عميل المتجر — ' + detail,
+                            sev: 'warning'
+                        }));
+                    });
+                }
 
                 return thunkAPI.fulfillWithValue(response.data);
             } else {
